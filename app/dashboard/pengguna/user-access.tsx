@@ -40,9 +40,9 @@ const sensitivePermissions = [
   { id: "payment.allocate", label: "Alokasi Payment" },
 ];
 
-export default function UserAccess() {
+export default function UserAccess({ initialUsers }: { initialUsers: UserRecord[] }) {
   const [users, setUsers] = useState(initialUsers);
-  const [settings, setSettings] = useState(initialSettings);
+  const [settings, setSettings] = useState<Record<string, typeof emptySettings>>({});
   const [selectedId, setSelectedId] = useState(initialUsers[0]?.id ?? "");
   const [saved, setSaved] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
