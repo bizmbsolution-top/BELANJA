@@ -188,7 +188,7 @@ export default function UserAccess({ initialUsers }: { initialUsers: UserRecord[
       setEditEmailError("Pilih pengguna yang valid.");
       return;
     }
-    if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       setEditEmailError("Masukkan alamat email yang valid.");
       return;
     }
