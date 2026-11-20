@@ -104,3 +104,42 @@
 .logoutButton { padding: 9px 14px; border: 1px solid #d5deeb; border-radius: 9px; background: #fff; color: #344563; font-size: 12px; font-weight: 800; cursor: pointer; }
 .logoutButton:hover { background: #f4f7fb; }
 @media (max-width: 560px) { .headerActions { width: 100%; justify-content: space-between; } }
+
+/* Dark mode: account and access management */
+:global([data-theme="dark"]) .page{color:#e5edf8}
+:global([data-theme="dark"]) .eyebrow{color:#8eb6ff}
+:global([data-theme="dark"]) .subtitle,
+:global([data-theme="dark"]) .userHeading p:last-child{color:#aab8cc}
+:global([data-theme="dark"]) .backLink{color:#8eb6ff}
+:global([data-theme="dark"]) .previewNote{border-color:#344966;background:#192b45;color:#c4d0e0}
+:global([data-theme="dark"]) .previewNote strong{color:#9dbaff}
+:global([data-theme="dark"]) .userPanel,
+:global([data-theme="dark"]) .formPanel{border-color:#293b56;background:#142238;box-shadow:none}
+:global([data-theme="dark"]) .panelHeading h2,
+:global([data-theme="dark"]) .userHeading h2,
+:global([data-theme="dark"]) .section h3,
+:global([data-theme="dark"]) .scopeCard h4{color:#f4f7fb}
+:global([data-theme="dark"]) .panelHeading span,
+:global([data-theme="dark"]) .fieldLabel,
+:global([data-theme="dark"]) .helper,
+:global([data-theme="dark"]) .listHint{color:#9eacc2}
+:global([data-theme="dark"]) .userItemActive{border-color:#42669a;background:#1d3555}
+:global([data-theme="dark"]) .avatar{background:#263e62;color:#a9c6ff}
+:global([data-theme="dark"]) .userInfo strong{color:#f4f7fb}
+:global([data-theme="dark"]) .userInfo small{color:#aab8cc}
+:global([data-theme="dark"]) .userHeading,
+:global([data-theme="dark"]) .section{border-color:#34445c}
+:global([data-theme="dark"]) .checkChoice,
+:global([data-theme="dark"]) .permissionItem{border-color:#34445c;color:#d5deeb}
+:global([data-theme="dark"]) .organization,
+:global([data-theme="dark"]) .scopeCard{border-color:#34445c;background:#192b45;color:#e5edf8}
+:global([data-theme="dark"]) .radioChoice,
+:global([data-theme="dark"]) .option,
+:global([data-theme="dark"]) .permissionControl{color:#bdc9d9}
+:global([data-theme="dark"]) .optionList{border-color:#34445c}
+:global([data-theme="dark"]) .allHint{color:#75d6a6}
+:global([data-theme="dark"]) .resetButton,
+:global([data-theme="dark"]) .logoutButton{border-color:#43536c;background:#1c2b42;color:#e5edf8}
+:global([data-theme="dark"]) .resetButton:hover,
+:global([data-theme="dark"]) .logoutButton:hover{background:#263a57}
+:global([data-theme="dark"]) .resetMessage{background:#3b321f;color:#f2d58a}
