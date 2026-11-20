@@ -2,7 +2,7 @@
 
 import { type FormEvent, useMemo, useState } from "react";
 import styles from "./user-access.module.css";
-import { createManagedUser, resetUserPassword } from "./actions";
+import { createManagedUser, resetUserPassword, updateManagedUserEmail } from "./actions";
 import { signOut } from "@/app/login/actions";
 
 type ScopeMode = "all" | "selected";
@@ -55,7 +55,7 @@ export default function UserAccess({ initialUsers }: { initialUsers: UserRecord[
   const [resetPassword, setResetPassword] = useState("");
   const [resetConfirm, setResetConfirm] = useState("");
   const [resetMessage, setResetMessage] = useState("");
-  const [resetBusy, setResetBusy] = useState(false);
+  const [resetBusy, setResetBusy] = useState(false);\n  const [editEmailOpen, setEditEmailOpen] = useState(false);\n  const [editEmail, setEditEmail] = useState("");\n  const [editEmailError, setEditEmailError] = useState("");\n  const [editEmailBusy, setEditEmailBusy] = useState(false);
 
   const selectedUser = useMemo(
     () => users.find((user) => user.id === selectedId) ?? users[0] ?? { id: "", name: "Belum ada pengguna", email: "", roles: [], status: "Nonaktif" as const },
@@ -176,6 +176,41 @@ export default function UserAccess({ initialUsers }: { initialUsers: UserRecord[
     setResetMessage("Password akun berhasil diperbarui.");
   }
 
+
+  async function submitEmailEdit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const email = editEmail.trim().toLowerCase();
+    if (!selectedUser.id) {
+      setEditEmailError("Pilih pengguna yang valid.");
+      return;
+    }
+    if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) {
+      setEditEmailError("Masukkan alamat email yang valid.");
+      return;
+    }
+    if (users.some((user) => user.id !== selectedUser.id && user.email.toLowerCase() === email)) {
+      setEditEmailError("Email ini sudah ada dalam daftar pengguna.");
+      return;
+    }
+
+    setEditEmailBusy(true);
+    setEditEmailError("");
+    const result = await updateManagedUserEmail({ userId: selectedUser.id, email });
+    setEditEmailBusy(false);
+    if (!result.ok) {
+      setEditEmailError(result.error);
+      return;
+    }
+
+    setUsers((current) => current.map((user) =>
+      user.id === selectedUser.id ? { ...user, email: result.email, name: result.name } : user
+    ));
+    setEditEmailOpen(false);
+    setEditEmail("");
+    setEditEmailError("");
+    setResetMessage("Email pengguna berhasil diperbarui.");
+  }
+
   function savePreview() {
     setSaved(true);
   }
@@ -237,6 +272,7 @@ export default function UserAccess({ initialUsers }: { initialUsers: UserRecord[
             </div>
             <div className={styles.accountActions}>
               <span className={selectedUser.status === "Aktif" ? styles.statusActive : styles.statusInactive}>{selectedUser.status}</span>
+              <button type="button" className={styles.resetButton} onClick={() => { setEditEmail(selectedUser.email); setEditEmailError(""); setEditEmailOpen(true); }}>Edit Email</button>
               <button type="button" className={styles.resetButton} onClick={() => { setResetOpen(true); setFormError(""); setResetMessage(""); }}>Reset Password</button>
             </div>
           </div>
@@ -326,6 +362,36 @@ export default function UserAccess({ initialUsers }: { initialUsers: UserRecord[
           </div>
         </section>
       </div>
+
+
+      {editEmailOpen && (
+        <div className={styles.modalBackdrop} onMouseDown={(event) => {
+          if (event.target === event.currentTarget) setEditEmailOpen(false);
+        }}>
+          <section className={styles.addModal} role="dialog" aria-modal="true" aria-labelledby="edit-user-email-title">
+            <div className={styles.modalHeading}>
+              <div>
+                <p className={styles.modalEyebrow}>ADMINISTRASI OWNER</p>
+                <h2 id="edit-user-email-title">Edit Email Pengguna</h2>
+                <p>Email login akun ini akan diperbarui langsung.</p>
+              </div>
+              <button type="button" className={styles.closeModal} aria-label="Tutup" onClick={() => setEditEmailOpen(false)}>×</button>
+            </div>
+            <form onSubmit={submitEmailEdit} className={styles.addForm}>
+              <label className={styles.modalField}>
+                <span>Email pengguna</span>
+                <input type="email" autoComplete="off" value={editEmail} onChange={(event) => { setEditEmail(event.target.value); setEditEmailError(""); }} required />
+              </label>
+              {editEmailError && <p className={styles.formError} role="alert">{editEmailError}</p>}
+              <p className={styles.modalNotice}>Perubahan langsung berlaku pada Supabase Auth. Pengguna selanjutnya login menggunakan email baru dan password yang sama. Email baru akan dikonfirmasi oleh Owner.</p>
+              <div className={styles.modalActions}>
+                <button type="button" className={styles.cancelButton} onClick={() => setEditEmailOpen(false)}>Batal</button>
+                <button type="submit" className={styles.createButton} disabled={editEmailBusy}>{editEmailBusy ? "Menyimpan..." : "Simpan Email"}</button>
+              </div>
+            </form>
+          </section>
+        </div>
+      )}
 
       {resetOpen && (
         <div className={styles.modalBackdrop} onMouseDown={(event) => {
