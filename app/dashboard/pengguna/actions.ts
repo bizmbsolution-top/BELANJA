@@ -143,3 +143,50 @@ export async function createManagedUser(input: {
     };
   }
 }
+
+
+export async function updateManagedUserEmail(input: {
+  userId: string;
+  email: string;
+}): Promise<{ ok: true; email: string; name: string } | { ok: false; error: string }> {
+  try {
+    const owner = await requireOwner();
+
+    const userId = typeof input?.userId === "string" ? input.userId.trim() : "";
+    const email = typeof input?.email === "string" ? input.email.trim().toLowerCase() : "";
+
+    if (!userId) return { ok: false, error: "Pengguna tidak valid." };
+    if (userId === owner.id) return { ok: false, error: "Email akun Owner utama tidak dapat diubah dari halaman ini." };
+    if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) {
+      return { ok: false, error: "Masukkan alamat email yang valid." };
+    }
+
+    const admin = createAdminClient();
+    const { data, error } = await admin.auth.admin.updateUserById(userId, {
+      email,
+      email_confirm: true,
+    });
+
+    if (error || !data.user) {
+      const message = error?.message.toLowerCase() ?? "";
+      return {
+        ok: false,
+        error: message.includes("already") || message.includes("registered") || message.includes("exists")
+          ? "Email ini sudah digunakan oleh akun lain."
+          : "Email gagal diperbarui. Periksa email dan coba lagi.",
+      };
+    }
+
+    const updatedEmail = data.user.email ?? email;
+    const displayName = updatedEmail.split("@")[0]
+      .replace(/[._-]+/g, " ")
+      .replace(/\\b\\w/g, (letter) => letter.toUpperCase());
+
+    return { ok: true, email: updatedEmail, name: displayName };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Edit email pengguna gagal.",
+    };
+  }
+}
