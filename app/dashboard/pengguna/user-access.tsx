@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { type FormEvent, useMemo, useState } from "react";
 import styles from "./user-access.module.css";
 
 type ScopeMode = "all" | "selected";
@@ -113,6 +113,68 @@ export default function UserAccess() {
       ? selectedSettings.grants.filter((item) => item !== id)
       : [...selectedSettings.grants, id];
     updateSelectedSettings({ grants });
+  }
+
+  function toggleNewRole(role: string) {
+    setNewRoles((current) => current.includes(role)
+      ? current.filter((item) => item !== role)
+      : [...current, role]);
+    setFormError("");
+  }
+
+  function addUserPreview(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const email = newEmail.trim().toLowerCase();
+
+    if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) {
+      setFormError("Masukkan alamat email yang valid.");
+      return;
+    }
+    if (users.some((user) => user.email.toLowerCase() === email)) {
+      setFormError("Email ini sudah ada dalam daftar pengguna.");
+      return;
+    }
+    if (newPassword.length < 8) {
+      setFormError("Password awal minimal 8 karakter.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setFormError("Konfirmasi password belum cocok.");
+      return;
+    }
+    if (newRoles.length === 0) {
+      setFormError("Pilih minimal satu Role.");
+      return;
+    }
+
+    const displayName = email.split("@")[0]
+      .replace(/[._-]+/g, " ")
+      .replace(/\\b\\w/g, (letter) => letter.toUpperCase());
+    const id = `preview-${Date.now()}`;
+
+    setUsers((current) => [...current, {
+      id,
+      name: displayName,
+      email,
+      roles: newRoles,
+      status: "Aktif",
+    }]);
+    setSettings((current) => ({
+      ...current,
+      [id]: {
+        scopeModes: { project: "selected", department: "selected", warehouse: "selected" },
+        scopeSelections: { project: [], department: [], warehouse: [] },
+        grants: [],
+      },
+    }));
+    setSelectedId(id);
+    setAddOpen(false);
+    setNewEmail("");
+    setNewPassword("");
+    setConfirmPassword("");
+    setNewRoles([]);
+    setFormError("");
+    setSaved(false);
   }
 
   function savePreview() {
