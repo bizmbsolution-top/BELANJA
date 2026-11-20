@@ -13,6 +13,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     return <>{children}</>;
   }
 
+  let hasAccess = false;
   try {
     const admin = createAdminClient();
     const { data: profile, error } = await admin
@@ -21,12 +22,15 @@ export default async function DashboardLayout({ children }: { children: React.Re
       .eq("user_id", user.id)
       .maybeSingle();
 
-    if (error || !profile || profile.is_active !== true || !Array.isArray(profile.roles) || profile.roles.length === 0) {
-      redirect("/akses");
-    }
+    hasAccess = !error
+      && profile?.is_active === true
+      && Array.isArray(profile.roles)
+      && profile.roles.length > 0;
   } catch {
-    redirect("/akses");
+    hasAccess = false;
   }
+
+  if (!hasAccess) redirect("/akses");
 
   return <>{children}</>;
 }
