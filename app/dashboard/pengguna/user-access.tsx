@@ -2,7 +2,7 @@
 
 import { type FormEvent, useMemo, useState } from "react";
 import styles from "./user-access.module.css";
-import { resetUserPassword } from "./actions";
+import { createManagedUser, resetUserPassword } from "./actions";\nimport { signOut } from "@/app/login/actions";
 
 type ScopeMode = "all" | "selected";
 type ScopeKey = "project" | "department" | "warehouse";
@@ -106,7 +106,7 @@ export default function UserAccess({ initialUsers }: { initialUsers: UserRecord[
     updateSelectedSettings({ grants });
   }
 
-  function addUserPreview(event: FormEvent<HTMLFormElement>) {
+  async function addUserPreview(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const email = newEmail.trim().toLowerCase();
 
@@ -198,7 +198,7 @@ export default function UserAccess({ initialUsers }: { initialUsers: UserRecord[
           <h1>Pengaturan Pengguna</h1>
           <p className={styles.subtitle}>Atur Role, area kerja, dan akses khusus dari satu halaman.</p>
         </div>
-        <a className={styles.backLink} href="/dashboard">Kembali ke Dashboard</a>
+        <div className={styles.headerActions}><a className={styles.backLink} href="/dashboard">Kembali ke Dashboard</a><form action={signOut}><button className={styles.logoutButton} type="submit">Keluar</button></form></div>
       </header>
 
       <div className={styles.previewNote}>
@@ -398,7 +398,7 @@ export default function UserAccess({ initialUsers }: { initialUsers: UserRecord[
                 <input type="password" autoComplete="new-password" placeholder="Ulangi password awal" value={confirmPassword} onChange={(event) => { setConfirmPassword(event.target.value); setFormError(""); }} required />
               </label>
               {formError && <p className={styles.formError} role="alert">{formError}</p>}
-              <p className={styles.modalNotice}>Akun baru akan muncul di daftar Pengguna tanpa Role. Atur Role, area kerja, dan permission setelah akun dibuat. Ini masih Preview; akun belum dibuat di Supabase dan password tidak disimpan.</p>
+              <p className={styles.modalNotice}>Akun baru akan muncul di daftar Pengguna tanpa Role. Atur Role, area kerja, dan permission setelah akun dibuat. Akun akan langsung dibuat di Supabase Auth dan dapat digunakan untuk login. Role dan area kerja diatur setelah akun terdaftar.</p>
               <div className={styles.modalActions}>
                 <button type="button" className={styles.cancelButton} onClick={() => setAddOpen(false)}>Batal</button>
                 <button type="submit" className={styles.createButton}>Tambah Pengguna</button>
