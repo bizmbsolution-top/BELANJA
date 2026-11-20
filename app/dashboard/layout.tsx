@@ -23,12 +23,15 @@ export default async function DashboardLayout({ children }: { children: React.Re
         .eq("user_id", user.id)
         .maybeSingle();
 
-      hasAccess = !error
-        && profile?.is_active === true
-        && Array.isArray(profile.roles)
-        && profile.roles.length > 0;
-
-      if (hasAccess) roles = profile.roles;
+      if (
+        !error &&
+        profile?.is_active === true &&
+        Array.isArray(profile.roles) &&
+        profile.roles.length > 0
+      ) {
+        roles = profile.roles;
+        hasAccess = true;
+      }
     } catch {
       hasAccess = false;
     }
