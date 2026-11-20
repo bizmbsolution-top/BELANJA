@@ -1,12 +1,15 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { getManagedUsers } from "./actions";
 import UserAccess from "./user-access";
 
 export default async function UsersPage() {
-  const supabase = await createClient();
-  const { data: { user }, error } = await supabase.auth.getUser();
+  let users;
 
-  if (error || !user) redirect("/login");
+  try {
+    users = await getManagedUsers();
+  } catch {
+    redirect("/dashboard?error=users");
+  }
 
-  return <UserAccess />;
+  return <UserAccess initialUsers={users} />;
 }
