@@ -124,7 +124,7 @@ export async function createManagedUser(input: {
 
     const displayName = email.split("@")[0]
       .replace(/[._-]+/g, " ")
-      .replace(/\b\\w/g, (letter) => letter.toUpperCase());
+      .replace(/\b\w/g, (letter) => letter.toUpperCase());
 
     return {
       ok: true,
@@ -157,7 +157,7 @@ export async function updateManagedUserEmail(input: {
 
     if (!userId) return { ok: false, error: "Pengguna tidak valid." };
     if (userId === owner.id) return { ok: false, error: "Email akun Owner utama tidak dapat diubah dari halaman ini." };
-    if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return { ok: false, error: "Masukkan alamat email yang valid." };
     }
 
@@ -180,7 +180,7 @@ export async function updateManagedUserEmail(input: {
     const updatedEmail = data.user.email ?? email;
     const displayName = updatedEmail.split("@")[0]
       .replace(/[._-]+/g, " ")
-      .replace(/\\b\\w/g, (letter) => letter.toUpperCase());
+      .replace(/\b\w/g, (letter) => letter.toUpperCase());
 
     return { ok: true, email: updatedEmail, name: displayName };
   } catch (error) {
