@@ -12,6 +12,28 @@ const initialUsers = [
   { id: "u3", name: "Dedi Pratama", email: "dedi@sentralogis.com", roles: ["Warehouse"], status: "Nonaktif" },
 ];
 
+const initialSettings: Record<string, {
+  scopeModes: Record<ScopeKey, ScopeMode>;
+  scopeSelections: Record<ScopeKey, string[]>;
+  grants: string[];
+}> = {
+  u1: {
+    scopeModes: { project: "selected", department: "all", warehouse: "selected" },
+    scopeSelections: { project: ["Project A", "Project B"], department: [], warehouse: ["Gudang Utama"] },
+    grants: ["fund_utilization.post_recognition"],
+  },
+  u2: {
+    scopeModes: { project: "all", department: "selected", warehouse: "all" },
+    scopeSelections: { project: [], department: ["Finance"], warehouse: [] },
+    grants: ["payment.post", "payment.allocate"],
+  },
+  u3: {
+    scopeModes: { project: "selected", department: "all", warehouse: "selected" },
+    scopeSelections: { project: ["Project C"], department: [], warehouse: ["Gudang Site", "Gudang Transit"] },
+    grants: [],
+  },
+};
+
 const scopeOptions: Record<ScopeKey, string[]> = {
   project: ["Project A", "Project B", "Project C"],
   department: ["Finance", "Operations", "Procurement"],
@@ -33,69 +55,61 @@ const sensitivePermissions = [
 
 export default function UserAccess() {
   const [users, setUsers] = useState(initialUsers);
+  const [settings, setSettings] = useState(initialSettings);
   const [selectedId, setSelectedId] = useState("u1");
-  const [roles, setRoles] = useState<string[]>(["Cashier"]);
-  const [scopeModes, setScopeModes] = useState<Record<ScopeKey, ScopeMode>>({
-    project: "selected",
-    department: "all",
-    warehouse: "selected",
-  });
-  const [scopeSelections, setScopeSelections] = useState<Record<ScopeKey, string[]>>({
-    project: ["Project A", "Project B"],
-    department: [],
-    warehouse: ["Gudang Utama"],
-  });
-  const [grants, setGrants] = useState<string[]>(["fund_utilization.post_recognition"]);
-  const [status, setStatus] = useState("Aktif");
   const [saved, setSaved] = useState(false);
 
   const selectedUser = useMemo(
     () => users.find((user) => user.id === selectedId) ?? users[0],
     [users, selectedId],
   );
+  const selectedSettings = settings[selectedId] ?? initialSettings.u1;
 
-  function chooseUser(id: string) {
-    const user = users.find((item) => item.id === id);
-    if (!user) return;
-    setSelectedId(id);
-    setRoles(user.roles);
-    setStatus(user.status);
-    setSaved(false);
-  }
-
-  function toggleRole(role: string) {
-    setRoles((current) => current.includes(role)
-      ? current.filter((item) => item !== role)
-      : [...current, role]);
-    setSaved(false);
-  }
-
-  function setMode(key: ScopeKey, mode: ScopeMode) {
-    setScopeModes((current) => ({ ...current, [key]: mode }));
-    setSaved(false);
-  }
-
-  function toggleScope(key: ScopeKey, value: string) {
-    setScopeSelections((current) => ({
+  function updateSelectedSettings(patch: Partial<typeof selectedSettings>) {
+    setSettings((current) => ({
       ...current,
-      [key]: current[key].includes(value)
-        ? current[key].filter((item) => item !== value)
-        : [...current[key], value],
+      [selectedId]: { ...current[selectedId], ...patch },
     }));
     setSaved(false);
   }
 
-  function toggleGrant(id: string) {
-    setGrants((current) => current.includes(id)
-      ? current.filter((item) => item !== id)
-      : [...current, id]);
+  function chooseUser(id: string) {
+    setSelectedId(id);
     setSaved(false);
   }
 
+  function toggleRole(role: string) {
+    const roles = selectedUser.roles.includes(role)
+      ? selectedUser.roles.filter((item) => item !== role)
+      : [...selectedUser.roles, role];
+    setUsers((current) => current.map((user) => user.id === selectedId ? { ...user, roles } : user));
+    setSaved(false);
+  }
+
+  function setMode(key: ScopeKey, mode: ScopeMode) {
+    updateSelectedSettings({ scopeModes: { ...selectedSettings.scopeModes, [key]: mode } });
+  }
+
+  function toggleScope(key: ScopeKey, value: string) {
+    const current = selectedSettings.selectedSettings.scopeSelections[key];
+    updateSelectedSettings({
+      scopeSelections: {
+        ...selectedSettings.scopeSelections,
+        [key]: current.includes(value)
+          ? current.filter((item) => item !== value)
+          : [...current, value],
+      },
+    });
+  }
+
+  function toggleGrant(id: string) {
+    const grants = selectedSettings.grants.includes(id)
+      ? selectedSettings.grants.filter((item) => item !== id)
+      : [...selectedSettings.grants, id];
+    updateSelectedSettings({ grants });
+  }
+
   function savePreview() {
-    setUsers((current) => current.map((user) => user.id === selectedId
-      ? { ...user, roles, status }
-      : user));
     setSaved(true);
   }
 
@@ -149,7 +163,7 @@ export default function UserAccess() {
               <h2>{selectedUser.name}</h2>
               <p>{selectedUser.email}</p>
             </div>
-            <span className={status === "Aktif" ? styles.statusActive : styles.statusInactive}>{status}</span>
+            <span className={selectedUser.status === "Aktif" ? styles.statusActive : styles.statusInactive}>{selectedUser.status}</span>
           </div>
 
           <section className={styles.section}>
@@ -179,24 +193,24 @@ export default function UserAccess() {
                 <div className={styles.scopeCard} key={key}>
                   <h4>{scopeLabels[key]}</h4>
                   <label className={styles.radioChoice}>
-                    <input type="radio" name={key} checked={scopeModes[key] === "all"} onChange={() => setMode(key, "all")} />
+                    <input type="radio" name={key} checked={selectedSettings.scopeModes[key] === "all"} onChange={() => setMode(key, "all")} />
                     <span>Semua dalam Organization</span>
                   </label>
                   <label className={styles.radioChoice}>
-                    <input type="radio" name={key} checked={scopeModes[key] === "selected"} onChange={() => setMode(key, "selected")} />
+                    <input type="radio" name={key} checked={selectedSettings.scopeModes[key] === "selected"} onChange={() => setMode(key, "selected")} />
                     <span>Pilih beberapa</span>
                   </label>
-                  {scopeModes[key] === "selected" && (
+                  {selectedSettings.scopeModes[key] === "selected" && (
                     <div className={styles.optionList}>
                       {scopeOptions[key].map((option) => (
                         <label className={styles.option} key={option}>
-                          <input type="checkbox" checked={scopeSelections[key].includes(option)} onChange={() => toggleScope(key, option)} />
+                          <input type="checkbox" checked={selectedSettings.scopeSelections[key].includes(option)} onChange={() => toggleScope(key, option)} />
                           <span>{option}</span>
                         </label>
                       ))}
                     </div>
                   )}
-                  {scopeModes[key] === "all" && <p className={styles.allHint}>Termasuk data baru dalam Organization ini.</p>}
+                  {selectedSettings.scopeModes[key] === "all" && <p className={styles.allHint}>Termasuk data baru dalam Organization ini.</p>}
                 </div>
               ))}
             </div>
@@ -210,8 +224,8 @@ export default function UserAccess() {
                 <label className={styles.permissionItem} key={permission.id}>
                   <span>{permission.label}</span>
                   <span className={styles.permissionControl}>
-                    <input type="checkbox" checked={grants.includes(permission.id)} onChange={() => toggleGrant(permission.id)} />
-                    {grants.includes(permission.id) ? "Diberikan" : "Tidak diberikan"}
+                    <input type="checkbox" checked={selectedSettings.grants.includes(permission.id)} onChange={() => toggleGrant(permission.id)} />
+                    {selectedSettings.grants.includes(permission.id) ? "Diberikan" : "Tidak diberikan"}
                   </span>
                 </label>
               ))}
@@ -223,7 +237,7 @@ export default function UserAccess() {
             <div className={styles.choiceRow}>
               {(["Aktif", "Nonaktif"] as const).map((value) => (
                 <label className={styles.checkChoice} key={value}>
-                  <input type="radio" name="account-status" checked={status === value} onChange={() => { setStatus(value); setSaved(false); }} />
+                  <input type="radio" name="account-status" checked={status === value} onChange={() => { setUsers((current) => current.map((user) => user.id === selectedId ? { ...user, status: value } : user)); setSaved(false); }} />
                   <span>{value}</span>
                 </label>
               ))}
