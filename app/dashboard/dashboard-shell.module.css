@@ -43,3 +43,38 @@
  .mobileClose{position:absolute;top:12px;right:12px;z-index:2;width:30px;height:30px;border:1px solid #52627a;border-radius:8px;background:#22334c;color:#fff;font-size:21px;cursor:pointer}
  .mobileSidebar .brandWrap{padding-top:54px}
 }
+
+.themeToggle{display:flex;width:100%;align-items:center;gap:9px;margin:12px 0 0;padding:9px 10px;border:1px solid #d6deea;border-radius:8px;background:#f7f9fc;color:#344563;font-size:11px;font-weight:700;text-align:left;cursor:pointer}
+.themeToggle span{font-size:16px}
+.mobileThemeToggle{display:none}
+.app[data-theme="dark"]{background:#0b1220;color:#e5edf8}
+.app[data-theme="dark"] .mainColumn{background:#0b1220}
+.app[data-theme="dark"] .sidebar,.app[data-theme="dark"] .mobileSidebar{background:#111c2e;color:#e8eef8}
+.app[data-theme="dark"] .themeToggle{border-color:#43536c;background:#1c2b42;color:#f4f7fb}
+.app[data-theme="dark"] .mobileTopbar{border-color:#29374d;background:#111c2e}
+.app[data-theme="dark"] .mobileTopbar .brandName{color:#f4f7fb}
+.app[data-theme="dark"] .menuButton,.app[data-theme="dark"] .mobileThemeToggle{border-color:#43536c;background:#1c2b42;color:#f4f7fb}
+.app[data-theme="dark"] .content{background:#0b1220}
+.app[data-theme="light"] .sidebar,.app[data-theme="light"] .mobileSidebar{background:#fff;color:#172b4d;box-shadow:8px 0 28px rgba(16,29,51,.08)}
+.app[data-theme="light"] .brandMark{background:linear-gradient(135deg,#4f8cff,#7548e8);color:#fff}
+.app[data-theme="light"] .brandName{color:#172b4d}
+.app[data-theme="light"] .brandCaption{color:#73819a}
+.app[data-theme="light"] .brandWrap,.app[data-theme="light"] .sidebarFooter{border-color:#e5eaf2}
+.app[data-theme="light"] .groupHeading{color:#78869b}
+.app[data-theme="light"] .chevron{color:#8794a8}
+.app[data-theme="light"] .navLink{color:#344563}
+.app[data-theme="light"] .navLink:hover{background:#f1f5fb;color:#172b4d}
+.app[data-theme="light"] .navActive{background:#eaf1ff;color:#174ea6;box-shadow:inset 3px 0 #3977e8}
+.app[data-theme="light"] .navActive .navDot{background:#3977e8}
+.app[data-theme="light"] .navDisabled{color:#9aa5b5}
+.app[data-theme="light"] .navDisabled small{background:#f0f3f8;color:#7b8798}
+.app[data-theme="light"] .userAvatar{background:#e9efff;color:#155eef}
+.app[data-theme="light"] .userDetails strong{color:#172b4d}
+.app[data-theme="light"] .userDetails small{color:#73819a}
+.app[data-theme="light"] .logout{border-color:#d5deeb;color:#344563}
+.app[data-theme="light"] .logout:hover{background:#f4f7fb}
+.app[data-theme="light"] .sidebarFooter p{color:#8591a5}
+@media(max-width:800px){
+ .mobileThemeToggle{display:block;width:32px;height:32px;flex:0 0 32px;border:1px solid #dce4ef;border-radius:8px;background:#fff;color:#263b5c;font-size:17px;cursor:pointer}
+ .app[data-theme="dark"] .mobileRole{color:#aab8cc}
+}
