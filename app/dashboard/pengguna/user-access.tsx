@@ -167,6 +167,23 @@ export default function UserAccess() {
     setSaved(false);
   }
 
+  function submitPasswordReset(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (resetPassword.length < 8) {
+      setFormError("Password baru minimal 8 karakter.");
+      return;
+    }
+    if (resetPassword !== resetConfirm) {
+      setFormError("Konfirmasi password belum cocok.");
+      return;
+    }
+    setResetOpen(false);
+    setResetPassword("");
+    setResetConfirm("");
+    setFormError("");
+    setResetMessage("Simulasi reset password berhasil. Belum mengubah password akun Supabase.");
+  }
+
   function savePreview() {
     setSaved(true);
   }
