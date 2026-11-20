@@ -38,7 +38,7 @@ export async function getManagedUsers(): Promise<ManagedUser[]> {
     for (const user of data.users) {
       const displayName = (user.email ?? "Pengguna").split("@")[0]
         .replace(/[._-]+/g, " ")
-        .replace(/\\b\\w/g, (letter) => letter.toUpperCase());
+        .replace(/\b\w/g, (letter) => letter.toUpperCase());
 
       users.push({
         id: user.id,
