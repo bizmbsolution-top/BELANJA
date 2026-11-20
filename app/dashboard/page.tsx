@@ -1,36 +1,25 @@
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
-import { signOut } from "@/app/login/actions";
-
-export default async function DashboardPage() {
-  const supabase = await createClient();
-  const { data: { user }, error } = await supabase.auth.getUser();
-
-  if (error || !user) {
-    redirect("/login");
-  }
-
+export default function DashboardPage() {
   return (
-    <main className="dashboard-shell">
-      <header className="dashboard-header">
+    <div className="home-dashboard">
+      <div className="home-heading">
+        <p className="home-eyebrow">SENTRALOGIS · OPERATIONS</p>
+        <h1>Dashboard</h1>
+        <p>Ringkasan aktivitas operasional Belanja.</p>
+      </div>
+      <section className="welcome-card">
+        <div className="welcome-icon">B</div>
         <div>
-          <p className="eyebrow">SENTRALOGIS · OPERATIONS</p>
-          <h1>Belanja</h1>
+          <span className="welcome-status"><i /> Sistem siap digunakan</span>
+          <h2>Selamat datang di BELANJA</h2>
+          <p>Fondasi login, status akun, dan pemeriksaan Role sudah terhubung. Modul operasional akan ditampilkan bertahap sesuai akses pengguna.</p>
         </div>
-        <form action={signOut}>
-          <button className="button-secondary" type="submit">Keluar</button>
-        </form>
-      </header>
-      <p style={{ margin: "0 0 18px" }}><a href="/dashboard/pengguna" style={{ color: "#155eef", fontWeight: 700, textDecoration: "none" }}>Pengaturan Pengguna →</a></p>
-      <section className="dashboard-card">
-        <div className="status-row"><span className="status-dot" />Autentikasi berhasil</div>
-        <h2>Selamat datang</h2>
-        <p className="intro">{user.email}</p>
-        <p className="notice">
-          Sesi pengguna sudah terhubung. Modul operasional dan pemeriksaan status aktif,
-          role, serta scope akan disambungkan setelah fondasi data otorisasi disiapkan.
-        </p>
       </section>
-    </main>
+      <section className="quick-grid">
+        <article><span>Total Pembelian</span><strong>—</strong><small>Data akan ditampilkan setelah modul aktif</small></article>
+        <article><span>Total Pengeluaran</span><strong>—</strong><small>Data akan ditampilkan setelah modul aktif</small></article>
+        <article><span>Posisi Kas</span><strong>—</strong><small>Data akan ditampilkan setelah modul aktif</small></article>
+        <article><span>Nilai Penjualan</span><strong>—</strong><small>Data akan ditampilkan setelah modul aktif</small></article>
+      </section>
+    </div>
   );
 }
