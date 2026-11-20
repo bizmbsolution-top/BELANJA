@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { signOut } from "@/app/login/actions";
 import styles from "./dashboard-shell.module.css";
 
@@ -75,6 +75,18 @@ export default function DashboardShell({ children, email, roles, isOwner }: Prop
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState<string[]>([]);
+  const [theme, setTheme] = useState<"light" | "dark">("light");
+
+  useEffect(() => {
+    const savedTheme = window.localStorage.getItem("belanja-theme");
+    if (savedTheme === "dark" || savedTheme === "light") setTheme(savedTheme);
+  }, []);
+
+  function toggleTheme() {
+    const nextTheme = theme === "light" ? "dark" : "light";
+    setTheme(nextTheme);
+    window.localStorage.setItem("belanja-theme", nextTheme);
+  }
 
   const visibleGroups = groups
     .filter((group) => !group.ownerOnly || isOwner)
@@ -145,6 +157,10 @@ export default function DashboardShell({ children, email, roles, isOwner }: Prop
             <small>{email}</small>
           </span>
         </div>
+        <button className={styles.themeToggle} type="button" onClick={toggleTheme} aria-pressed={theme === "dark"}>
+          <span aria-hidden="true">{theme === "light" ? "☾" : "☀"}</span>
+          {theme === "light" ? "Mode gelap" : "Mode terang"}
+        </button>
         <form action={signOut}>
           <button className={styles.logout} type="submit">Keluar</button>
         </form>
@@ -154,7 +170,7 @@ export default function DashboardShell({ children, email, roles, isOwner }: Prop
   );
 
   return (
-    <div className={styles.app}>
+    <div className={styles.app} data-theme={theme}>
       <aside className={styles.sidebar}>{nav}</aside>
       {mobileOpen && (
         <div className={styles.mobileOverlay} onClick={() => setMobileOpen(false)}>
@@ -168,6 +184,7 @@ export default function DashboardShell({ children, email, roles, isOwner }: Prop
         <header className={styles.mobileTopbar}>
           <button type="button" className={styles.menuButton} onClick={() => setMobileOpen(true)} aria-label="Buka menu">☰</button>
           <Brand />
+          <button type="button" className={styles.mobileThemeToggle} onClick={toggleTheme} aria-label={theme === "light" ? "Aktifkan mode gelap" : "Aktifkan mode terang"}>{theme === "light" ? "☾" : "☀"}</button>
           <span className={styles.mobileRole}>{isOwner ? "Superadmin" : roles.join(", ")}</span>
         </header>
         <main className={styles.content}>{children}</main>
