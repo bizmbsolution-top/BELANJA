@@ -36,6 +36,7 @@ function displayName(email: string) {
 export async function getManagedUsers(): Promise<ManagedUser[]> {
   await requireOwner();
   const admin = createAdminClient();
+  const ownerEmail = process.env.BELANJA_OWNER_EMAIL?.trim().toLowerCase();
   const users: ManagedUser[] = [];
   let page = 1;
 
@@ -57,7 +58,7 @@ export async function getManagedUsers(): Promise<ManagedUser[]> {
         id: user.id,
         name: displayName(user.email ?? "Pengguna"),
         email: user.email ?? "",
-        roles: profile?.roles ?? [],
+        roles: user.email?.toLowerCase() === ownerEmail ? ["Superadmin"] : (profile?.roles ?? []),
         status: profile?.is_active === true ? "Aktif" : "Nonaktif",
       });
     }
