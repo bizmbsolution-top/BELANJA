@@ -53,7 +53,8 @@ export default function UserAccess({ initialUsers }: { initialUsers: UserRecord[
   const [resetOpen, setResetOpen] = useState(false);
   const [resetPassword, setResetPassword] = useState("");
   const [resetConfirm, setResetConfirm] = useState("");
-  const [resetMessage, setResetMessage] = useState("");\n  const [resetBusy, setResetBusy] = useState(false);
+  const [resetMessage, setResetMessage] = useState("");
+  const [resetBusy, setResetBusy] = useState(false);
 
   const selectedUser = useMemo(
     () => users.find((user) => user.id === selectedId) ?? users[0] ?? { id: "", name: "Belum ada pengguna", email: "", roles: [], status: "Nonaktif" as const },
