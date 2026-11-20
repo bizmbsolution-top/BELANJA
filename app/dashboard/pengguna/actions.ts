@@ -11,6 +11,8 @@ type ManagedUser = {
   status: "Aktif" | "Nonaktif";
 };
 
+const allowedRoles = ["Cashier", "Finance", "Warehouse", "Management"];
+
 async function requireOwner() {
   const ownerEmail = process.env.BELANJA_OWNER_EMAIL?.trim().toLowerCase();
   if (!ownerEmail) throw new Error("BELANJA_OWNER_EMAIL belum dikonfigurasi.");
@@ -25,6 +27,12 @@ async function requireOwner() {
   return user;
 }
 
+function displayName(email: string) {
+  return email.split("@")[0]
+    .replace(/[._-]+/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
 export async function getManagedUsers(): Promise<ManagedUser[]> {
   await requireOwner();
   const admin = createAdminClient();
@@ -35,19 +43,22 @@ export async function getManagedUsers(): Promise<ManagedUser[]> {
     const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
     if (error) throw new Error("Daftar pengguna gagal dimuat.");
 
-    for (const user of data.users) {
-      const displayName = (user.email ?? "Pengguna").split("@")[0]
-        .replace(/[._-]+/g, " ")
-        .replace(/\b\w/g, (letter) => letter.toUpperCase());
+    const ids = data.users.map((user) => user.id);
+    const { data: profiles, error: profileError } = ids.length
+      ? await admin.from("user_access_profiles").select("user_id, roles, is_active").in("user_id", ids)
+      : { data: [], error: null };
+    if (profileError) throw new Error("Pengaturan akses pengguna gagal dimuat.");
 
+    const profileById = new Map((profiles ?? []).map((profile) => [profile.user_id, profile]));
+
+    for (const user of data.users) {
+      const profile = profileById.get(user.id);
       users.push({
         id: user.id,
-        name: displayName,
+        name: displayName(user.email ?? "Pengguna"),
         email: user.email ?? "",
-        roles: [],
-        status: user.banned_until && new Date(user.banned_until).getTime() > Date.now()
-          ? "Nonaktif"
-          : "Aktif",
+        roles: profile?.roles ?? [],
+        status: profile?.is_active === true ? "Aktif" : "Nonaktif",
       });
     }
 
@@ -56,6 +67,42 @@ export async function getManagedUsers(): Promise<ManagedUser[]> {
   }
 
   return users;
+}
+
+export async function saveUserAccessProfile(input: {
+  userId: string;
+  roles: string[];
+  status: "Aktif" | "Nonaktif";
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const owner = await requireOwner();
+    const userId = typeof input?.userId === "string" ? input.userId.trim() : "";
+    const roles = Array.isArray(input?.roles) ? input.roles : [];
+    const status = input?.status;
+
+    if (!userId) return { ok: false, error: "Pengguna tidak valid." };
+    if (userId === owner.id) return { ok: false, error: "Akun Owner utama tidak dapat diubah dari daftar ini." };
+    if (!roles.every((role) => typeof role === "string" && allowedRoles.includes(role))) {
+      return { ok: false, error: "Role yang dipilih tidak valid." };
+    }
+    if (status !== "Aktif" && status !== "Nonaktif") {
+      return { ok: false, error: "Status akun tidak valid." };
+    }
+
+    const admin = createAdminClient();
+    const { error } = await admin.from("user_access_profiles").upsert({
+      user_id: userId,
+      roles: [...new Set(roles)],
+      is_active: status === "Aktif",
+      updated_at: new Date().toISOString(),
+      updated_by: owner.id,
+    }, { onConflict: "user_id" });
+
+    if (error) return { ok: false, error: "Pengaturan Role dan status gagal disimpan." };
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Simpan akses pengguna gagal." };
+  }
 }
 
 export async function resetUserPassword(input: {
@@ -87,13 +134,12 @@ export async function resetUserPassword(input: {
   }
 }
 
-
 export async function createManagedUser(input: {
   email: string;
   password: string;
 }): Promise<{ ok: true; user: ManagedUser } | { ok: false; error: string }> {
   try {
-    await requireOwner();
+    const owner = await requireOwner();
 
     const email = typeof input?.email === "string" ? input.email.trim().toLowerCase() : "";
     const password = typeof input?.password === "string" ? input.password : "";
@@ -122,15 +168,24 @@ export async function createManagedUser(input: {
       };
     }
 
-    const displayName = email.split("@")[0]
-      .replace(/[._-]+/g, " ")
-      .replace(/\b\w/g, (letter) => letter.toUpperCase());
+    const { error: profileError } = await admin.from("user_access_profiles").insert({
+      user_id: data.user.id,
+      roles: [],
+      is_active: true,
+      created_by: owner.id,
+      updated_by: owner.id,
+    });
+
+    if (profileError) {
+      await admin.auth.admin.deleteUser(data.user.id);
+      return { ok: false, error: "Akun gagal disiapkan. Silakan coba lagi." };
+    }
 
     return {
       ok: true,
       user: {
         id: data.user.id,
-        name: displayName,
+        name: displayName(email),
         email: data.user.email ?? email,
         roles: [],
         status: "Aktif",
@@ -143,7 +198,6 @@ export async function createManagedUser(input: {
     };
   }
 }
-
 
 export async function updateManagedUserEmail(input: {
   userId: string;
@@ -178,11 +232,7 @@ export async function updateManagedUserEmail(input: {
     }
 
     const updatedEmail = data.user.email ?? email;
-    const displayName = updatedEmail.split("@")[0]
-      .replace(/[._-]+/g, " ")
-      .replace(/\b\w/g, (letter) => letter.toUpperCase());
-
-    return { ok: true, email: updatedEmail, name: displayName };
+    return { ok: true, email: updatedEmail, name: displayName(updatedEmail) };
   } catch (error) {
     return {
       ok: false,
