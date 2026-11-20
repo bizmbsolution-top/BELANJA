@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
@@ -33,6 +34,34 @@ export async function updateSession(request: NextRequest) {
     redirectUrl.pathname = "/login";
     redirectUrl.searchParams.set("next", request.nextUrl.pathname);
     return NextResponse.redirect(redirectUrl);
+  }
+
+  if (isDashboard && user) {
+    const ownerEmail = process.env.BELANJA_OWNER_EMAIL?.trim().toLowerCase();
+    const isOwner = Boolean(ownerEmail && user.email?.toLowerCase() === ownerEmail);
+
+    if (!isOwner) {
+      const admin = createAdminClient();
+      const { data: profile, error } = await admin
+        .from("user_access_profiles")
+        .select("roles, is_active")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      const redirectUrl = request.nextUrl.clone();
+      redirectUrl.pathname = "/akses-ditolak";
+      redirectUrl.search = "";
+
+      if (error || !profile || !profile.is_active) {
+        redirectUrl.searchParams.set("reason", "inactive");
+        return NextResponse.redirect(redirectUrl);
+      }
+
+      if (!Array.isArray(profile.roles) || profile.roles.length === 0) {
+        redirectUrl.searchParams.set("reason", "no-role");
+        return NextResponse.redirect(redirectUrl);
+      }
+    }
   }
 
   if (request.nextUrl.pathname === "/login" && user) {
