@@ -163,3 +163,17 @@ footer {
 .quick-grid article small{color:#8a96a8;font-size:10px;line-height:1.5}
 @media(max-width:1000px){.quick-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:560px){.home-dashboard{padding:24px 15px 40px}.home-heading h1{font-size:27px}.welcome-card{align-items:flex-start;padding:18px}.welcome-icon{width:43px;height:43px;flex-basis:43px}.welcome-card h2{font-size:18px}.quick-grid{gap:9px}.quick-grid article{padding:14px}.quick-grid article strong{font-size:24px}}
+
+/* Belanja dashboard dark theme */
+[data-theme="dark"] .home-dashboard{color:#e5edf8}
+[data-theme="dark"] .home-heading .home-eyebrow{color:#8eb6ff}
+[data-theme="dark"] .home-heading h1{color:#f4f7fb}
+[data-theme="dark"] .home-heading>p:last-child{color:#aab8cc}
+[data-theme="dark"] .welcome-card{border-color:#293b56;background:linear-gradient(115deg,#17243a 0%,#1b2c46 100%);box-shadow:none}
+[data-theme="dark"] .welcome-card h2{color:#f4f7fb}
+[data-theme="dark"] .welcome-card p{color:#bdc9d9}
+[data-theme="dark"] .welcome-status{color:#75d6a6}
+[data-theme="dark"] .quick-grid article{border-color:#293b56;background:#142238}
+[data-theme="dark"] .quick-grid article span{color:#bdc9d9}
+[data-theme="dark"] .quick-grid article strong{color:#f4f7fb}
+[data-theme="dark"] .quick-grid article small{color:#91a1b8}
