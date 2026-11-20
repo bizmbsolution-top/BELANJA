@@ -91,7 +91,7 @@ export default function UserAccess() {
   }
 
   function toggleScope(key: ScopeKey, value: string) {
-    const current = selectedSettings.selectedSettings.scopeSelections[key];
+    const current = selectedSettings.scopeSelections[key];
     updateSelectedSettings({
       scopeSelections: {
         ...selectedSettings.scopeSelections,
@@ -172,7 +172,7 @@ export default function UserAccess() {
             <div className={styles.choiceRow}>
               {["Cashier", "Finance", "Warehouse", "Management"].map((role) => (
                 <label className={styles.checkChoice} key={role}>
-                  <input type="checkbox" checked={roles.includes(role)} onChange={() => toggleRole(role)} />
+                  <input type="checkbox" checked={selectedUser.roles.includes(role)} onChange={() => toggleRole(role)} />
                   <span>{role}</span>
                 </label>
               ))}
@@ -237,7 +237,7 @@ export default function UserAccess() {
             <div className={styles.choiceRow}>
               {(["Aktif", "Nonaktif"] as const).map((value) => (
                 <label className={styles.checkChoice} key={value}>
-                  <input type="radio" name="account-status" checked={status === value} onChange={() => { setUsers((current) => current.map((user) => user.id === selectedId ? { ...user, status: value } : user)); setSaved(false); }} />
+                  <input type="radio" name="account-status" checked={selectedUser.status === value} onChange={() => { setUsers((current) => current.map((user) => user.id === selectedId ? { ...user, status: value } : user)); setSaved(false); }} />
                   <span>{value}</span>
                 </label>
               ))}
