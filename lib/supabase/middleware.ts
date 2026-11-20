@@ -1,17 +1,79 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { resolvePublicKey, resolveSupabaseUrl } from "@/lib/supabase/env";
+import {
+  evaluateOwnerAccess,
+  evaluateRouteAccess,
+  isOwnerEmail,
+  type DenialReason,
+} from "@/lib/auth/access-policy";
+const DASHBOARD_PREFIX = "/dashboard";
 
-export async function updateSession(request: NextRequest) {
-  let response = NextResponse.next({ request });
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+type ProfileRow = { is_active: boolean; roles: unknown };
 
-  if (!url || !publishableKey) {
-    return NextResponse.next({ request });
+/**
+ * Loads the stored access profile for a user.
+ *
+ * Returns a discriminated result rather than throwing, so that callers can
+ * apply their own fail-closed policy. In particular the Owner path must be
+ * able to distinguish "no profile row" from "lookup failed".
+ */
+type ProfileLookup =
+  | { status: "found"; profile: ProfileRow }
+  | { status: "absent" }
+  | { status: "error" };
+
+async function loadProfile(userId: string): Promise<ProfileLookup> {
+  let admin;
+  try {
+    admin = createAdminClient();
+  } catch {
+    return { status: "error" };
   }
 
-  const supabase = createServerClient(url, publishableKey, {
+  try {
+    const { data, error } = await admin
+      .from("user_access_profiles")
+      .select("is_active, roles")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (error) return { status: "error" };
+    if (!data) return { status: "absent" };
+
+    return {
+      status: "found",
+      profile: { is_active: data.is_active === true, roles: data.roles },
+    };
+  } catch {
+    return { status: "error" };
+  }
+}
+
+function redirectTo(request: NextRequest, path: string, reason?: DenialReason) {
+  const target = request.nextUrl.clone();
+  target.pathname = path;
+  target.search = "";
+  if (reason) target.searchParams.set("reason", reason);
+  return NextResponse.redirect(target);
+}
+
+export async function updateSession(request: NextRequest) {
+  const url = resolveSupabaseUrl();
+  const publicKey = resolvePublicKey();
+  const pathname = request.nextUrl.pathname;
+  const isDashboard = pathname.startsWith(DASHBOARD_PREFIX);
+
+  // Fail closed for dashboard routes: without a configured client no
+  // authorization decision can be made, so access must not be granted.
+  if (!url || !publicKey) {
+    return isDashboard ? redirectTo(request, "/login") : NextResponse.next({ request });
+  }
+
+  let response = NextResponse.next({ request });
+
+  const supabase = createServerClient(url, publicKey.key, {
     cookies: {
       getAll() {
         return request.cookies.getAll();
@@ -26,49 +88,53 @@ export async function updateSession(request: NextRequest) {
     },
   });
 
-  const { data: { user } } = await supabase.auth.getUser();
-  const isDashboard = request.nextUrl.pathname.startsWith("/dashboard");
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   if (isDashboard && !user) {
-    const redirectUrl = request.nextUrl.clone();
-    redirectUrl.pathname = "/login";
-    redirectUrl.searchParams.set("next", request.nextUrl.pathname);
-    return NextResponse.redirect(redirectUrl);
+    return redirectTo(request, "/login");
   }
 
   if (isDashboard && user) {
-    const ownerEmail = process.env.BELANJA_OWNER_EMAIL?.trim().toLowerCase();
-    const isOwner = Boolean(ownerEmail && user.email?.toLowerCase() === ownerEmail);
+    const isOwner = isOwnerEmail(user.email);
 
-    if (!isOwner) {
-      const admin = createAdminClient();
-      const { data: profile, error } = await admin
-        .from("user_access_profiles")
-        .select("roles, is_active")
-        .eq("user_id", user.id)
-        .maybeSingle();
+    if (isOwner) {
+      // Owner authority requires a verified active profile (owner decision B).
+      // Identity comes from BELANJA_OWNER_EMAIL; the active flag is evaluated by
+      // the same shared rule the server helpers use, so the two cannot drift apart.
+      const lookup = await loadProfile(user.id);
 
-      const redirectUrl = request.nextUrl.clone();
-      redirectUrl.pathname = "/akses-ditolak";
-      redirectUrl.search = "";
+      const decision = evaluateOwnerAccess(
+        lookup.status === "found"
+          ? { status: "found", is_active: lookup.profile.is_active }
+          : { status: lookup.status },
+      );
 
-      if (error || !profile || !profile.is_active) {
-        redirectUrl.searchParams.set("reason", "inactive");
-        return NextResponse.redirect(redirectUrl);
+      if (!decision.allowed) {
+        // Covers a failed lookup, a missing profile, and a deactivated Owner.
+        return redirectTo(request, "/akses-ditolak", "inactive");
       }
+    } else {
+      const lookup = await loadProfile(user.id);
 
-      if (!Array.isArray(profile.roles) || profile.roles.length === 0) {
-        redirectUrl.searchParams.set("reason", "no-role");
-        return NextResponse.redirect(redirectUrl);
+      const decision = evaluateRouteAccess({
+        isOwner: false,
+        profile:
+          lookup.status === "found"
+            ? lookup.profile
+            : { is_active: false, roles: [] },
+        requireActiveRole: true,
+      });
+
+      if (!decision.allowed) {
+        return redirectTo(request, "/akses-ditolak", decision.reason);
       }
     }
   }
 
-  if (request.nextUrl.pathname === "/login" && user) {
-    const redirectUrl = request.nextUrl.clone();
-    redirectUrl.pathname = "/dashboard";
-    redirectUrl.search = "";
-    return NextResponse.redirect(redirectUrl);
+  if (pathname === "/login" && user) {
+    return redirectTo(request, "/dashboard");
   }
 
   return response;

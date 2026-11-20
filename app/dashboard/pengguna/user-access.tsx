@@ -5,8 +5,20 @@ import styles from "./user-access.module.css";
 import { createManagedUser, resetUserPassword, saveUserAccessProfile, updateManagedUserEmail } from "./actions";
 import { signOut } from "@/app/login/actions";
 
-type ScopeMode = "all" | "selected";
-type ScopeKey = "project" | "department" | "warehouse";
+/*
+ * Scope and Permission controls are intentionally NOT rendered as editable.
+ *
+ * The backend stores only user_id, roles and is_active. There is no table or
+ * column for Project / Department / Warehouse scope, and no storage for the
+ * sensitive per-user permissions. The former controls held placeholder data
+ * ("Project A", "Gudang Utama", ...) in React state and were never sent to the
+ * server, so they implied a capability that does not exist.
+ *
+ * The design decisions themselves are NOT withdrawn. They remain specified in
+ * docs/phase-0c/ui-foundation/UI_03A_STAGE_2_AD_018_PROJECT_DEPT_SCOPE_ARCHITECTURE.md
+ * and docs/phase-0c/rbac/AUTHORIZATION_SCOPE_MODEL.md, and must be implemented
+ * once an Owner-approved storage design exists.
+ */
 
 type UserRecord = {
   id: string;
@@ -16,34 +28,20 @@ type UserRecord = {
   status: "Aktif" | "Nonaktif";
 };
 
-const emptySettings = {
-  scopeModes: { project: "selected" as ScopeMode, department: "selected" as ScopeMode, warehouse: "selected" as ScopeMode },
-  scopeSelections: { project: [] as string[], department: [] as string[], warehouse: [] as string[] },
-  grants: [] as string[],
-};
 
-const scopeOptions: Record<ScopeKey, string[]> = {
-  project: ["Project A", "Project B", "Project C"],
-  department: ["Finance", "Operations", "Procurement"],
-  warehouse: ["Gudang Utama", "Gudang Site", "Gudang Transit"],
-};
-
-const scopeLabels: Record<ScopeKey, string> = {
-  project: "Project",
-  department: "Department",
-  warehouse: "Warehouse",
-};
-
+/**
+ * Sensitive per-user permissions. These remain individual grants and are NOT
+ * derived from Role. Displayed read-only until backend storage exists.
+ */
 const sensitivePermissions = [
   { id: "transaction.post_recognition", label: "Posting Transaction" },
   { id: "fund_utilization.post_recognition", label: "Posting Fund Utilization" },
   { id: "payment.post", label: "Posting Payment" },
   { id: "payment.allocate", label: "Alokasi Payment" },
-];
+] as const;
 
 export default function UserAccess({ initialUsers }: { initialUsers: UserRecord[] }) {
   const [users, setUsers] = useState(initialUsers);
-  const [settings, setSettings] = useState<Record<string, typeof emptySettings>>({});
   const [selectedId, setSelectedId] = useState(initialUsers[0]?.id ?? "");
   const [saved, setSaved] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
@@ -67,15 +65,6 @@ export default function UserAccess({ initialUsers }: { initialUsers: UserRecord[
     () => users.find((user) => user.id === selectedId) ?? users[0] ?? { id: "", name: "Belum ada pengguna", email: "", roles: [], status: "Nonaktif" as const },
     [users, selectedId],
   );
-  const selectedSettings = settings[selectedId] ?? emptySettings;
-
-  function updateSelectedSettings(patch: Partial<typeof selectedSettings>) {
-    setSettings((current) => ({
-      ...current,
-      [selectedId]: { ...emptySettings, ...current[selectedId], ...patch },
-    }));
-    setSaved(false);
-  }
 
   function chooseUser(id: string) {
     setSelectedId(id);
@@ -89,30 +78,6 @@ export default function UserAccess({ initialUsers }: { initialUsers: UserRecord[
     setUsers((current) => current.map((user) => user.id === selectedId ? { ...user, roles } : user));
     setSaved(false);
   }
-
-  function setMode(key: ScopeKey, mode: ScopeMode) {
-    updateSelectedSettings({ scopeModes: { ...selectedSettings.scopeModes, [key]: mode } });
-  }
-
-  function toggleScope(key: ScopeKey, value: string) {
-    const current = selectedSettings.scopeSelections[key];
-    updateSelectedSettings({
-      scopeSelections: {
-        ...selectedSettings.scopeSelections,
-        [key]: current.includes(value)
-          ? current.filter((item) => item !== value)
-          : [...current, value],
-      },
-    });
-  }
-
-  function toggleGrant(id: string) {
-    const grants = selectedSettings.grants.includes(id)
-      ? selectedSettings.grants.filter((item) => item !== id)
-      : [...selectedSettings.grants, id];
-    updateSelectedSettings({ grants });
-  }
-
   async function addUserPreview(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const email = newEmail.trim().toLowerCase();
@@ -237,14 +202,14 @@ export default function UserAccess({ initialUsers }: { initialUsers: UserRecord[
         <div>
           <p className={styles.eyebrow}>SENTRALOGIS · OPERATIONS</p>
           <h1>Pengaturan Pengguna</h1>
-          <p className={styles.subtitle}>Atur Role, area kerja, dan akses khusus dari satu halaman.</p>
+          <p className={styles.subtitle}>Atur Role dan status akun pengguna. Area kerja dan permission khusus belum aktif.</p>
         </div>
         <div className={styles.headerActions}><a className={styles.backLink} href="/dashboard">Kembali ke Dashboard</a><form action={signOut}><button className={styles.logoutButton} type="submit">Keluar</button></form></div>
       </header>
 
       <div className={styles.previewNote}>
         <strong>Mode preview</strong>
-        <span>Akun, Role, dan status terhubung ke Supabase. Scope dan Permission masih Preview.</span>
+        <span>Akun, Role, dan status terhubung ke Supabase. Area Kerja dan Permission belum aktif dan belum menyimpan pengaturan.</span>
       </div>
 
       <div className={styles.layout}>
@@ -315,30 +280,20 @@ export default function UserAccess({ initialUsers }: { initialUsers: UserRecord[
 
           <section className={styles.section}>
             <h3>Area Kerja</h3>
-            <p className={styles.helper}>Pilih Semua atau tentukan beberapa item.</p>
-            <div className={styles.scopeGrid}>
-              {(Object.keys(scopeLabels) as ScopeKey[]).map((key) => (
-                <div className={styles.scopeCard} key={key}>
-                  <h4>{scopeLabels[key]}</h4>
-                  <label className={styles.radioChoice}>
-                    <input type="radio" name={key} checked={selectedSettings.scopeModes[key] === "all"} onChange={() => setMode(key, "all")} />
-                    <span>Semua dalam Organization</span>
-                  </label>
-                  <label className={styles.radioChoice}>
-                    <input type="radio" name={key} checked={selectedSettings.scopeModes[key] === "selected"} onChange={() => setMode(key, "selected")} />
-                    <span>Pilih beberapa</span>
-                  </label>
-                  {selectedSettings.scopeModes[key] === "selected" && (
-                    <div className={styles.optionList}>
-                      {scopeOptions[key].map((option) => (
-                        <label className={styles.option} key={option}>
-                          <input type="checkbox" checked={selectedSettings.scopeSelections[key].includes(option)} onChange={() => toggleScope(key, option)} />
-                          <span>{option}</span>
-                        </label>
-                      ))}
-                    </div>
-                  )}
-                  {selectedSettings.scopeModes[key] === "all" && <p className={styles.allHint}>Termasuk data baru dalam Organization ini.</p>}
+            <p className={styles.helper}>
+              Fitur ini belum aktif dan belum menyimpan pengaturan.
+            </p>
+            <p className={styles.helper}>
+              Penyimpanan Scope Project, Department, dan Warehouse belum tersedia di
+              database, sehingga kontrol Area Kerja dinonaktifkan sampai desain
+              penyimpanannya disetujui dan diimplementasikan. Tidak ada nilai Area
+              Kerja yang dikirim ke server dari halaman ini.
+            </p>
+            <div className={styles.deferredList} aria-disabled="true">
+              {(["Project", "Department", "Warehouse"] as const).map((dimension) => (
+                <div className={styles.deferredItem} key={dimension}>
+                  <span>{dimension}</span>
+                  <span className={styles.deferredBadge}>Belum aktif</span>
                 </div>
               ))}
             </div>
@@ -346,20 +301,24 @@ export default function UserAccess({ initialUsers }: { initialUsers: UserRecord[
 
           <section className={styles.section}>
             <h3>Permission khusus</h3>
-            <p className={styles.helper}>Akses posting sensitif diberikan langsung oleh Owner, bukan dari Role.</p>
-            <div className={styles.permissionList}>
+            <p className={styles.helper}>
+              Fitur ini belum aktif dan belum menyimpan pengaturan.
+            </p>
+            <p className={styles.helper}>
+              Permission sensitif bersifat individual dan tidak diturunkan dari Role.
+              Karena penyimpanan permission per pengguna belum tersedia di database,
+              tidak ada checkbox yang ditampilkan dan tidak ada nilai permission yang
+              dikirim ke server dari halaman ini.
+            </p>
+            <div className={styles.deferredList} aria-disabled="true">
               {sensitivePermissions.map((permission) => (
-                <label className={styles.permissionItem} key={permission.id}>
+                <div className={styles.deferredItem} key={permission.id}>
                   <span>{permission.label}</span>
-                  <span className={styles.permissionControl}>
-                    <input type="checkbox" checked={selectedSettings.grants.includes(permission.id)} onChange={() => toggleGrant(permission.id)} />
-                    {selectedSettings.grants.includes(permission.id) ? "Diberikan" : "Tidak diberikan"}
-                  </span>
-                </label>
+                  <span className={styles.deferredBadge}>Belum aktif</span>
+                </div>
               ))}
             </div>
           </section>
-
           <section className={styles.section}>
             <h3>Status akun</h3>
             <div className={styles.choiceRow}>

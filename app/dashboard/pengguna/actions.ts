@@ -1,6 +1,7 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { requireOwner } from "@/lib/auth/authorization";
+import { APPROVED_OPERATIONAL_ROLES } from "@/lib/auth/access-policy";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 type ManagedUser = {
@@ -11,21 +12,12 @@ type ManagedUser = {
   status: "Aktif" | "Nonaktif";
 };
 
-const allowedRoles = ["Cashier", "Finance", "Warehouse", "Management"];
-
-async function requireOwner() {
-  const ownerEmail = process.env.BELANJA_OWNER_EMAIL?.trim().toLowerCase();
-  if (!ownerEmail) throw new Error("BELANJA_OWNER_EMAIL belum dikonfigurasi.");
-
-  const supabase = await createClient();
-  const { data: { user }, error } = await supabase.auth.getUser();
-
-  if (error || !user || user.email?.toLowerCase() !== ownerEmail) {
-    throw new Error("Akses hanya untuk Owner.");
-  }
-
-  return user;
-}
+/**
+ * Roles are validated against the shared policy module, which is the single
+ * place that defines the approved operational role list. Superadmin is never
+ * assignable here.
+ */
+const allowedRoles: readonly string[] = APPROVED_OPERATIONAL_ROLES;
 
 function displayName(email: string) {
   return email.split("@")[0]
@@ -82,7 +74,7 @@ export async function saveUserAccessProfile(input: {
     const status = input?.status;
 
     if (!userId) return { ok: false, error: "Pengguna tidak valid." };
-    if (userId === owner.id) return { ok: false, error: "Akun Owner utama tidak dapat diubah dari daftar ini." };
+    if (userId === owner.userId) return { ok: false, error: "Akun Owner utama tidak dapat diubah dari daftar ini." };
     if (!roles.every((role) => typeof role === "string" && allowedRoles.includes(role))) {
       return { ok: false, error: "Role yang dipilih tidak valid." };
     }
@@ -96,7 +88,7 @@ export async function saveUserAccessProfile(input: {
       roles: [...new Set(roles)],
       is_active: status === "Aktif",
       updated_at: new Date().toISOString(),
-      updated_by: owner.id,
+      updated_by: owner.userId,
     }, { onConflict: "user_id" });
 
     if (error) return { ok: false, error: "Pengaturan Role dan status gagal disimpan." };
@@ -173,8 +165,8 @@ export async function createManagedUser(input: {
       user_id: data.user.id,
       roles: [],
       is_active: true,
-      created_by: owner.id,
-      updated_by: owner.id,
+      created_by: owner.userId,
+      updated_by: owner.userId,
     });
 
     if (profileError) {
@@ -211,7 +203,7 @@ export async function updateManagedUserEmail(input: {
     const email = typeof input?.email === "string" ? input.email.trim().toLowerCase() : "";
 
     if (!userId) return { ok: false, error: "Pengguna tidak valid." };
-    if (userId === owner.id) return { ok: false, error: "Email akun Owner utama tidak dapat diubah dari halaman ini." };
+    if (userId === owner.userId) return { ok: false, error: "Email akun Owner utama tidak dapat diubah dari halaman ini." };
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return { ok: false, error: "Masukkan alamat email yang valid." };
     }

@@ -8,6 +8,7 @@ type LoginPageProps = {
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   const params = await searchParams;
   const hasError = Boolean(params.error);
+  const nextPath = typeof params.next === "string" ? params.next : "";
 
   return (
     <main className="auth-shell">
@@ -35,6 +36,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
         )}
 
         <form action={signIn} className="auth-form">
+          {nextPath && <input type="hidden" name="next" value={nextPath} />}
           <label htmlFor="email">Email</label>
           <input id="email" name="email" type="email" autoComplete="username" required />
           <label htmlFor="password">Password</label>

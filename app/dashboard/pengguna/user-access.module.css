@@ -143,3 +143,7 @@
 :global([data-theme="dark"]) .resetButton:hover,
 :global([data-theme="dark"]) .logoutButton:hover{background:#263a57}
 :global([data-theme="dark"]) .resetMessage{background:#3b321f;color:#f2d58a}
+/* Deferred Scope / Permission display (no backend yet) */
+.deferredList { display: grid; gap: 8px; margin-top: 4px; }
+.deferredItem { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border: 1px dashed #52627a; border-radius: 9px; background: #1b2b42; color: #c4d0e0; font-size: 12px; }
+.deferredBadge { flex: 0 0 auto; padding: 3px 8px; border-radius: 6px; background: #2a3b54; color: #a9b6c8; font-size: 10px; font-weight: 700; letter-spacing: .04em; }

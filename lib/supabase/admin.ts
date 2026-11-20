@@ -1,14 +1,24 @@
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+import { describeMissingSupabaseConfig, resolveSecretKey, resolveSupabaseUrl } from "./env";
 
+/**
+ * Server-only privileged client. Bypasses Row Level Security.
+ *
+ * Never import this from a Client Component, never pass the returned client to
+ * one, and never log the key.
+ */
 export function createAdminClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const secretKey = process.env.SUPABASE_SECRET_KEY;
+  const url = resolveSupabaseUrl();
+  const secret = resolveSecretKey();
 
-  if (!url || !secretKey) {
-    throw new Error("Supabase admin environment variables are not configured.");
+  if (!url || !secret) {
+    const missing = describeMissingSupabaseConfig();
+    throw new Error(
+      `Supabase admin client is not configured. Missing: ${missing.join(", ")}.`,
+    );
   }
 
-  return createSupabaseClient(url, secretKey, {
+  return createSupabaseClient(url, secret.key, {
     auth: {
       autoRefreshToken: false,
       persistSession: false,

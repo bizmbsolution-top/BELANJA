@@ -1,15 +1,11 @@
-import { redirect } from "next/navigation";
+import { guardPage, requireOwner } from "@/lib/auth/authorization";
 import { getManagedUsers } from "./actions";
 import UserAccess from "./user-access";
 
 export default async function UsersPage() {
-  let users;
+  await guardPage(requireOwner);
 
-  try {
-    users = await getManagedUsers();
-  } catch {
-    redirect("/dashboard?error=users");
-  }
+  const users = await getManagedUsers();
 
   return <UserAccess initialUsers={users} />;
 }
