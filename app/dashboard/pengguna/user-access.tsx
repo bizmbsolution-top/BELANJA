@@ -63,6 +63,10 @@ export default function UserAccess() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [formError, setFormError] = useState("");
+  const [resetOpen, setResetOpen] = useState(false);
+  const [resetPassword, setResetPassword] = useState("");
+  const [resetConfirm, setResetConfirm] = useState("");
+  const [resetMessage, setResetMessage] = useState("");
 
   const selectedUser = useMemo(
     () => users.find((user) => user.id === selectedId) ?? users[0],
@@ -222,8 +226,12 @@ export default function UserAccess() {
               <h2>{selectedUser.name}</h2>
               <p>{selectedUser.email}</p>
             </div>
-            <span className={selectedUser.status === "Aktif" ? styles.statusActive : styles.statusInactive}>{selectedUser.status}</span>
+            <div className={styles.accountActions}>
+              <span className={selectedUser.status === "Aktif" ? styles.statusActive : styles.statusInactive}>{selectedUser.status}</span>
+              <button type="button" className={styles.resetButton} onClick={() => { setResetOpen(true); setFormError(""); setResetMessage(""); }}>Reset Password</button>
+            </div>
           </div>
+          {resetMessage && <p className={styles.resetMessage}>{resetMessage}</p>}
 
           <section className={styles.section}>
             <h3>Role</h3>
@@ -309,6 +317,39 @@ export default function UserAccess() {
           </div>
         </section>
       </div>
+
+      {resetOpen && (
+        <div className={styles.modalBackdrop} onMouseDown={(event) => {
+          if (event.target === event.currentTarget) setResetOpen(false);
+        }}>
+          <section className={styles.addModal} role="dialog" aria-modal="true" aria-labelledby="reset-password-title">
+            <div className={styles.modalHeading}>
+              <div>
+                <p className={styles.modalEyebrow}>ADMINISTRASI OWNER</p>
+                <h2 id="reset-password-title">Reset Password</h2>
+                <p>{selectedUser.email}</p>
+              </div>
+              <button type="button" className={styles.closeModal} aria-label="Tutup" onClick={() => setResetOpen(false)}>×</button>
+            </div>
+            <form onSubmit={submitPasswordReset} className={styles.addForm}>
+              <label className={styles.modalField}>
+                <span>Password baru</span>
+                <input type="password" autoComplete="new-password" placeholder="Minimal 8 karakter" value={resetPassword} onChange={(event) => { setResetPassword(event.target.value); setFormError(""); }} required />
+              </label>
+              <label className={styles.modalField}>
+                <span>Konfirmasi password baru</span>
+                <input type="password" autoComplete="new-password" placeholder="Ulangi password baru" value={resetConfirm} onChange={(event) => { setResetConfirm(event.target.value); setFormError(""); }} required />
+              </label>
+              {formError && <p className={styles.formError} role="alert">{formError}</p>}
+              <p className={styles.modalNotice}>Password lama tidak ditampilkan atau diperlukan. Pada sistem aktif, perubahan akan dilakukan secara aman melalui Supabase Auth.</p>
+              <div className={styles.modalActions}>
+                <button type="button" className={styles.cancelButton} onClick={() => setResetOpen(false)}>Batal</button>
+                <button type="submit" className={styles.createButton}>Simpan Password Baru</button>
+              </div>
+            </form>
+          </section>
+        </div>
+      )}
 
       {addOpen && (
         <div className={styles.modalBackdrop} onMouseDown={(event) => {
