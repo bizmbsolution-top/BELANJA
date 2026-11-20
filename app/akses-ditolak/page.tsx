@@ -1,11 +1,12 @@
 import { signOut } from "@/app/login/actions";
 
-export default function AccessDeniedPage({
+export default async function AccessDeniedPage({
   searchParams,
 }: {
-  searchParams: { reason?: string };
+  searchParams: Promise<{ reason?: string }>;
 }) {
-  const inactive = searchParams.reason === "inactive";
+  const { reason } = await searchParams;
+  const inactive = reason === "inactive";
 
   return (
     <main style={{ minHeight: "100vh", display: "grid", placeItems: "center", padding: 24, background: "#f4f7fb", color: "#172b4d" }}>
