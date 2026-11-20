@@ -2,7 +2,7 @@
 
 import { type FormEvent, useMemo, useState } from "react";
 import styles from "./user-access.module.css";
-import { createManagedUser, resetUserPassword, updateManagedUserEmail } from "./actions";
+import { createManagedUser, resetUserPassword, saveUserAccessProfile, updateManagedUserEmail } from "./actions";
 import { signOut } from "@/app/login/actions";
 
 type ScopeMode = "all" | "selected";
@@ -60,6 +60,8 @@ export default function UserAccess({ initialUsers }: { initialUsers: UserRecord[
   const [editEmail, setEditEmail] = useState("");
   const [editEmailError, setEditEmailError] = useState("");
   const [editEmailBusy, setEditEmailBusy] = useState(false);
+  const [saveBusy, setSaveBusy] = useState(false);
+  const [saveError, setSaveError] = useState("");
 
   const selectedUser = useMemo(
     () => users.find((user) => user.id === selectedId) ?? users[0] ?? { id: "", name: "Belum ada pengguna", email: "", roles: [], status: "Nonaktif" as const },
@@ -215,7 +217,17 @@ export default function UserAccess({ initialUsers }: { initialUsers: UserRecord[
     setResetMessage("Email pengguna berhasil diperbarui.");
   }
 
-  function savePreview() {
+  async function savePreview() {
+    if (!selectedUser.id) return;
+    setSaveBusy(true);
+    setSaveError("");
+    const result = await saveUserAccessProfile({ userId: selectedUser.id, roles: selectedUser.roles, status: selectedUser.status });
+    setSaveBusy(false);
+    if (!result.ok) {
+      setSaved(false);
+      setSaveError(result.error);
+      return;
+    }
     setSaved(true);
   }
 
@@ -232,7 +244,7 @@ export default function UserAccess({ initialUsers }: { initialUsers: UserRecord[
 
       <div className={styles.previewNote}>
         <strong>Mode preview</strong>
-        <span>Daftar akun dan reset password terhubung ke Supabase Auth. Pengaturan Role, Scope, dan Permission masih Preview.</span>
+        <span>Akun, Role, dan status terhubung ke Supabase. Scope dan Permission masih Preview.</span>
       </div>
 
       <div className={styles.layout}>
@@ -361,8 +373,9 @@ export default function UserAccess({ initialUsers }: { initialUsers: UserRecord[
           </section>
 
           <div className={styles.footerActions}>
-            {saved && <p className={styles.savedMessage}>Perubahan tersimpan di preview saja.</p>}
-            <button type="button" className={styles.saveButton} onClick={savePreview}>Simpan Perubahan (Preview)</button>
+            {saved && <p className={styles.savedMessage}>Role dan status berhasil disimpan ke Supabase.</p>}
+            {saveError && <p className={styles.formError} role="alert">{saveError}</p>}
+            <button type="button" className={styles.saveButton} onClick={savePreview} disabled={saveBusy || !selectedUser.id}>{saveBusy ? "Menyimpan..." : "Simpan Perubahan"}</button>
           </div>
         </section>
       </div>
