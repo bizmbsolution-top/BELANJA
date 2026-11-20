@@ -126,7 +126,7 @@ export default function UserAccess() {
     event.preventDefault();
     const email = newEmail.trim().toLowerCase();
 
-    if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       setFormError("Masukkan alamat email yang valid.");
       return;
     }
@@ -149,7 +149,7 @@ export default function UserAccess() {
 
     const displayName = email.split("@")[0]
       .replace(/[._-]+/g, " ")
-      .replace(/\\b\\w/g, (letter) => letter.toUpperCase());
+      .replace(/\b\w/g, (letter) => letter.toUpperCase());
     const id = `preview-${Date.now()}`;
 
     setUsers((current) => [...current, {
