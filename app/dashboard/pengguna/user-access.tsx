@@ -62,7 +62,6 @@ export default function UserAccess() {
   const [newEmail, setNewEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [newRoles, setNewRoles] = useState<string[]>([]);
   const [formError, setFormError] = useState("");
 
   const selectedUser = useMemo(
@@ -115,13 +114,6 @@ export default function UserAccess() {
     updateSelectedSettings({ grants });
   }
 
-  function toggleNewRole(role: string) {
-    setNewRoles((current) => current.includes(role)
-      ? current.filter((item) => item !== role)
-      : [...current, role]);
-    setFormError("");
-  }
-
   function addUserPreview(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const email = newEmail.trim().toLowerCase();
@@ -142,11 +134,6 @@ export default function UserAccess() {
       setFormError("Konfirmasi password belum cocok.");
       return;
     }
-    if (newRoles.length === 0) {
-      setFormError("Pilih minimal satu Role.");
-      return;
-    }
-
     const displayName = email.split("@")[0]
       .replace(/[._-]+/g, " ")
       .replace(/\b\w/g, (letter) => letter.toUpperCase());
@@ -156,7 +143,7 @@ export default function UserAccess() {
       id,
       name: displayName,
       email,
-      roles: newRoles,
+      roles: [],
       status: "Aktif",
     }]);
     setSettings((current) => ({
@@ -172,7 +159,6 @@ export default function UserAccess() {
     setNewEmail("");
     setNewPassword("");
     setConfirmPassword("");
-    setNewRoles([]);
     setFormError("");
     setSaved(false);
   }
@@ -333,7 +319,7 @@ export default function UserAccess() {
               <div>
                 <p className={styles.modalEyebrow}>ADMINISTRASI OWNER</p>
                 <h2 id="add-user-title">Tambah Pengguna</h2>
-                <p>Buat akun pengguna baru untuk organisasi ini.</p>
+                <p>Buat akun terlebih dahulu. Role dan area kerja dapat diatur setelah akun terdaftar.</p>
               </div>
               <button type="button" className={styles.closeModal} aria-label="Tutup" onClick={() => setAddOpen(false)}>×</button>
             </div>
@@ -351,19 +337,8 @@ export default function UserAccess() {
                 <span>Konfirmasi password</span>
                 <input type="password" autoComplete="new-password" placeholder="Ulangi password awal" value={confirmPassword} onChange={(event) => { setConfirmPassword(event.target.value); setFormError(""); }} required />
               </label>
-              <fieldset className={styles.modalRoles}>
-                <legend>Role pengguna</legend>
-                <div className={styles.modalRoleGrid}>
-                  {["Cashier", "Finance", "Warehouse", "Management"].map((role) => (
-                    <label key={role}>
-                      <input type="checkbox" checked={newRoles.includes(role)} onChange={() => toggleNewRole(role)} />
-                      <span>{role}</span>
-                    </label>
-                  ))}
-                </div>
-              </fieldset>
               {formError && <p className={styles.formError} role="alert">{formError}</p>}
-              <p className={styles.modalNotice}>Akun yang ditambahkan di sini hanya muncul dalam Preview. Password tidak disimpan dan belum membuat akun Supabase.</p>
+              <p className={styles.modalNotice}>Akun baru akan muncul di daftar Pengguna tanpa Role. Atur Role, area kerja, dan permission setelah akun dibuat. Ini masih Preview; akun belum dibuat di Supabase dan password tidak disimpan.</p>
               <div className={styles.modalActions}>
                 <button type="button" className={styles.cancelButton} onClick={() => setAddOpen(false)}>Batal</button>
                 <button type="submit" className={styles.createButton}>Tambah Pengguna</button>
