@@ -2,7 +2,8 @@
 
 import { type FormEvent, useMemo, useState } from "react";
 import styles from "./user-access.module.css";
-import { createManagedUser, resetUserPassword } from "./actions";\nimport { signOut } from "@/app/login/actions";
+import { createManagedUser, resetUserPassword } from "./actions";
+import { signOut } from "@/app/login/actions";
 
 type ScopeMode = "all" | "selected";
 type ScopeKey = "project" | "department" | "warehouse";
@@ -126,27 +127,16 @@ export default function UserAccess({ initialUsers }: { initialUsers: UserRecord[
       setFormError("Konfirmasi password belum cocok.");
       return;
     }
-    const displayName = email.split("@")[0]
-      .replace(/[._-]+/g, " ")
-      .replace(/\b\w/g, (letter) => letter.toUpperCase());
-    const id = `preview-${Date.now()}`;
 
-    setUsers((current) => [...current, {
-      id,
-      name: displayName,
-      email,
-      roles: [],
-      status: "Aktif",
-    }]);
-    setSettings((current) => ({
-      ...current,
-      [id]: {
-        scopeModes: { project: "selected", department: "selected", warehouse: "selected" },
-        scopeSelections: { project: [], department: [], warehouse: [] },
-        grants: [],
-      },
-    }));
-    setSelectedId(id);
+    setFormError("");
+    const result = await createManagedUser({ email, password: newPassword });
+    if (!result.ok) {
+      setFormError(result.error);
+      return;
+    }
+
+    setUsers((current) => [...current, result.user]);
+    setSelectedId(result.user.id);
     setAddOpen(false);
     setNewEmail("");
     setNewPassword("");
