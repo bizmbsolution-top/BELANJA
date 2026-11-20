@@ -21,6 +21,7 @@ export default async function DashboardPage() {
           <button className="button-secondary" type="submit">Keluar</button>
         </form>
       </header>
+      <p style={{ margin: "0 0 18px" }}><a href="/dashboard/pengguna" style={{ color: "#155eef", fontWeight: 700, textDecoration: "none" }}>Pengaturan Pengguna →</a></p>
       <section className="dashboard-card">
         <div className="status-row"><span className="status-dot" />Autentikasi berhasil</div>
         <h2>Selamat datang</h2>
