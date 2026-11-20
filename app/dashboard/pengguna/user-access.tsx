@@ -58,6 +58,12 @@ export default function UserAccess() {
   const [settings, setSettings] = useState(initialSettings);
   const [selectedId, setSelectedId] = useState("u1");
   const [saved, setSaved] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
+  const [newEmail, setNewEmail] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [newRoles, setNewRoles] = useState<string[]>([]);
+  const [formError, setFormError] = useState("");
 
   const selectedUser = useMemo(
     () => users.find((user) => user.id === selectedId) ?? users[0],
@@ -132,8 +138,13 @@ export default function UserAccess() {
       <div className={styles.layout}>
         <aside className={styles.userPanel}>
           <div className={styles.panelHeading}>
-            <h2>Pengguna</h2>
-            <span>{users.length} akun</span>
+            <div>
+              <h2>Pengguna</h2>
+              <span>{users.length} akun</span>
+            </div>
+            <button type="button" className={styles.addButton} onClick={() => { setAddOpen(true); setFormError(""); }}>
+              + Tambah Pengguna
+            </button>
           </div>
           <div className={styles.userList}>
             {users.map((user) => (
@@ -250,6 +261,55 @@ export default function UserAccess() {
           </div>
         </section>
       </div>
+
+      {addOpen && (
+        <div className={styles.modalBackdrop} onMouseDown={(event) => {
+          if (event.target === event.currentTarget) setAddOpen(false);
+        }}>
+          <section className={styles.addModal} role="dialog" aria-modal="true" aria-labelledby="add-user-title">
+            <div className={styles.modalHeading}>
+              <div>
+                <p className={styles.modalEyebrow}>ADMINISTRASI OWNER</p>
+                <h2 id="add-user-title">Tambah Pengguna</h2>
+                <p>Buat akun pengguna baru untuk organisasi ini.</p>
+              </div>
+              <button type="button" className={styles.closeModal} aria-label="Tutup" onClick={() => setAddOpen(false)}>×</button>
+            </div>
+
+            <form onSubmit={addUserPreview} className={styles.addForm}>
+              <label className={styles.modalField}>
+                <span>Email pengguna</span>
+                <input type="email" autoComplete="off" placeholder="nama@perusahaan.com" value={newEmail} onChange={(event) => { setNewEmail(event.target.value); setFormError(""); }} required />
+              </label>
+              <label className={styles.modalField}>
+                <span>Password awal</span>
+                <input type="password" autoComplete="new-password" placeholder="Minimal 8 karakter" value={newPassword} onChange={(event) => { setNewPassword(event.target.value); setFormError(""); }} required />
+              </label>
+              <label className={styles.modalField}>
+                <span>Konfirmasi password</span>
+                <input type="password" autoComplete="new-password" placeholder="Ulangi password awal" value={confirmPassword} onChange={(event) => { setConfirmPassword(event.target.value); setFormError(""); }} required />
+              </label>
+              <fieldset className={styles.modalRoles}>
+                <legend>Role pengguna</legend>
+                <div className={styles.modalRoleGrid}>
+                  {["Cashier", "Finance", "Warehouse", "Management"].map((role) => (
+                    <label key={role}>
+                      <input type="checkbox" checked={newRoles.includes(role)} onChange={() => toggleNewRole(role)} />
+                      <span>{role}</span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+              {formError && <p className={styles.formError} role="alert">{formError}</p>}
+              <p className={styles.modalNotice}>Akun yang ditambahkan di sini hanya muncul dalam Preview. Password tidak disimpan dan belum membuat akun Supabase.</p>
+              <div className={styles.modalActions}>
+                <button type="button" className={styles.cancelButton} onClick={() => setAddOpen(false)}>Batal</button>
+                <button type="submit" className={styles.createButton}>Tambah Pengguna</button>
+              </div>
+            </form>
+          </section>
+        </div>
+      )}
     </main>
   );
 }
