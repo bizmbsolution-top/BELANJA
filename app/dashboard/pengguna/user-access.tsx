@@ -2,36 +2,23 @@
 
 import { type FormEvent, useMemo, useState } from "react";
 import styles from "./user-access.module.css";
+import { resetUserPassword } from "./actions";
 
 type ScopeMode = "all" | "selected";
 type ScopeKey = "project" | "department" | "warehouse";
 
-const initialUsers = [
-  { id: "u1", name: "Budi Santoso", email: "budi@sentralogis.com", roles: ["Cashier"], status: "Aktif" },
-  { id: "u2", name: "Sari Wijaya", email: "sari@sentralogis.com", roles: ["Finance"], status: "Aktif" },
-  { id: "u3", name: "Dedi Pratama", email: "dedi@sentralogis.com", roles: ["Warehouse"], status: "Nonaktif" },
-];
+type UserRecord = {
+  id: string;
+  name: string;
+  email: string;
+  roles: string[];
+  status: "Aktif" | "Nonaktif";
+};
 
-const initialSettings: Record<string, {
-  scopeModes: Record<ScopeKey, ScopeMode>;
-  scopeSelections: Record<ScopeKey, string[]>;
-  grants: string[];
-}> = {
-  u1: {
-    scopeModes: { project: "selected", department: "all", warehouse: "selected" },
-    scopeSelections: { project: ["Project A", "Project B"], department: [], warehouse: ["Gudang Utama"] },
-    grants: ["fund_utilization.post_recognition"],
-  },
-  u2: {
-    scopeModes: { project: "all", department: "selected", warehouse: "all" },
-    scopeSelections: { project: [], department: ["Finance"], warehouse: [] },
-    grants: ["payment.post", "payment.allocate"],
-  },
-  u3: {
-    scopeModes: { project: "selected", department: "all", warehouse: "selected" },
-    scopeSelections: { project: ["Project C"], department: [], warehouse: ["Gudang Site", "Gudang Transit"] },
-    grants: [],
-  },
+const emptySettings = {
+  scopeModes: { project: "selected" as ScopeMode, department: "selected" as ScopeMode, warehouse: "selected" as ScopeMode },
+  scopeSelections: { project: [] as string[], department: [] as string[], warehouse: [] as string[] },
+  grants: [] as string[],
 };
 
 const scopeOptions: Record<ScopeKey, string[]> = {
@@ -56,7 +43,7 @@ const sensitivePermissions = [
 export default function UserAccess() {
   const [users, setUsers] = useState(initialUsers);
   const [settings, setSettings] = useState(initialSettings);
-  const [selectedId, setSelectedId] = useState("u1");
+  const [selectedId, setSelectedId] = useState(initialUsers[0]?.id ?? "");
   const [saved, setSaved] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [newEmail, setNewEmail] = useState("");
@@ -66,18 +53,18 @@ export default function UserAccess() {
   const [resetOpen, setResetOpen] = useState(false);
   const [resetPassword, setResetPassword] = useState("");
   const [resetConfirm, setResetConfirm] = useState("");
-  const [resetMessage, setResetMessage] = useState("");
+  const [resetMessage, setResetMessage] = useState("");\n  const [resetBusy, setResetBusy] = useState(false);
 
   const selectedUser = useMemo(
-    () => users.find((user) => user.id === selectedId) ?? users[0],
+    () => users.find((user) => user.id === selectedId) ?? users[0] ?? { id: "", name: "Belum ada pengguna", email: "", roles: [], status: "Nonaktif" as const },
     [users, selectedId],
   );
-  const selectedSettings = settings[selectedId] ?? initialSettings.u1;
+  const selectedSettings = settings[selectedId] ?? emptySettings;
 
   function updateSelectedSettings(patch: Partial<typeof selectedSettings>) {
     setSettings((current) => ({
       ...current,
-      [selectedId]: { ...current[selectedId], ...patch },
+      [selectedId]: { ...emptySettings, ...current[selectedId], ...patch },
     }));
     setSaved(false);
   }
@@ -167,7 +154,7 @@ export default function UserAccess() {
     setSaved(false);
   }
 
-  function submitPasswordReset(event: FormEvent<HTMLFormElement>) {
+  async function submitPasswordReset(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (resetPassword.length < 8) {
       setFormError("Password baru minimal 8 karakter.");
@@ -177,11 +164,25 @@ export default function UserAccess() {
       setFormError("Konfirmasi password belum cocok.");
       return;
     }
+    if (!selectedUser.id) {
+      setFormError("Pilih pengguna yang valid.");
+      return;
+    }
+
+    setResetBusy(true);
+    setFormError("");
+    const result = await resetUserPassword({ userId: selectedUser.id, password: resetPassword });
+    setResetBusy(false);
+
+    if (!result.ok) {
+      setFormError(result.error);
+      return;
+    }
+
     setResetOpen(false);
     setResetPassword("");
     setResetConfirm("");
-    setFormError("");
-    setResetMessage("Simulasi reset password berhasil. Belum mengubah password akun Supabase.");
+    setResetMessage("Password akun berhasil diperbarui.");
   }
 
   function savePreview() {
@@ -201,7 +202,7 @@ export default function UserAccess() {
 
       <div className={styles.previewNote}>
         <strong>Mode preview</strong>
-        <span>Perubahan di halaman ini hanya simulasi tampilan dan belum disimpan ke database.</span>
+        <span>Daftar akun dan reset password terhubung ke Supabase Auth. Pengaturan Role, Scope, dan Permission masih Preview.</span>
       </div>
 
       <div className={styles.layout}>
@@ -233,7 +234,7 @@ export default function UserAccess() {
               </button>
             ))}
           </div>
-          <p className={styles.listHint}>Daftar contoh untuk melihat tampilan pengaturan.</p>
+          <p className={styles.listHint}>Daftar akun yang terdaftar di Supabase Auth.</p>
         </aside>
 
         <section className={styles.formPanel}>
@@ -358,10 +359,10 @@ export default function UserAccess() {
                 <input type="password" autoComplete="new-password" placeholder="Ulangi password baru" value={resetConfirm} onChange={(event) => { setResetConfirm(event.target.value); setFormError(""); }} required />
               </label>
               {formError && <p className={styles.formError} role="alert">{formError}</p>}
-              <p className={styles.modalNotice}>Password lama tidak ditampilkan atau diperlukan. Pada sistem aktif, perubahan akan dilakukan secara aman melalui Supabase Auth.</p>
+              <p className={styles.modalNotice}>Password lama tidak diperlukan. Password baru akan langsung diperbarui pada akun Supabase Auth.</p>
               <div className={styles.modalActions}>
                 <button type="button" className={styles.cancelButton} onClick={() => setResetOpen(false)}>Batal</button>
-                <button type="submit" className={styles.createButton}>Simpan Password Baru</button>
+                <button type="submit" className={styles.createButton} disabled={resetBusy}>{resetBusy ? "Menyimpan..." : "Simpan Password Baru"}</button>
               </div>
             </form>
           </section>
