@@ -2,7 +2,8 @@
 .sidebar{position:fixed;inset:0 auto 0 0;z-index:30;display:flex;width:264px;flex-direction:column;background:#101d33;color:#e8eef8;box-shadow:8px 0 28px rgba(16,29,51,.08)}
 .brandWrap{padding:25px 22px 22px;border-bottom:1px solid rgba(255,255,255,.1)}
 .brand{display:flex;align-items:center;gap:11px}
-.brandMark{display:grid;width:38px;height:38px;place-items:center;border-radius:11px;background:linear-gradient(135deg,#4f8cff,#7548e8);color:#fff;font-size:24px;font-weight:900;box-shadow:0 6px 16px rgba(75,118,255,.3)}
+.brandMark{display:block;width:38px;height:38px;flex:0 0 38px;padding:5px;border-radius:11px;background:linear-gradient(135deg,#4f8cff,#7548e8);box-shadow:0 6px 16px rgba(75,118,255,.3);overflow:hidden}
+.brandLogo{display:block;width:100%;height:100%;object-fit:contain}
 .brandName{color:#fff;font-size:20px;font-weight:900;letter-spacing:.07em}
 .brandCaption{display:block;margin:12px 0 0 49px;color:#9eacc2;font-size:9px;font-weight:800;letter-spacing:.12em}
 .navScroll{flex:1;overflow-y:auto;padding:14px 12px}
@@ -34,7 +35,7 @@
  .sidebar{display:none}
  .mainColumn{margin-left:0}
  .mobileTopbar{position:sticky;top:0;z-index:25;display:flex;height:60px;align-items:center;gap:13px;padding:0 15px;border-bottom:1px solid #e3e9f2;background:#fff}
- .mobileTopbar .brandMark{width:32px;height:32px;font-size:20px}
+ .mobileTopbar .brandMark{width:32px;height:32px;flex:0 0 32px;padding:4px;border-radius:9px}
  .mobileTopbar .brandName{color:#172b4d;font-size:16px}
  .menuButton{width:34px;height:34px;border:1px solid #dce4ef;border-radius:8px;background:#fff;color:#263b5c;font-size:19px;cursor:pointer}
  .mobileRole{overflow:hidden;margin-left:auto;color:#62718a;font-size:10px;text-overflow:ellipsis;white-space:nowrap}
@@ -56,7 +57,7 @@
 .app[data-theme="dark"] .menuButton,.app[data-theme="dark"] .mobileThemeToggle{border-color:#43536c;background:#1c2b42;color:#f4f7fb}
 .app[data-theme="dark"] .content{background:#0b1220}
 .app[data-theme="light"] .sidebar,.app[data-theme="light"] .mobileSidebar{background:#fff;color:#172b4d;box-shadow:8px 0 28px rgba(16,29,51,.08)}
-.app[data-theme="light"] .brandMark{background:linear-gradient(135deg,#4f8cff,#7548e8);color:#fff}
+.app[data-theme="light"] .brandMark{background:linear-gradient(135deg,#4f8cff,#7548e8)}
 .app[data-theme="light"] .brandName{color:#172b4d}
 .app[data-theme="light"] .brandCaption{color:#73819a}
 .app[data-theme="light"] .brandWrap,.app[data-theme="light"] .sidebarFooter{border-color:#e5eaf2}

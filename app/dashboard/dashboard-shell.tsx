@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -65,7 +66,15 @@ const groups: MenuGroup[] = [
 function Brand() {
   return (
     <div className={styles.brand}>
-      <span className={styles.brandMark}>B</span>
+      <span className={styles.brandMark}>
+        <Image
+          src="/logo_belanja.png"
+          alt=""
+          width={1026}
+          height={1027}
+          className={styles.brandLogo}
+        />
+      </span>
       <span className={styles.brandName}>BELANJA</span>
     </div>
   );

@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { signIn } from "./actions";
 
 type LoginPageProps = {
@@ -11,7 +12,16 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   return (
     <main className="auth-shell">
       <section className="auth-card">
-        <div className="brand-mark" aria-hidden="true">B</div>
+        <div className="brand-mark">
+          <Image
+            src="/logo_belanja.png"
+            alt="BELANJA"
+            width={1026}
+            height={1027}
+            className="brand-mark-logo"
+            priority
+          />
+        </div>
         <p className="eyebrow">SENTRALOGIS · OPERATIONS</p>
         <h1>Masuk ke Belanja</h1>
         <p className="auth-intro">Gunakan akun yang telah didaftarkan oleh administrator.</p>

@@ -1,3 +1,5 @@
+import Image from "next/image";
+
 export default function DashboardPage() {
   return (
     <div className="home-dashboard">
@@ -7,7 +9,15 @@ export default function DashboardPage() {
         <p>Ringkasan aktivitas operasional Belanja.</p>
       </div>
       <section className="welcome-card">
-        <div className="welcome-icon">B</div>
+        <div className="welcome-icon">
+          <Image
+            src="/logo_belanja.png"
+            alt=""
+            width={1026}
+            height={1027}
+            className="welcome-logo"
+          />
+        </div>
         <div>
           <span className="welcome-status"><i /> Sistem siap digunakan</span>
           <h2>Selamat datang di BELANJA</h2>
