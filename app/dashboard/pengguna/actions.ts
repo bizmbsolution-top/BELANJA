@@ -98,7 +98,7 @@ export async function createManagedUser(input: {
     const email = typeof input?.email === "string" ? input.email.trim().toLowerCase() : "";
     const password = typeof input?.password === "string" ? input.password : "";
 
-    if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return { ok: false, error: "Masukkan alamat email yang valid." };
     }
     if (password.length < 8) {
@@ -124,7 +124,7 @@ export async function createManagedUser(input: {
 
     const displayName = email.split("@")[0]
       .replace(/[._-]+/g, " ")
-      .replace(/\\b\\w/g, (letter) => letter.toUpperCase());
+      .replace(/\b\\w/g, (letter) => letter.toUpperCase());
 
     return {
       ok: true,
