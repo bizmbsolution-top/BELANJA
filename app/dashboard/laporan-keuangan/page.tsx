@@ -6,10 +6,9 @@ export const revalidate = 0;
 export default async function FinancialReportPage() {
   await requireAnyRole(["Finance", "Management"]);
   const db = createAdminClient();
-  const [{ data: orders, error }, { data: projects }, { data: customers }, { data: allocations }, { data: settlements }, { data: items, error: itemError }] = await Promise.all([
+  const [{ data: orders, error }, { data: projects }, { data: customers }, { data: settlements }, { data: items, error: itemError }] = await Promise.all([
     db.from("sales_orders").select("id,code,customer_id,project_id,status,dispatched_weight_kg,received_weight_kg,final_amount,dispatched_purchase_cost,ba_number,ba_date").eq("status", "Selesai").not("ba_date", "is", null).order("ba_date", { ascending: false }).limit(1500),
     db.from("projects").select("id,code,name"), db.from("customers").select("id,name"),
-    db.from("sales_order_lot_allocations").select("sales_order_id,allocated_weight_kg").limit(10000),
     db.from("sales_order_settlements").select("id,sales_order_id,gross_amount,total_deductions,amount,payment_method,received_at"),
     db.from("sales_order_expense_items").select("id,sales_order_id,master_code_snapshot,master_name_snapshot,expense_type,final_amount,recipient_name_snapshot").limit(10000),
   ]);
@@ -23,5 +22,5 @@ export default async function FinancialReportPage() {
   ]);
   if (voucherError || deductionError) throw new Error("Rincian biaya atau potongan settlement gagal dimuat.");
   const customerMap = new Map((customers ?? []).map(row => [row.id, row.name]));
-  return <FinancialReport orders={orderRows.map(row => ({ ...row, customer_name: customerMap.get(row.customer_id) ?? "Pembeli" })) as FinancialOrder[]} projects={(projects ?? []) as FinancialProject[]} allocations={allocations ?? []} expenseItems={(items ?? []).filter(item => orderIds.includes(item.sales_order_id)) as FinancialExpenseItem[]} vouchers={(vouchers ?? []) as FinancialVoucher[]} settlements={(settlements ?? []) as FinancialSettlement[]} deductions={(deductions ?? []) as FinancialDeduction[]} />;
+  return <FinancialReport orders={orderRows.map(row => ({ ...row, customer_name: customerMap.get(row.customer_id) ?? "Pembeli" })) as FinancialOrder[]} projects={(projects ?? []) as FinancialProject[]} expenseItems={(items ?? []).filter(item => orderIds.includes(item.sales_order_id)) as FinancialExpenseItem[]} vouchers={(vouchers ?? []) as FinancialVoucher[]} settlements={(settlements ?? []) as FinancialSettlement[]} deductions={(deductions ?? []) as FinancialDeduction[]} />;
 }
