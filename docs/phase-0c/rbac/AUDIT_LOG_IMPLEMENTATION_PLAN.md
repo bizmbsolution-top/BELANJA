@@ -1,88 +1,81 @@
-# Belanja — Rencana Implementasi Audit Log
+# Belanja — Implementasi Audit Log
 
-Status: **SQL schema draft tersedia untuk review — belum ada migration formal atau perubahan database**
-Target: branch `ui-user-access-preview`
+Status: **Skema dan integrasi awal diterapkan pada Supabase serta branch preview**
+Target: branch `ui-user-access-preview` · Supabase project `zguzjoqmghmmviyixecz`
 
-## 1. Tujuan tahap pertama
+## 1. Cakupan
 
-Mencatat perubahan administrasi pengguna melalui halaman Pengguna:
+Audit Log tahap pertama mencatat administrasi pengguna:
 - Pembuatan akun.
-- Perubahan Role dan status aktif/nonaktif.
-- Perubahan Scope Project, Department, Warehouse.
-- Perubahan Permission individual (allow/deny/unset).
-- Perubahan email.
-- Reset password (event saja; password tidak pernah disimpan).
+- Perubahan Role, status aktif/nonaktif, Scope Project/Department/Warehouse, dan Permission individual.
+- Permintaan dan hasil perubahan email.
+- Permintaan dan hasil reset password.
 
-Tidak mencatat isi transaksi, aktivitas pembelian/penjualan, atau setiap klik/navigasi.
+Tidak mencatat isi transaksi, aktivitas pembelian/penjualan, atau klik/navigasi.
 
-## 2. Data yang disimpan
+## 2. Data dan keamanan
 
-- `id`: ID event.
-- `actor_user_id`: pelaku yang diverifikasi server.
-- `target_user_id`: pengguna sasaran.
-- `action`: kode aktivitas.
-- `entity_type` dan `entity_id`: objek terkait.
-- `before_data` dan `after_data`: snapshot non-rahasia yang diizinkan.
-- `created_at`: waktu database/server.
+Tabel: `public.audit_logs`.
 
-Dilarang menyimpan password, token, Secret Key, session, OTP, atau data autentikasi sensitif.
+Kolom: `id`, `actor_user_id`, `target_user_id`, `action`, `entity_type`, `entity_id`, `before_data`, `after_data`, `created_at`.
 
-## 3. Kode aktivitas
+- RLS aktif; tidak ada grant langsung untuk `anon` atau `authenticated`.
+- `service_role` hanya memiliki `SELECT` dan `INSERT` pada tabel audit.
+- Tidak ada izin `UPDATE`, `DELETE`, atau `TRUNCATE` untuk `service_role`.
+- Fungsi penyimpanan akses menggunakan `SECURITY INVOKER` dan hanya dapat dijalankan oleh `service_role`.
+- Semua pembacaan dan penulisan audit melalui server-side code yang memverifikasi `requireOwner()`.
+- Nilai pelaku berasal dari sesi server, bukan input browser.
+- Password, token, Secret Key, session, OTP, dan data autentikasi sensitif tidak pernah disimpan.
+
+## 3. Atomisitas dan operasi Auth
+
+Perubahan Role/status/Scope/Permission dijalankan oleh fungsi database `save_user_access_profile_with_audit`. Update profil, scope, permission, dan insert audit berada dalam satu transaksi PostgreSQL. Jika insert audit gagal, seluruh perubahan akses ikut dibatalkan.
+
+Supabase Auth Admin API untuk pembuatan akun, perubahan email, dan reset password tidak dapat bergabung ke transaksi PostgreSQL. Karena itu:
+- Pembuatan akun mencatat `user.created` setelah profil berhasil dibuat; jika audit gagal, proses kompensasi menghapus profil dan akun Auth yang baru dibuat.
+- Perubahan email dan reset password mencatat event permintaan sebelum memanggil Auth Admin API, lalu mencatat hasil berhasil/gagal.
+- Password tidak pernah dimasukkan ke payload audit.
+
+## 4. Kode aktivitas
 
 - `user.created`
 - `user.access_updated`
 - `user.email_update_requested`, `user.email_updated`, `user.email_update_failed`
 - `user.password_reset_requested`, `user.password_reset`, `user.password_reset_failed`
 
-Untuk email dan password, event hanya mencatat permintaan dan hasil; password tidak pernah masuk ke snapshot.
+## 5. Tampilan
 
-## 4. Keamanan dan transaksi
+Halaman Owner: `/dashboard/riwayat-aktivitas`.
+- Menampilkan 200 aktivitas terbaru.
+- Menampilkan waktu WIB, pelaku, pengguna terkait, dan jenis aktivitas.
+- Detail sebelum/sesudah ditampilkan sebagai ringkasan, bukan JSON mentah.
+- Menu hanya tampil pada navigasi Owner.
+- Filter belum termasuk tahap awal ini.
 
-- RLS aktif; tidak ada akses langsung untuk `anon` atau `authenticated`.
-- Hanya server-side code yang boleh membaca/menulis, setelah `requireOwner()`.
-- `service_role` hanya dipakai di server dan tidak boleh masuk ke browser.
-- Tidak menyediakan edit/delete event di aplikasi.
-- Nilai pelaku berasal dari sesi server, bukan payload browser.
-- Waktu dibuat oleh database/server.
-- Perubahan Role/status/Scope/Permission dan event audit harus berada dalam satu transaksi database. Jika audit gagal, perubahan database ikut dibatalkan.
-- Supabase Auth Admin API untuk email/password tidak dapat bergabung ke transaksi PostgreSQL. Karena itu dicatat sebagai event permintaan dan hasil (berhasil/gagal), tanpa mengklaim atomisitas lintas Auth dan database.
+## 6. Migration
 
-## 5. Skema tabel
+Migration yang tercatat pada Supabase:
+- `20261123051909_create_audit_logs`
+- `20261123051943_save_user_access_profile_with_audit`
 
-Nama tabel: `public.audit_logs`.
+File SQL yang sesuai disimpan di `supabase/migrations/` pada branch preview. File dokumentasi `AUDIT_LOG_SCHEMA_MIGRATION_REVIEW.sql` menjadi salinan/referensi skema tabel.
 
-SQL schema draft terpisah: `AUDIT_LOG_SCHEMA_MIGRATION_REVIEW.sql`.
+## 7. Hasil verifikasi
 
-Kolom:
-- `id uuid primary key`
-- `actor_user_id uuid null references auth.users(id) on delete set null`
-- `target_user_id uuid null references auth.users(id) on delete set null`
-- `action text not null`
-- `entity_type text not null`
-- `entity_id text null`
-- `before_data jsonb null`
-- `after_data jsonb null`
-- `created_at timestamptz not null default now()`
+- Tabel `public.audit_logs` tersedia.
+- RLS aktif.
+- Index waktu, target+waktu, pelaku+waktu tersedia; satu index tambahan adalah primary key.
+- Grant `service_role`: hanya `SELECT, INSERT`.
+- Grant langsung untuk `anon`, `authenticated`, dan `public`: tidak ada.
+- Uji fungsi akses dilakukan dalam transaksi yang di-rollback; fungsi berjalan tanpa error dan tidak meninggalkan event uji.
+- Pemeriksaan advisor masih menampilkan peringatan lama pada `public.rls_auto_enable()` yang dapat dieksekusi `anon` dan `authenticated`, serta peringatan perlindungan password bocor yang belum aktif. Peringatan tersebut tidak dibuat oleh migration Audit Log dan belum diubah.
 
-Index pada waktu, target+waktu, dan pelaku+waktu. Referensi akun memakai `ON DELETE SET NULL`, sehingga penghapusan akun tidak menghapus histori.
+## 8. Belum diverifikasi
 
-## 6. Tampilan
+- Build Vercel dan pengujian browser end-to-end untuk halaman Riwayat Aktivitas.
+- Uji login sebagai non-Owner untuk memastikan halaman ditolak.
+- Uji aksi create/email/password langsung melalui UI dan verifikasi event masing-masing.
+- Uji kegagalan audit saat operasi Auth dan perilaku kompensasi.
+- Uji bahwa event tidak dapat diubah/dihapus melalui jalur aplikasi.
 
-Halaman khusus Owner menampilkan waktu, pelaku, aktivitas, pengguna sasaran, dan ringkasan perubahan. Detail sebelum/sesudah dapat dibuka. Filter awal: tanggal, pelaku, pengguna, jenis aktivitas. JSON mentah tidak ditampilkan sebagai tampilan utama.
-
-## 7. Tahapan
-
-1. Review SQL schema draft.
-2. Setelah persetujuan, buat migration formal melalui Supabase CLI.
-3. Integrasikan perubahan Role/status/Scope/Permission dan audit dalam satu transaksi.
-4. Integrasikan event permintaan/hasil untuk operasi Auth.
-5. Buat halaman Riwayat Aktivitas khusus Owner.
-6. Uji akses non-Owner, atomisitas, kegagalan, append-only, dan larangan penyimpanan secret.
-
-## 8. Status
-
-- SQL schema draft tersedia di folder dokumentasi untuk ditinjau; **bukan migration formal**.
-- Belum ada migration formal yang dibuat atau dijalankan.
-- Belum ada tabel atau data Supabase yang diubah.
-- Belum ada kode aplikasi yang menulis atau membaca audit event.
-- Audit Log belum aktif sampai implementasi dan pengujian selesai.
+Audit Log sudah memiliki skema dan integrasi awal, tetapi belum dinyatakan lulus pengujian end-to-end sampai butir di atas selesai.
