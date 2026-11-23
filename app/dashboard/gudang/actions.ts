@@ -1,6 +1,6 @@
 "use server";
 
-import { requireAnyRole } from "@/lib/auth/authorization";
+import { requireAnyRole, requireOwner } from "@/lib/auth/authorization";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const WAREHOUSE_ROLES = ["Procurement", "Warehouse", "Finance", "Management"] as const;
