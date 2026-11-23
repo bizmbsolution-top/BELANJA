@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import styles from "./inventory.module.css";
 
-type WarehouseItem = { id: string; code: string; name: string; location: string | null; projectLabel: string; totalKg: number; categories: { name: string; weight: number; averageValue: number; valueUnit: string }[] };
+type WarehouseItem = { id: string; code: string; name: string; location: string | null; projectLabel: string; totalKg: number; averageValue: number | null; averageValueUnit: string | null; categories: { name: string; weight: number; averageValue: number; valueUnit: string }[] };
 type MovementItem = { id: string; type: string; date: string; category: string; weight: number; value: number; valueUnit: string; reference: string; projectCode: string; projectName: string };
 type Props = { warehouses: WarehouseItem[]; movements: Record<string, MovementItem[]>; totalKg: number; movementCount: number; categoryCount: number };
 
@@ -35,14 +35,14 @@ export default function InventoryClient({ warehouses, movements, totalKg, moveme
       {warehouses.length === 0 ? <div className={styles.empty}><h3>Belum ada stok</h3><p>Stok akan muncul setelah penerimaan barang dinyatakan diterima.</p></div> :
         <div className={styles.stockList}>{warehouses.map(w => <button type="button" className={styles.warehouseCard} key={w.id} onClick={() => open(w.id)}>
           <div className={styles.warehouseInfo}><span className={styles.code}>{w.code}</span><h3>{w.name}</h3><p>{w.projectLabel}</p>{w.location && <small>{w.location}</small>}</div>
-          <div className={styles.warehouseRight}><strong>{qty(w.totalKg)}</strong><span>Sisa stok tersedia</span><span className={styles.viewDetails}>View Details <b>›</b></span></div>
+          <div className={styles.warehouseRight}><strong>{qty(w.totalKg)}</strong><span>Sisa stok tersedia</span>{w.averageValue !== null && w.averageValueUnit && <span>Estimasi average kadar {w.averageValue.toLocaleString("id-ID", { maximumFractionDigits: 3 })} {w.averageValueUnit}</span>}<span className={styles.viewDetails}>View Details <b>›</b></span></div>
         </button>)}</div>}
     </section>
     <p className={styles.footnote}>Pilih Gudang untuk melihat rincian stok per kategori dan kartu stok masuk/keluar.</p>
     {active && <div className={styles.modalBackdrop} role="presentation" onMouseDown={e => { if (e.target === e.currentTarget) close(); }}>
       <section className={styles.modal} role="dialog" aria-modal="true" aria-labelledby="inventory-modal-title">
         <header className={styles.modalHeader}><div><p className={styles.eyebrow}>DETAIL PERSEDIAAN</p><h2 id="inventory-modal-title">{active.name}</h2><p>{active.code} · {active.projectLabel}</p></div><button type="button" className={styles.closeButton} onClick={close} aria-label="Tutup">×</button></header>
-        <div className={styles.modalTotal}><span>Total/sisa stok Gudang</span><strong>{qty(active.totalKg)}</strong></div>
+        <div className={styles.modalTotal}><div><span>Total/sisa stok Gudang</span>{active.averageValue !== null && active.averageValueUnit && <span className={styles.averageValue}>Estimasi average kadar {active.averageValue.toLocaleString("id-ID", { maximumFractionDigits: 3 })} {active.averageValueUnit}</span>}</div><strong>{qty(active.totalKg)}</strong></div>
         <section className={styles.modalSection}><h3>Rincian Stok</h3>
           {active.categories.map((c,i) => <div className={styles.categoryRow} key={i}><div><strong>{c.name}</strong><span>Value rata-rata {c.averageValue.toLocaleString("id-ID", { maximumFractionDigits: 3 })} {c.valueUnit}</span></div><b>{qty(c.weight)}</b></div>)}
         </section>
