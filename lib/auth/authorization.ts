@@ -53,6 +53,7 @@ export type AccessContext = {
   displayRoles: string[];
   /** Active tenant resolved from server-side membership; null for Platform Owner. */
   tenantId: string | null;
+  tenantRole: "superadmin" | "member" | null;
 };
 
 type ProfileRow = { is_active: boolean; roles: unknown };
@@ -186,6 +187,7 @@ export async function getAccessContext(): Promise<AccessContext> {
       roles: [],
       displayRoles: ["Platform Owner"],
       tenantId: null,
+      tenantRole: null,
     };
   }
 
@@ -206,23 +208,21 @@ export async function getAccessContext(): Promise<AccessContext> {
     throw new AuthorizationError("inactive", "Data akses pengguna tidak dapat dimuat.");
   }
 
-  const decision = evaluateProfileAccess(
-    lookup.status === "found" ? lookup.profile : { is_active: false, roles: [] },
-  );
-
-  if (!decision.allowed) {
-    throw new AuthorizationError(decision.reason);
+  if (lookup.status !== "found" || !lookup.profile.is_active) {
+    throw new AuthorizationError("inactive", "Akun pengguna belum aktif.");
   }
 
-  const roles = normalizeOperationalRoles((lookup as { profile: ProfileRow }).profile.roles);
+  const tenantRole = membershipResult.data.tenant_role === "superadmin" ? "superadmin" : "member";
+  const roles = normalizeOperationalRoles(lookup.profile.roles);
 
   return {
     userId: user.id,
     email: user.email,
     isOwner: false,
     roles,
-    displayRoles: roles,
+    displayRoles: tenantRole === "superadmin" ? ["Superadmin"] : roles,
     tenantId: membershipResult.data.tenant_id,
+    tenantRole,
   };
 }
 
@@ -259,6 +259,7 @@ export async function requireAuthenticatedUser(): Promise<AccessContext> {
     roles: [],
     displayRoles: ownerRow ? ["Platform Owner"] : [],
     tenantId: null,
+    tenantRole: null,
   };
 }
 
@@ -277,10 +278,12 @@ export async function requireActiveUser(): Promise<AccessContext> {
 export async function requireAnyRole(roles: readonly string[]): Promise<AccessContext> {
   const context = await getAccessContext();
 
-  // Platform Owner is deliberately not an operational tenant user.
+  // Platform Owner is not an operational tenant user.
   if (context.isOwner) {
     throw new AuthorizationError("not-owner", "Platform Owner tidak memiliki akses ke transaksi tenant.");
   }
+
+  if (context.tenantRole === "superadmin") return context;
 
   const decision = evaluateRouteAccess({
     isOwner: false,
@@ -354,13 +357,16 @@ export async function requirePlatformOwner(): Promise<AccessContext> {
  * access.
  */
 export async function requireOwner(): Promise<AccessContext> {
-  const identity = await requireAuthenticatedUser();
+  const context = await getAccessContext();
 
-  if (identity.isOwner) {
-    throw new AuthorizationError("not-owner", "Administrasi tenant dilakukan oleh Superadmin tenant, bukan Platform Owner.");
+  if (context.isOwner) {
+    throw new AuthorizationError("not-owner", "Platform Owner tidak memiliki akses administrasi internal tenant.");
+  }
+  if (context.tenantRole !== "superadmin") {
+    throw new AuthorizationError("not-owner", "Menu ini hanya tersedia untuk Superadmin perusahaan.");
   }
 
-  throw new AuthorizationError("not-owner", "Akses ini hanya tersedia untuk Superadmin tenant.");
+  return context;
 }
 
 /**
