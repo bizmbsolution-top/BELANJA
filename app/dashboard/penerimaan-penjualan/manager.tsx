@@ -7,6 +7,7 @@ type Component={id:string;customer_id:string|null;code:string;name:string;calcul
 type Settlement={id:string;sales_order_id:string;amount:number;gross_amount:number;total_deductions:number;payment_method:string;payment_reference:string|null;received_at:string;customer_name:string;ba_number:string;evidence_file_name:string|null;evidence_url:string|null};
 type Deduction={settlement_id:string;component_name:string;deduction_amount:number};
 const money=(n:number)=>new Intl.NumberFormat("id-ID",{style:"currency",currency:"IDR",maximumFractionDigits:0}).format(n);
+const thousands=(n:number)=>new Intl.NumberFormat("id-ID",{maximumFractionDigits:0}).format(Number.isFinite(n)?n:0);
 const date=(v:string)=>new Date(v+"T00:00:00").toLocaleDateString("id-ID");
 export default function SettlementManager({orders,components,settlements,deductions}:{orders:Order[];components:Component[];settlements:Settlement[];deductions:Deduction[]}){
  const router=useRouter();const [selected,setSelected]=useState("");const [amounts,setAmounts]=useState<Record<string,string>>({});const [included,setIncluded]=useState<string[]>([]);const [componentToAdd,setComponentToAdd]=useState("");const [method,setMethod]=useState("Transfer");const [receivedAt,setReceivedAt]=useState(new Date().toISOString().slice(0,16));const [reference,setReference]=useState("");const [notes,setNotes]=useState("");const [file,setFile]=useState<File|null>(null);const [busy,setBusy]=useState(false);const [error,setError]=useState("");const [message,setMessage]=useState("");
@@ -36,7 +37,7 @@ export default function SettlementManager({orders,components,settlements,deducti
      </div>
      {included.length===0?<p style={muted}>Belum ada potongan ditambahkan. Net pembayaran sama dengan nilai invoice.</p>:applicable.filter(isIncluded).map(c=><div key={c.id} style={deductionRow}>
       <div style={{minWidth:150,flex:1}}><b>{c.name}</b><small style={muted}>Acuan master: {c.calculation_method==="percent"?c.default_value+"%":money(Number(c.default_value))}</small></div>
-      <label style={{display:"grid",gap:6,fontSize:12,color:"#475569",fontWeight:700,flex:2,minWidth:240}}>Nominal Potongan (Rp)<input type="number" min="0" step="1" value={amountFor(c)} onChange={e=>setAmounts(v=>({...v,[c.id]:e.target.value}))} style={{...control,minHeight:52,fontSize:18,fontWeight:800,padding:"12px 14px",letterSpacing:".02em"}}/></label>
+      <label style={{display:"grid",gap:6,fontSize:12,color:"#475569",fontWeight:700,flex:2,minWidth:240}}>Nominal Potongan (Rp)<input type="number" min="0" step="1" type="text" inputMode="numeric" value={thousands(amountFor(c))} onChange={e=>setAmounts(v=>({...v,[c.id]:e.target.value.replace(/\\D/g,"")}))} style={{...control,minHeight:52,fontSize:18,fontWeight:800,padding:"12px 14px",letterSpacing:".02em"}}/></label>
       <button type="button" style={secondary} onClick={()=>setIncluded(v=>v.filter(id=>id!==c.id))}>Hapus</button>
      </div>)}
     </div>
