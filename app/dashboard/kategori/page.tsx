@@ -2,7 +2,7 @@ import { requireAnyRole } from "@/lib/auth/authorization";
 import { createAdminClient } from "@/lib/supabase/admin";
 import CategoryManager, { type PurchaseCategory } from "./category-manager";
 
-const CATEGORY_ROLES = ["Finance", "Management"] as const;
+const CATEGORY_ROLES = ["Procurement", "Finance", "Management"] as const;
 
 export default async function CategoryPage() {
   await requireAnyRole(CATEGORY_ROLES);
