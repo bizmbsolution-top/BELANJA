@@ -60,7 +60,10 @@ async function writeAuditEvent(
   beforeData?: Record<string, unknown>,
   afterData?: Record<string, unknown>,
 ): Promise<boolean> {
+  const { data: membership } = await admin.from("tenant_memberships")
+    .select("tenant_id").eq("user_id", actorUserId).eq("is_active", true).maybeSingle();
   const { error } = await admin.from("audit_logs").insert({
+    tenant_id: membership?.tenant_id ?? null,
     actor_user_id: actorUserId,
     target_user_id: targetUserId,
     action,
@@ -79,9 +82,13 @@ function displayName(email: string) {
 }
 
 export async function getManagedUsers(): Promise<ManagedUser[]> {
-  await requireOwner();
+  const owner = await requireOwner();
+  if (!owner.tenantId) throw new Error("Tenant Superadmin tidak ditemukan.");
   const admin = createAdminClient();
-  const ownerEmail = process.env.BELANJA_OWNER_EMAIL?.trim().toLowerCase();
+  const { data: memberships, error: membershipError } = await admin.from("tenant_memberships")
+    .select("user_id,tenant_role").eq("tenant_id", owner.tenantId).eq("is_active", true);
+  if (membershipError) throw new Error("Daftar keanggotaan tenant gagal dimuat.");
+  const membershipById = new Map((memberships ?? []).map((m) => [m.user_id, m.tenant_role]));
   const users: ManagedUser[] = [];
   let page = 1;
 
@@ -89,7 +96,8 @@ export async function getManagedUsers(): Promise<ManagedUser[]> {
     const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
     if (error) throw new Error("Daftar pengguna gagal dimuat.");
 
-    const ids = data.users.map((user) => user.id);
+    const tenantUsers = data.users.filter((user) => membershipById.has(user.id));
+    const ids = tenantUsers.map((user) => user.id);
     const [profileResult, scopeResult, permissionResult] = ids.length
       ? await Promise.all([
           admin.from("user_access_profiles").select("user_id, roles, is_active").in("user_id", ids),
@@ -131,13 +139,13 @@ export async function getManagedUsers(): Promise<ManagedUser[]> {
       permissionsById.set(row.user_id, current);
     }
 
-    for (const user of data.users) {
+    for (const user of tenantUsers) {
       const profile = profileById.get(user.id);
       users.push({
         id: user.id,
         name: displayName(user.email ?? "Pengguna"),
         email: user.email ?? "",
-        roles: user.email?.toLowerCase() === ownerEmail ? ["Superadmin"] : (profile?.roles ?? []),
+        roles: membershipById.get(user.id) === "superadmin" ? ["Superadmin"] : (profile?.roles ?? []),
         status: profile?.is_active === true ? "Aktif" : "Nonaktif",
         scopes: scopesById.get(user.id) ?? { ...DEFAULT_SCOPES },
         projectIds: projectIdsById.get(user.id) ?? [],
@@ -200,6 +208,9 @@ export async function saveUserAccessProfile(input: {
     }
 
     const admin = createAdminClient();
+    const { data: targetMembership, error: membershipError } = await admin.from("tenant_memberships")
+      .select("id").eq("tenant_id", owner.tenantId).eq("user_id", userId).maybeSingle();
+    if (membershipError || !targetMembership) return { ok: false, error: "Pengguna tidak terdaftar pada perusahaan ini." };
     const { error } = await admin.rpc("save_user_access_profile_with_audit", {
       p_actor_user_id: owner.userId,
       p_target_user_id: userId,
@@ -237,6 +248,9 @@ export async function resetUserPassword(input: {
 
     const admin = createAdminClient();
     const targetUserId = input.userId.trim();
+    const { data: targetMembership } = await admin.from("tenant_memberships")
+      .select("id").eq("tenant_id", owner.tenantId).eq("user_id", targetUserId).maybeSingle();
+    if (!targetMembership) return { ok: false, error: "Pengguna tidak terdaftar pada perusahaan ini." };
     const requestLogged = await writeAuditEvent(
       admin, owner.userId, targetUserId, "user.password_reset_requested", "auth_user",
     );
@@ -286,6 +300,7 @@ export async function createManagedUser(input: {
       return { ok: false, error: "Password awal minimal 8 karakter." };
     }
 
+    if (!owner.tenantId) return { ok: false, error: "Tenant Superadmin tidak ditemukan." };
     const admin = createAdminClient();
     const { data, error } = await admin.auth.admin.createUser({
       email,
@@ -314,6 +329,20 @@ export async function createManagedUser(input: {
     if (profileError) {
       await admin.auth.admin.deleteUser(data.user.id);
       return { ok: false, error: "Akun gagal disiapkan. Silakan coba lagi." };
+    }
+
+    const { error: membershipError } = await admin.from("tenant_memberships").insert({
+      tenant_id: owner.tenantId,
+      user_id: data.user.id,
+      tenant_role: "member",
+      is_active: true,
+      created_by: owner.userId,
+    });
+    if (membershipError) {
+      await admin.from("tenant_memberships").delete().eq("tenant_id", owner.tenantId).eq("user_id", data.user.id);
+      await admin.from("user_access_profiles").delete().eq("user_id", data.user.id);
+      await admin.auth.admin.deleteUser(data.user.id);
+      return { ok: false, error: "Keanggotaan perusahaan gagal dibuat. Akun dibatalkan." };
     }
 
     const auditLogged = await writeAuditEvent(
@@ -371,6 +400,9 @@ export async function updateManagedUserEmail(input: {
     }
 
     const admin = createAdminClient();
+    const { data: targetMembership } = await admin.from("tenant_memberships")
+      .select("id").eq("tenant_id", owner.tenantId).eq("user_id", userId).maybeSingle();
+    if (!targetMembership) return { ok: false, error: "Pengguna tidak terdaftar pada perusahaan ini." };
     const { data: currentUserData, error: currentUserError } = await admin.auth.admin.getUserById(userId);
     if (currentUserError || !currentUserData.user) {
       return { ok: false, error: "Akun pengguna tidak ditemukan." };
