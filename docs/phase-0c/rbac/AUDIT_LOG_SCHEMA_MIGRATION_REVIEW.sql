@@ -1,9 +1,10 @@
--- BELANJA — Audit Log schema draft
--- REVIEW ONLY. DO NOT RUN IN SUPABASE YET.
+-- BELANJA — Audit Log schema migration
+-- APPLIED to Supabase project zguzjoqmghmmviyixecz.
+-- Repository mirror of migration 20261123051909_create_audit_logs.sql.
 -- Target: project zguzjoqmghmmviyixecz
 --
--- This draft creates the append-only audit event table only.
--- Application integration and transactional write paths are separate work.
+-- This migration creates the append-only audit event table only.
+-- Application integration and transactional write paths are implemented separately.
 
 begin;
 
