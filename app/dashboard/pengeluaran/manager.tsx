@@ -23,9 +23,9 @@ const dateTime = (v: string) => new Intl.DateTimeFormat("id-ID",{dateStyle:"medi
 const bytes = (v: number) => v<1048576?`${Math.max(1,Math.round(v/1024))} KB`:`${(v/1048576).toFixed(1)} MB`;
 const statusLabel = (s: Expense["status"]) => s==="Menunggu Pembayaran"?"Menunggu Pembayaran":s==="Dibayar"?"Dibayar":s;
 
-export default function ExpenseManager({categories,projects,initialItems,balances,canCreate,canPay,canCancel}:{
+export default function ExpenseManager({categories,projects,initialItems,balances,canCreate,canPay,canViewBalances,canCancel}:{
   categories:ExpenseCategory[];projects:ProjectOption[];initialItems:Expense[];balances:Record<string,number>;
-  canCreate:boolean;canPay:boolean;canCancel:boolean;
+  canCreate:boolean;canPay:boolean;canViewBalances:boolean;canCancel:boolean;
 }) {
   const router=useRouter();
   const [showForm,setShowForm]=useState(false),[saving,setSaving]=useState(false);
@@ -98,9 +98,9 @@ export default function ExpenseManager({categories,projects,initialItems,balance
         {!projects.length&&<p className={styles.error}>Area kerja Project belum tersedia untuk akun ini.</p>}
       </form>
     </section>}
-    <section className={styles.balances??styles.panel}><div className={styles.listHead}><div><h2>Saldo Kasir per Project</h2><p>Saldo bersama Project. Berkurang hanya setelah pembayaran voucher berhasil.</p></div></div>
+    {canViewBalances&&<section className={styles.balances??styles.panel}><div className={styles.listHead}><div><h2>Saldo Kasir per Project</h2><p>Saldo bersama Project. Berkurang hanya setelah pembayaran voucher berhasil.</p></div></div>
       <div className={styles.summary}>{projects.map(p=><div key={p.id}><strong>{money(balances[p.id]??0)}</strong><span>{p.code} · {p.name}</span></div>)}</div>
-    </section>
+    </section>}
     <section className={styles.panel}><div className={styles.listHead}><div><h2>Daftar Voucher Expenses</h2><p>{filtered.length} data ditampilkan · maksimal 300 terbaru</p></div><div className={styles.filters}><input placeholder="Cari kode, Project, keterangan..." value={query} onChange={e=>setQuery(e.target.value)}/><select value={filter} onChange={e=>setFilter(e.target.value)}><option>Semua</option><option>Draft</option><option>Menunggu Pembayaran</option><option>Dibayar</option><option>Dibatalkan</option></select></div></div>
       {!filtered.length?<div className={styles.empty}><h3>Belum ada voucher Expenses</h3><p>Voucher baru akan tampil di sini setelah dibuat.</p></div>:<div className={styles.list}>{filtered.map(item=><article className={styles.item} key={item.id}>
         <div className={styles.itemTop}><div><span className={styles.code}>{item.code}</span><span className={item.status==="Dibayar"?styles.active:item.status==="Dibatalkan"?styles.cancelled:styles.pending}>{statusLabel(item.status)}</span></div><time>{date(item.expense_date)}</time></div>
