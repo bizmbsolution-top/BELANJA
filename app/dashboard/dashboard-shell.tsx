@@ -31,11 +31,11 @@ const groups: MenuGroup[] = [
   {
     title: "OPERASIONAL",
     items: [
-      { label: "Pembelian", roles: ["Finance", "Management"] },
-      { label: "Pengeluaran", roles: ["Cashier", "Finance", "Management"] },
-      { label: "Permintaan & Penggunaan Dana", roles: ["Cashier", "Finance", "Management"] },
-      { label: "Persediaan", roles: ["Warehouse", "Management"] },
-      { label: "Penjualan", roles: ["Management"] },
+      { label: "Pembelian", href: "/dashboard/pembelian", roles: ["Finance", "Management"] },
+      { label: "Pengeluaran", href: "/dashboard/pengeluaran", roles: ["Cashier", "Finance", "Management"] },
+      { label: "Permintaan & Penggunaan Dana", href: "/dashboard/permintaan-penggunaan-dana", roles: ["Cashier", "Finance", "Management"] },
+      { label: "Persediaan", href: "/dashboard/persediaan", roles: ["Warehouse", "Management"] },
+      { label: "Penjualan", href: "/dashboard/penjualan", roles: ["Management"] },
     ],
   },
   {
