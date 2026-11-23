@@ -13,7 +13,7 @@ export default async function PenjualanPage(){
   admin.from("projects").select("id,code,name").eq("is_active",true).order("name"),
   admin.from("warehouses").select("id,code,name").eq("is_active",true).order("name"),
   admin.from("warehouse_projects").select("project_id,warehouse_id"),
-  admin.from("customers").select("id,code,name").eq("is_active",true).order("name")
+  admin.from("customers").select("id,code,name,billing_address,customer_warehouse_addresses(id,label,address,is_active)").eq("is_active",true).order("name")
  ]);
  const scopedProjects=(projects??[]).filter(p=>projectIds===null||projectIds.includes(p.id));
  const scopedWarehouses=(warehouses??[]).filter(w=>(warehouseIds===null||warehouseIds.includes(w.id))&&(mappings??[]).some(m=>m.warehouse_id===w.id&&scopedProjects.some(p=>p.id===m.project_id)));
@@ -34,6 +34,6 @@ export default async function PenjualanPage(){
  const allocWarehouseIds=[...new Set((allocations??[]).map(a=>a.source_warehouse_id))];
  const visibleOrderIds=new Set((orders??[]).filter(o=>(allocations??[]).filter(a=>a.sales_order_id===o.id).every(a=>warehouseIds===null||warehouseIds.includes(a.source_warehouse_id))).map(o=>o.id));
  const visibleOrders=(orders??[]).filter(o=>visibleOrderIds.has(o.id));
- const data:SalesPageData={actorRoles:actor.isOwner?["Superadmin"]:actor.roles,projects:scopedProjects,warehouses:scopedWarehouses,warehouseProjects:mappings??[],customers:customers??[],lots:available.map(l=>({...l,category_name:(categories??[]).find(c=>c.id===l.category_id)?.name??"—",supplier_name:(suppliers??[]).find(s=>s.id===l.supplier_id)?.name??"—"})),orders:visibleOrders,allocations:(allocations??[]).filter(a=>visibleOrderIds.has(a.sales_order_id)),categories:categories??[],suppliers:suppliers??[]};
+ const data:SalesPageData={actorRoles:actor.isOwner?["Superadmin"]:actor.roles,projects:scopedProjects,warehouses:scopedWarehouses,warehouseProjects:mappings??[],customers:(customers??[]).map((c:any)=>({...c,warehouse_addresses:(c.customer_warehouse_addresses??[]).filter((a:any)=>a.is_active)})),lots:available.map(l=>({...l,category_name:(categories??[]).find(c=>c.id===l.category_id)?.name??"—",supplier_name:(suppliers??[]).find(s=>s.id===l.supplier_id)?.name??"—"})),orders:visibleOrders,allocations:(allocations??[]).filter(a=>visibleOrderIds.has(a.sales_order_id)),categories:categories??[],suppliers:suppliers??[]};
  return <SalesManager data={data}/>;
 }
