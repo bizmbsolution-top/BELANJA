@@ -18,5 +18,6 @@ export default async function SalesSettlementPage(){
  const pMap=new Map((projects??[]).map(x=>[x.id,x.code+" · "+x.name]));
  const settled=new Set((settlements??[]).map(x=>x.sales_order_id));
  const rows=(orders??[]).map(o=>({...o,customer_name:cMap.get(o.customer_id)??"Pembeli",project_label:pMap.get(o.project_id)??"Project",settled:settled.has(o.id)}));
- const history=await Promise.all((settlements??[]).map(async s=>{const signed=s.evidence_storage_path?await db.storage.from("sales-settlement-evidence").createSignedUrl(s.evidence_storage_path,3600):{data:null};return {...s,evidence_url:signed.data?.signedUrl??null,customer_name:cMap.get((orders??[]).find(o=>o.id===s.sales_order_id)?.customer_id)??"Pembeli",ba_number:(orders??[]).find(o=>o.id===s.sales_order_id)?.ba_number??"—"};}));\n return <SettlementManager orders={rows} components={components??[]} settlements={history} deductions={deductions??[]}/>;
+ const history=await Promise.all((settlements??[]).map(async s=>{const signed=s.evidence_storage_path?await db.storage.from("sales-settlement-evidence").createSignedUrl(s.evidence_storage_path,3600):{data:null};return {...s,evidence_url:signed.data?.signedUrl??null,customer_name:cMap.get((orders??[]).find(o=>o.id===s.sales_order_id)?.customer_id)??"Pembeli",ba_number:(orders??[]).find(o=>o.id===s.sales_order_id)?.ba_number??"—"};}));
+ return <SettlementManager orders={rows} components={components??[]} settlements={history} deductions={deductions??[]}/>;
 }
