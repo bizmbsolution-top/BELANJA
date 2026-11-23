@@ -38,6 +38,7 @@ const groups: MenuGroup[] = [
       { label: "Persediaan", href: "/dashboard/persediaan", roles: ["Warehouse", "Management", "Finance", "Cashier", "Sales", "Procurement"] },
       { label: "Penjualan", href: "/dashboard/penjualan", roles: ["Sales", "Warehouse", "Management"] },
       { label: "Rekap Penjualan", href: "/dashboard/laporan-penjualan", roles: ["Finance", "Management"] },
+      { label: "Laporan Biaya Penjualan", href: "/dashboard/laporan-biaya-penjualan", roles: ["Cashier", "Finance", "Management"] },
     ],
   },
   {
