@@ -14,7 +14,7 @@ const dateLabel = (value: string) => new Intl.DateTimeFormat("id-ID", {
 
 export default async function DashboardPage() {
   const access = await requireActiveUser();
-  const canViewFinancialSummary = access.isOwner || access.roles.some((role) => ["Finance", "Management"].includes(role));
+  const canViewFinancialSummary = access.roles.some((role) => ["Finance", "Management"].includes(role)) || access.tenantRole === "superadmin";
 
   const now = new Date();
   const parts = new Intl.DateTimeFormat("en-CA", {
@@ -30,8 +30,10 @@ export default async function DashboardPage() {
 
   if (canViewFinancialSummary) {
     const admin = createAdminClient();
+    if (!access.tenantId) throw new Error("Tenant pengguna tidak ditemukan.");
     const { data, error } = await admin.from("expenses")
       .select("code,expense_date,description,amount,status")
+      .eq("tenant_id", access.tenantId)
       .gte("expense_date", monthStart).lte("expense_date", monthEnd)
       .order("expense_date", { ascending: false }).order("created_at", { ascending: false }).limit(1000);
     if (error) throw new Error("Ringkasan pengeluaran dashboard gagal dimuat.");
