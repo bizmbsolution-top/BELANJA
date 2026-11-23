@@ -26,6 +26,8 @@ const actionLabels: Record<string, string> = {
   "user.password_reset_failed": "Reset password gagal",
   "supplier.created": "Supplier dibuat",
   "supplier.updated": "Supplier diperbarui",
+  "purchase_category.created": "Kategori pembelian dibuat",
+  "purchase_category.updated": "Kategori pembelian diperbarui",
 };
 
 function formatDate(value: string) {
@@ -48,11 +50,15 @@ function snapshotLines(snapshot: Snapshot): string[] {
   if (typeof snapshot.email === "string") lines.push(`Email: ${snapshot.email}`);
   if (typeof snapshot.address === "string") lines.push(`Alamat: ${snapshot.address}`);
   if (typeof snapshot.notes === "string") lines.push(`Catatan: ${snapshot.notes}`);
+  if (typeof snapshot.description === "string") lines.push(`Keterangan: ${snapshot.description}`);
   if (typeof snapshot.requested_email === "string") lines.push(`Email diminta: ${snapshot.requested_email}`);
   return lines;
 }
 
 function targetLabel(row: AuditRow) {
+  if (row.entity_type === "purchase_category") {
+    return String(row.after_data?.name ?? row.before_data?.name ?? row.entity_id ?? "Kategori pembelian");
+  }
   if (row.entity_type === "supplier") {
     return String(row.after_data?.name ?? row.before_data?.name ?? row.entity_id ?? "Supplier");
   }
