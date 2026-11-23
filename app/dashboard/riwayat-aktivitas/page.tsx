@@ -28,6 +28,8 @@ const actionLabels: Record<string, string> = {
   "supplier.updated": "Supplier diperbarui",
   "purchase_category.created": "Kategori pembelian dibuat",
   "purchase_category.updated": "Kategori pembelian diperbarui",
+  "warehouse.created": "Gudang dibuat",
+  "warehouse.updated": "Gudang diperbarui",
 };
 
 function formatDate(value: string) {
@@ -45,9 +47,10 @@ function snapshotLines(snapshot: Snapshot): string[] {
   if (Array.isArray(snapshot.roles)) lines.push(`Role: ${snapshot.roles.join(", ") || "Tidak ada"}`);
   if (typeof snapshot.is_active === "boolean") lines.push(`Status: ${snapshot.is_active ? "Aktif" : "Nonaktif"}`);
 
-  if (snapshot.code && typeof snapshot.code === "string") lines.push(`${snapshot.code.startsWith("KAT-") ? "Kode kategori" : "Kode supplier"}: ${snapshot.code}`);
-  if (snapshot.name && typeof snapshot.name === "string") lines.push(`${snapshot.code && typeof snapshot.code === "string" && snapshot.code.startsWith("KAT-") ? "Nama kategori" : "Nama supplier"}: ${snapshot.name}`);
+  if (snapshot.code && typeof snapshot.code === "string") lines.push(`${snapshot.code.startsWith("KAT-") ? "Kode kategori" : snapshot.code.startsWith("GDG-") ? "Kode gudang" : "Kode supplier"}: ${snapshot.code}`);
+  if (snapshot.name && typeof snapshot.name === "string") lines.push(`${snapshot.code && typeof snapshot.code === "string" && snapshot.code.startsWith("KAT-") ? "Nama kategori" : snapshot.code && typeof snapshot.code === "string" && snapshot.code.startsWith("GDG-") ? "Nama gudang" : "Nama supplier"}: ${snapshot.name}`);
   if (snapshot.description && typeof snapshot.description === "string") lines.push(`Keterangan: ${snapshot.description}`);
+  if (snapshot.location && typeof snapshot.location === "string") lines.push(`Lokasi: ${snapshot.location}`);
   if (snapshot.contact_person && typeof snapshot.contact_person === "string") lines.push(`Kontak: ${snapshot.contact_person}`);
   if (snapshot.phone && typeof snapshot.phone === "string") lines.push(`Telepon: ${snapshot.phone}`);
   if (snapshot.email && typeof snapshot.email === "string") lines.push(`Email: ${snapshot.email}`);
@@ -126,7 +129,7 @@ export default async function ActivityHistoryPage() {
                 </div>
                 <div className={styles.people}>
                   <div><small>DILAKUKAN OLEH</small><strong>{row.actor_user_id ? emailById.get(row.actor_user_id) ?? row.actor_user_id : "Akun dihapus"}</strong></div>
-                  <div><small>{row.entity_type === "supplier" ? "DATA SUPPLIER" : row.entity_type === "purchase_category" ? "KATEGORI PEMBELIAN" : row.entity_type === "user_access" ? "PENGATURAN AKSES" : "PENGGUNA TERKAIT"}</small><strong>{row.entity_type === "supplier" || row.entity_type === "purchase_category" ? String(row.after_data?.name ?? row.before_data?.name ?? row.entity_id ?? "Data master") : row.target_user_id ? emailById.get(row.target_user_id) ?? row.target_user_id : "Tidak tersedia"}</strong></div>
+                  <div><small>{row.entity_type === "supplier" ? "DATA SUPPLIER" : row.entity_type === "purchase_category" ? "KATEGORI PEMBELIAN" : row.entity_type === "warehouse" ? "GUDANG" : row.entity_type === "user_access" ? "PENGATURAN AKSES" : "PENGGUNA TERKAIT"}</small><strong>{row.entity_type === "supplier" || row.entity_type === "purchase_category" || row.entity_type === "warehouse" ? String(row.after_data?.name ?? row.before_data?.name ?? row.entity_id ?? "Data master") : row.target_user_id ? emailById.get(row.target_user_id) ?? row.target_user_id : "Tidak tersedia"}</strong></div>
                 </div>
                 {(beforeLines.length > 0 || afterLines.length > 0) && (
                   <details className={styles.details}>
