@@ -4,7 +4,7 @@ import SettlementManager from "./manager";
 export const dynamic="force-dynamic";
 export const revalidate=0;
 export default async function SalesSettlementPage(){
- const actor=await requireAnyRole(["Finance"]);
+ await requireAnyRole(["Finance"]);
  const db=createAdminClient();
  const [{data:orders,error},{data:settlements},{data:components},{data:customers},{data:projects},{data:deductions}]=await Promise.all([
   db.from("sales_orders").select("id,code,customer_id,project_id,final_amount,ba_number,ba_date,finalized_at").eq("status","Selesai").order("ba_date",{ascending:false}).limit(300),
@@ -18,5 +18,5 @@ export default async function SalesSettlementPage(){
  const pMap=new Map((projects??[]).map(x=>[x.id,x.code+" · "+x.name]));
  const settled=new Set((settlements??[]).map(x=>x.sales_order_id));
  const rows=(orders??[]).map(o=>({...o,customer_name:cMap.get(o.customer_id)??"Pembeli",project_label:pMap.get(o.project_id)??"Project",settled:settled.has(o.id)}));
- return <SettlementManager actorIsOwner={actor.isOwner} orders={rows} components={components??[]} settlements={(settlements??[]).map(s=>({...s,customer_name:cMap.get((orders??[]).find(o=>o.id===s.sales_order_id)?.customer_id)??"Pembeli",ba_number:(orders??[]).find(o=>o.id===s.sales_order_id)?.ba_number??"—"}))} deductions={deductions??[]}/>;
+ return <SettlementManager orders={rows} components={components??[]} settlements={(settlements??[]).map(s=>({...s,customer_name:cMap.get((orders??[]).find(o=>o.id===s.sales_order_id)?.customer_id)??"Pembeli",ba_number:(orders??[]).find(o=>o.id===s.sales_order_id)?.ba_number??"—"}))} deductions={deductions??[]}/>;
 }
