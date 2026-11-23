@@ -100,7 +100,7 @@ export default async function MyActivityPage() {
   const admin = createAdminClient();
   const { data, error } = await admin
     .from("audit_logs")
-    .select("id, actor_user_id, target_user_id, action, entity_type, entity_id, before_data, after_data, created_at")
+    .select("id, actor_user_id, target_user_id, action, entity_type, entity_id, before_data, after_data, created_at").eq("tenant_id", actor.tenantId)
     .or(`actor_user_id.eq.${actor.userId},target_user_id.eq.${actor.userId}`)
     .order("created_at", { ascending: false })
     .limit(200);
