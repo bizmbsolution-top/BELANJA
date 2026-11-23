@@ -6,7 +6,7 @@ type Result={ok:true}|{ok:false;error:string};
 const uuid=(v:string)=>/^[0-9a-f-]{36}$/i.test(v);
 const BUCKET="sales-settlement-evidence";
 export async function recordSalesSettlement(input:{salesOrderId:string;paymentMethod:string;receivedAt:string;paymentReference:string;notes:string;deductions:{componentId:string;amount:string}[]},file:File):Promise<Result>{
- let uploaded:string|null=null;
+ let uploaded:string|null=null;let settlementCreated=false;
  try{
   const actor=await requireAnyRole(["Finance"]);
   if(!uuid(input.salesOrderId))return{ok:false,error:"BA penjualan tidak valid."};
@@ -32,13 +32,13 @@ export async function recordSalesSettlement(input:{salesOrderId:string;paymentMe
    p_received_at:new Date(input.receivedAt).toISOString(),p_payment_reference:input.paymentReference.trim()||null,
    p_notes:input.notes.trim()||null,p_deductions:normalized
   });
-  if(error||!data)throw new Error(error?.message??"Settlement gagal disimpan.");
+  if(error||!data)throw new Error(error?.message??"Settlement gagal disimpan.");settlementCreated=true;
   const {error:updateError}=await db.from("sales_order_settlements").update({evidence_storage_path:path,evidence_file_name:file.name.slice(0,255)}).eq("id",data);
   if(updateError)throw new Error("Settlement tersimpan, tetapi metadata invoice gagal dicatat. Hubungi Owner.");
   revalidatePath("/dashboard/penerimaan-penjualan");revalidatePath("/dashboard/laporan-penjualan");
   return{ok:true};
  }catch(e){
-  if(uploaded){const db=createAdminClient();await db.storage.from(BUCKET).remove([uploaded]);}
+  if(uploaded&&!settlementCreated){const db=createAdminClient();await db.storage.from(BUCKET).remove([uploaded]);}
   return{ok:false,error:e instanceof Error?e.message:"Pencatatan settlement gagal."};
  }
 }
