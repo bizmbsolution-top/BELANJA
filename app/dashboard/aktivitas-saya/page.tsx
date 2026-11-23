@@ -34,6 +34,10 @@ const actionLabels: Record<string, string> = {
   "expense_category.updated": "Kategori expenses diperbarui",
   "uom.created": "Satuan dibuat",
   "uom.updated": "Satuan diperbarui",
+  "expense.created": "Pengeluaran dibuat",
+  "expense.cancelled": "Pengeluaran dibatalkan",
+  "expense_document.uploaded": "Dokumen billing diunggah",
+  "expense_document.deleted": "Dokumen billing dihapus",
 };
 
 function formatDate(value: string) {
@@ -60,6 +64,13 @@ function snapshotLines(snapshot: Snapshot): string[] {
   if (typeof snapshot.location === "string") lines.push(`Lokasi: ${snapshot.location}`);
   if (typeof snapshot.symbol === "string") lines.push(`Simbol: ${snapshot.symbol}`);
   if (typeof snapshot.requested_email === "string") lines.push(`Email diminta: ${snapshot.requested_email}`);
+  if (typeof snapshot.expense_date === "string") lines.push(`Tanggal pengeluaran: ${snapshot.expense_date}`);
+  if (typeof snapshot.category === "string") lines.push(`Kategori: ${snapshot.category}`);
+  if (typeof snapshot.amount === "number" || typeof snapshot.amount === "string") lines.push(`Nominal: Rp ${Number(snapshot.amount).toLocaleString("id-ID")}`);
+  if (typeof snapshot.payment_method === "string") lines.push(`Pembayaran: ${snapshot.payment_method}`);
+  if (typeof snapshot.reason === "string") lines.push(`Alasan: ${snapshot.reason}`);
+  if (typeof snapshot.expense_code === "string") lines.push(`Transaksi: ${snapshot.expense_code}`);
+  if (typeof snapshot.file_name === "string") lines.push(`Dokumen: ${snapshot.file_name}`);
   return lines;
 }
 
@@ -72,6 +83,8 @@ function targetLabel(row: AuditRow) {
   if (row.entity_type === "supplier") {
     return String(row.after_data?.name ?? row.before_data?.name ?? row.entity_id ?? "Supplier");
   }
+  if (row.entity_type === "expense") return String(row.after_data?.code ?? row.before_data?.code ?? row.entity_id ?? "Pengeluaran");
+  if (row.entity_type === "expense_document") return String(row.before_data?.file_name ?? row.after_data?.file_name ?? row.entity_id ?? "Dokumen billing");
   if (row.entity_type === "user_access") return "Pengaturan akses pengguna";
   if (row.entity_type === "auth_user") return "Akun pengguna";
   return row.entity_id ?? row.entity_type;
