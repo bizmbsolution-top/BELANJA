@@ -4,7 +4,7 @@ import { requireOwner } from "@/lib/auth/authorization";
 import { APPROVED_OPERATIONAL_ROLES } from "@/lib/auth/access-policy";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-type ScopeSetting = "none" | "all";
+type ScopeSetting = "none" | "all" | "selected";
 type PermissionSetting = "unset" | "allow" | "deny";
 type ScopeSettings = { project: ScopeSetting; department: ScopeSetting; warehouse: ScopeSetting };
 type PermissionSettings = {
@@ -78,7 +78,7 @@ export async function getManagedUsers(): Promise<ManagedUser[]> {
       if (!["project", "department", "warehouse"].includes(row.dimension)) continue;
       const current = scopesById.get(row.user_id) ?? { ...DEFAULT_SCOPES };
       current[row.dimension as keyof ScopeSettings] =
-        row.scope_mode === "all" ? "all" : "none";
+        row.scope_mode === "all" ? "all" : row.scope_mode === "selected" ? "selected" : "none";
       scopesById.set(row.user_id, current);
     }
     const permissionsById = new Map<string, PermissionSettings>();
@@ -140,7 +140,7 @@ export async function saveUserAccessProfile(input: {
     if (status !== "Aktif" && status !== "Nonaktif") {
       return { ok: false, error: "Status akun tidak valid." };
     }
-    if (!scopes || dimensions.some((key) => scopes[key] !== "none" && scopes[key] !== "all")) {
+    if (!scopes || dimensions.some((key) => scopes[key] !== "none" && scopes[key] !== "all" && scopes[key] !== "selected")) {
       return { ok: false, error: "Pengaturan Area Kerja tidak valid." };
     }
     if (!permissions || permissionKeys.some((key) =>
