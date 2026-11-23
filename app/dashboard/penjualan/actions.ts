@@ -11,7 +11,7 @@ async function assertScope(userId:string,projectId:string,warehouseIds:string[],
  const {data:ps,error:pe}=await admin.from("user_work_scopes").select("scope_mode,resource_ids").eq("tenant_id",tenantId).eq("user_id",userId).eq("dimension","project").maybeSingle();
  if(pe||!ps)throw new Error("Area kerja Project belum diatur oleh Superadmin perusahaan.");
  if(ps.scope_mode!=="all"&&(ps.scope_mode!=="selected"||!ps.resource_ids?.includes(projectId)))throw new Error("Project di luar area kerja akun Anda.");
- const {data:ws,error:we}=await admin.from("user_work_scopes").select("scope_mode,resource_ids").eq("user_id",userId).eq("dimension","warehouse").maybeSingle();
+ const {data:ws,error:we}=await admin.from("user_work_scopes").select("scope_mode,resource_ids").eq("tenant_id",tenantId).eq("user_id",userId).eq("dimension","warehouse").maybeSingle();
  if(we||!ws)throw new Error("Area kerja Warehouse belum diatur oleh Superadmin perusahaan.");
  if(ws.scope_mode!=="all"&&(ws.scope_mode!=="selected"||warehouseIds.some(id=>!ws.resource_ids?.includes(id))))throw new Error("Salah satu Warehouse di luar area kerja akun Anda.");
 }
