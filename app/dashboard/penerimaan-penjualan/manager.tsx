@@ -1,5 +1,5 @@
 "use client";
-import {useMemo,useState,type FormEvent} from "react";
+import {useMemo,useState,type FormEvent,type CSSProperties} from "react";
 import {useRouter} from "next/navigation";
 import {recordSalesSettlement} from "./actions";
 type Order={id:string;code:string;customer_id:string;project_id:string;final_amount:number;ba_number:string;ba_date:string;finalized_at:string;customer_name:string;project_label:string;settled:boolean};
@@ -8,7 +8,7 @@ type Settlement={id:string;sales_order_id:string;amount:number;gross_amount:numb
 type Deduction={settlement_id:string;component_name:string;deduction_amount:number};
 const money=(n:number)=>new Intl.NumberFormat("id-ID",{style:"currency",currency:"IDR",maximumFractionDigits:0}).format(n);
 const date=(v:string)=>new Date(v+"T00:00:00").toLocaleDateString("id-ID");
-export default function SettlementManager({actorIsOwner,orders,components,settlements,deductions}:{actorIsOwner:boolean;orders:Order[];components:Component[];settlements:Settlement[];deductions:Deduction[]}){
+export default function SettlementManager({orders,components,settlements,deductions}:{orders:Order[];components:Component[];settlements:Settlement[];deductions:Deduction[]}){
  const router=useRouter();const [selected,setSelected]=useState("");const [amounts,setAmounts]=useState<Record<string,string>>({});const [included,setIncluded]=useState<Record<string,boolean>>({});const [method,setMethod]=useState("Transfer");const [receivedAt,setReceivedAt]=useState(new Date().toISOString().slice(0,16));const [reference,setReference]=useState("");const [notes,setNotes]=useState("");const [file,setFile]=useState<File|null>(null);const [busy,setBusy]=useState(false);const [error,setError]=useState("");const [message,setMessage]=useState("");
  const order=orders.find(o=>o.id===selected);
  const applicable=useMemo(()=>order?components.filter(c=>c.customer_id===null||c.customer_id===order.customer_id).sort((a,b)=>a.sort_order-b.sort_order):[],[order,components]);
@@ -47,15 +47,15 @@ export default function SettlementManager({actorIsOwner,orders,components,settle
   <section style={panel}><h2 style={h2}>Riwayat Settlement</h2>{!settlements.length?<p style={muted}>Belum ada penerimaan pembayaran yang dicatat.</p>:settlements.map(s=><article key={s.id} style={row}><div><b>BA {s.ba_number} · {s.customer_name}</b><div style={muted}>{new Date(s.received_at).toLocaleString("id-ID")} · {s.payment_method} · {s.payment_reference??"Tanpa referensi"}</div><div style={muted}>Invoice {money(Number(s.gross_amount))} · Potongan {money(Number(s.total_deductions))}</div><b style={{display:"block",marginTop:4}}>Net diterima {money(Number(s.amount))}</b><small style={muted}>{deductions.filter(d=>d.settlement_id===s.id).map(d=>d.component_name+": "+money(Number(d.deduction_amount))).join(" · ")}</small></div><span style={badge}>Diterima</span></article>)}</section>
  </main>;
 }
-const panel={background:"var(--surface,#fff)",border:"1px solid var(--line,#e2e8f0)",borderRadius:14,padding:17,marginTop:16};
-const h2={fontSize:17,margin:"0 0 10px"};
-const muted={display:"block",fontSize:12,color:"#64748b",marginTop:4};
-const row={display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,padding:"13px 0",borderTop:"1px solid #e2e8f0",fontSize:13};
-const primary={background:"#155eef",color:"#fff",border:0,borderRadius:9,padding:"10px 14px",fontWeight:800,cursor:"pointer",whiteSpace:"nowrap" as const};
-const secondary={background:"transparent",color:"inherit",border:"1px solid #cbd5e1",borderRadius:8,padding:"9px 13px",fontWeight:700,cursor:"pointer"};
-const control={width:"100%",minHeight:40,border:"1px solid #cbd5e1",borderRadius:8,padding:"8px 10px",background:"var(--surface,#fff)",color:"inherit",font:"inherit"};
-const field={display:"grid",gap:6,fontSize:12,fontWeight:700};
-const summary={display:"grid",gridTemplateColumns:"1fr auto",gap:7,alignItems:"center",padding:13,borderRadius:10,background:"var(--surface-secondary,#f1f5f9)",fontSize:13};
-const deductionRow={display:"flex",gap:14,alignItems:"center",padding:"10px 0",borderBottom:"1px solid #e2e8f0",flexWrap:"wrap" as const};
-const badge={padding:"5px 9px",borderRadius:20,background:"#e8f7ee",color:"#18794e",fontSize:11,fontWeight:800};
-const notice={padding:10,borderRadius:8,background:"#eef6ff",color:"#155eef",fontSize:12};
+const panel:CSSProperties={background:"var(--surface,#fff)",border:"1px solid var(--line,#e2e8f0)",borderRadius:14,padding:17,marginTop:16};
+const h2:CSSProperties={fontSize:17,margin:"0 0 10px"};
+const muted:CSSProperties={display:"block",fontSize:12,color:"#64748b",marginTop:4};
+const row:CSSProperties={display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,padding:"13px 0",borderTop:"1px solid #e2e8f0",fontSize:13};
+const primary:CSSProperties={background:"#155eef",color:"#fff",border:0,borderRadius:9,padding:"10px 14px",fontWeight:800,cursor:"pointer",whiteSpace:"nowrap" as const};
+const secondary:CSSProperties={background:"transparent",color:"inherit",border:"1px solid #cbd5e1",borderRadius:8,padding:"9px 13px",fontWeight:700,cursor:"pointer"};
+const control:CSSProperties={width:"100%",minHeight:40,border:"1px solid #cbd5e1",borderRadius:8,padding:"8px 10px",background:"var(--surface,#fff)",color:"inherit",font:"inherit"};
+const field:CSSProperties={display:"grid",gap:6,fontSize:12,fontWeight:700};
+const summary:CSSProperties={display:"grid",gridTemplateColumns:"1fr auto",gap:7,alignItems:"center",padding:13,borderRadius:10,background:"var(--surface-secondary,#f1f5f9)",fontSize:13};
+const deductionRow:CSSProperties={display:"flex",gap:14,alignItems:"center",padding:"10px 0",borderBottom:"1px solid #e2e8f0",flexWrap:"wrap" as const};
+const badge:CSSProperties={padding:"5px 9px",borderRadius:20,background:"#e8f7ee",color:"#18794e",fontSize:11,fontWeight:800};
+const notice:CSSProperties={padding:10,borderRadius:8,background:"#eef6ff",color:"#155eef",fontSize:12};
