@@ -1,0 +1,14 @@
+create index if not exists purchase_requests_supplier_idx on public.purchase_requests(supplier_id);
+create index if not exists purchase_requests_category_idx on public.purchase_requests(category_id);
+create index if not exists purchase_requests_created_by_idx on public.purchase_requests(created_by);
+create index if not exists purchase_requests_updated_by_idx on public.purchase_requests(updated_by);
+create index if not exists purchase_receipts_completed_by_idx on public.purchase_receipts(completed_by);
+create index if not exists purchase_receipts_created_by_idx on public.purchase_receipts(created_by);
+create index if not exists purchase_receipts_updated_by_idx on public.purchase_receipts(updated_by);
+create index if not exists purchase_receipt_documents_uploaded_by_idx on public.purchase_receipt_documents(uploaded_by);
+create index if not exists purchase_payment_requests_requested_by_idx on public.purchase_payment_requests(requested_by);
+create index if not exists purchase_payment_requests_paid_by_idx on public.purchase_payment_requests(paid_by);
+create index if not exists purchase_payment_documents_uploaded_by_idx on public.purchase_payment_documents(uploaded_by);
+create index if not exists inventory_movements_project_idx on public.inventory_movements(project_id);
+create index if not exists inventory_movements_category_idx on public.inventory_movements(category_id);
+create index if not exists inventory_movements_created_by_idx on public.inventory_movements(created_by);
