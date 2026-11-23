@@ -9,13 +9,13 @@ const money = (value: number) => new Intl.NumberFormat("id-ID", { style: "curren
 const qty = (value: number) => new Intl.NumberFormat("id-ID", { maximumFractionDigits: 3 }).format(value);
 
 export default async function SalesReportPage() {
-  await requireAnyRole(["Finance", "Management"]);
+  const context = await requireAnyRole(["Finance", "Management"]);
   const admin = createAdminClient();
   const [{ data: orders, error }, { data: customers }, { data: projects }, { data: allocations }] = await Promise.all([
-    admin.from("sales_orders").select("id,code,customer_id,project_id,status,created_at,dispatched_at,dispatched_weight_kg,received_weight_kg,final_grade_value,final_grade_unit,final_price_per_kg,final_amount,ba_number,ba_date,discrepancy_notes,dispatched_purchase_cost").order("created_at", { ascending: false }).limit(300),
-    admin.from("customers").select("id,name"),
-    admin.from("projects").select("id,code,name"),
-    admin.from("sales_order_lot_allocations").select("sales_order_id,allocated_weight_kg")
+    admin.from("sales_orders").select("id,code,customer_id,project_id,status,created_at,dispatched_at,dispatched_weight_kg,received_weight_kg,final_grade_value,final_grade_unit,final_price_per_kg,final_amount,ba_number,ba_date,discrepancy_notes,dispatched_purchase_cost").eq("tenant_id", context.tenantId).order("created_at", { ascending: false }).limit(300),
+    admin.from("customers").select("id,name").eq("tenant_id", context.tenantId),
+    admin.from("projects").select("id,code,name").eq("tenant_id", context.tenantId),
+    admin.from("sales_order_lot_allocations").select("sales_order_id,allocated_weight_kg").eq("tenant_id", context.tenantId)
   ]);
   if (error) throw new Error("Rekap penjualan gagal dimuat.");
 
