@@ -12,19 +12,24 @@ type Movement = {
 };
 
 export default async function PersediaanPage() {
-  const actor = await requireAnyRole(["Warehouse", "Management"]);
+  const actor = await requireAnyRole(["Warehouse", "Management", "Finance", "Cashier", "Sales", "Procurement"]);
   const admin = createAdminClient();
-  const broadAccess = actor.isOwner || actor.roles.includes("Management");
+  const broadAccess = actor.isOwner || actor.roles.includes("Management") || actor.roles.includes("Finance");
+  const cashierAccess = actor.roles.includes("Cashier");
   let warehouseIds: string[] | null = null, projectIds: string[] | null = null;
 
   if (!broadAccess) {
-    const [{ data: ws, error: we }, { data: ps, error: pe }] = await Promise.all([
-      admin.from("user_work_scopes").select("scope_mode,resource_ids").eq("user_id", actor.userId).eq("dimension", "warehouse").maybeSingle(),
-      admin.from("user_work_scopes").select("scope_mode,resource_ids").eq("user_id", actor.userId).eq("dimension", "project").maybeSingle(),
-    ]);
-    if (we || pe || !ws) throw new Error("Area kerja Warehouse belum dapat diverifikasi.");
-    warehouseIds = ws.scope_mode === "all" ? null : ws.scope_mode === "selected" ? ws.resource_ids ?? [] : [];
-    projectIds = ps ? (ps.scope_mode === "all" ? null : ps.scope_mode === "selected" ? ps.resource_ids ?? [] : []) : [];
+    const projectScopePromise = admin.from("user_work_scopes").select("scope_mode,resource_ids").eq("user_id", actor.userId).eq("dimension", "project").maybeSingle();
+    const warehouseScopePromise = cashierAccess
+      ? Promise.resolve({ data: null, error: null })
+      : admin.from("user_work_scopes").select("scope_mode,resource_ids").eq("user_id", actor.userId).eq("dimension", "warehouse").maybeSingle();
+    const [{ data: ws, error: we }, { data: ps, error: pe }] = await Promise.all([warehouseScopePromise, projectScopePromise]);
+    if (pe || !ps) throw new Error("Area kerja Project belum dapat diverifikasi.");
+    projectIds = ps.scope_mode === "all" ? null : ps.scope_mode === "selected" ? ps.resource_ids ?? [] : [];
+    if (!cashierAccess) {
+      if (we || !ws) throw new Error("Area kerja Warehouse belum dapat diverifikasi.");
+      warehouseIds = ws.scope_mode === "all" ? null : ws.scope_mode === "selected" ? ws.resource_ids ?? [] : [];
+    }
   }
 
   const [{ data: movements, error }, { data: allWarehouses }, { data: projects }, { data: categories }] = await Promise.all([
@@ -66,9 +71,14 @@ export default async function PersediaanPage() {
     const w = warehouseMap.get(id);
     const projectLabels = [...new Set(rows.map(r => projectMap.get(r.project_id)).filter((project): project is NonNullable<typeof project> => Boolean(project)).map(project => `${project.code} · ${project.name}`))];
     const total = rows.reduce((s,r)=>s+r.weight,0);
+    const valueUnits = [...new Set(rows.map(r=>r.value_unit))];
+    const averageValueUnit = valueUnits.length === 1 ? valueUnits[0] : null;
+    const averageValue = averageValueUnit && total > 0
+      ? rows.reduce((sum,r)=>sum+r.valueWeight,0)/total
+      : null;
     return { id, code:w?.code ?? "GDG", name:w?.name ?? "Gudang", location:w?.location ?? null,
       projectLabel:projectLabels.join(", "),
-      totalKg:total,
+      totalKg:total, averageValue, averageValueUnit,
       categories: [...rows.reduce((map,r) => { const name=categoryMap.get(r.category_id)?.name ?? "Barang"; const key=name+"|"+r.value_unit; const item=map.get(key) ?? {name,weight:0,valueWeight:0,valueUnit:r.value_unit}; item.weight+=r.weight; item.valueWeight+=r.valueWeight; map.set(key,item); return map; },new Map<string,{name:string;weight:number;valueWeight:number;valueUnit:string}>()).values()].map(r=>({name:r.name,weight:r.weight,averageValue:r.weight?r.valueWeight/r.weight:0,valueUnit:r.valueUnit})).sort((a,b)=>a.name.localeCompare(b.name))
     };
   }).sort((a,b)=>a.name.localeCompare(b.name));
