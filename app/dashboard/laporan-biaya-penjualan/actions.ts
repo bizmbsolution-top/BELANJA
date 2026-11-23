@@ -13,7 +13,7 @@ export async function closeSalesExpensePeriod(input: { projectId: string; period
     if (!uuid(input?.projectId ?? "") || !/^\d{4}-\d{2}-01$/.test(input?.periodMonth ?? "")) {
       return { ok: false, error: "Project atau periode closing tidak valid." };
     }
-    if (!actor.isOwner) {
+    if (actor.tenantRole !== "superadmin") {
       const { data: permission, error: permissionError } = await createAdminClient()
         .from("user_permission_overrides").select("effect")
         .eq("user_id", actor.userId).eq("permission_key", "payment.post").maybeSingle();
