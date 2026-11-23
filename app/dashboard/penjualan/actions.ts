@@ -9,16 +9,16 @@ async function assertScope(userId:string,projectId:string,warehouseIds:string[],
  if(isOwner||roles.includes("Management"))return;
  const admin=createAdminClient();
  const {data:ps,error:pe}=await admin.from("user_work_scopes").select("scope_mode,resource_ids").eq("user_id",userId).eq("dimension","project").maybeSingle();
- if(pe||!ps)throw new Error("Area kerja Project belum diatur oleh Owner.");
+ if(pe||!ps)throw new Error("Area kerja Project belum diatur oleh Superadmin perusahaan.");
  if(ps.scope_mode!=="all"&&(ps.scope_mode!=="selected"||!ps.resource_ids?.includes(projectId)))throw new Error("Project di luar area kerja akun Anda.");
  const {data:ws,error:we}=await admin.from("user_work_scopes").select("scope_mode,resource_ids").eq("user_id",userId).eq("dimension","warehouse").maybeSingle();
- if(we||!ws)throw new Error("Area kerja Warehouse belum diatur oleh Owner.");
+ if(we||!ws)throw new Error("Area kerja Warehouse belum diatur oleh Superadmin perusahaan.");
  if(ws.scope_mode!=="all"&&(ws.scope_mode!=="selected"||warehouseIds.some(id=>!ws.resource_ids?.includes(id))))throw new Error("Salah satu Warehouse di luar area kerja akun Anda.");
 }
 export async function createSalesDraft(input:{customerId:string;projectId:string;deliveryAddressId:string;salePricePerKg:string;notes:string;allocations:{lotId:string;weightKg:string}[]}):Promise<Result>{
  try{
   const actor=await requireAnyRole(["Sales"]);
-  if(!(await canWrite(actor.userId,actor.isOwner)))return{ok:false,error:"Permission transaksi belum diberikan oleh Owner."};
+  if(!(await canWrite(actor.userId,actor.tenantRole === "superadmin")))return{ok:false,error:"Permission transaksi belum diberikan oleh Superadmin perusahaan."};
   if(!uuid(input.customerId)||!uuid(input.projectId)||!uuid(input.deliveryAddressId))return{ok:false,error:"Pilih Pelanggan, Project, dan Alamat Gudang tujuan pengiriman."};
   const price=Number(input.salePricePerKg);if(!Number.isFinite(price)||price<=0)return{ok:false,error:"Harga jual per kg harus lebih besar dari nol."};
   if(!Array.isArray(input.allocations)||!input.allocations.length||input.allocations.length>100)return{ok:false,error:"Pilih minimal satu Lot."};
@@ -30,7 +30,7 @@ export async function createSalesDraft(input:{customerId:string;projectId:string
   if(error||!lots||lots.length!==lotIds.length)return{ok:false,error:"Data Lot tidak ditemukan."};
   const warehouseIds=[...new Set(lots.map(l=>l.warehouse_id))];
   if(lots.some(l=>l.project_id!==input.projectId))return{ok:false,error:"Semua Lot harus berasal dari Project yang sama."};
-  await assertScope(actor.userId,input.projectId,warehouseIds,actor.isOwner,actor.roles);
+  await assertScope(actor.userId,input.projectId,warehouseIds,actor.tenantRole === "superadmin",actor.roles);
   const {data:deliveryAddress,error:addressError}=await admin.from("customer_warehouse_addresses").select("id,customer_id,label,address").eq("id",input.deliveryAddressId).eq("customer_id",input.customerId).eq("is_active",true).maybeSingle();
   if(addressError||!deliveryAddress)return{ok:false,error:"Alamat Gudang tidak ditemukan pada Master Pelanggan yang dipilih."};
   const destinationSnapshot=`${deliveryAddress.label} — ${deliveryAddress.address}`;
@@ -48,7 +48,7 @@ export async function confirmSalesDispatch(salesOrderId:string):Promise<Result>{
  try{
   const actor=await requireAnyRole(["Sales","Warehouse"]);
   if(!uuid(salesOrderId))return{ok:false,error:"Transaksi penjualan tidak valid."};
-  if(!(await canWrite(actor.userId,actor.isOwner)))return{ok:false,error:"Permission transaksi belum diberikan oleh Owner."};
+  if(!(await canWrite(actor.userId,actor.tenantRole === "superadmin")))return{ok:false,error:"Permission transaksi belum diberikan oleh Superadmin perusahaan."};
   const admin=createAdminClient();
   const {data:order,error:orderError}=await admin.from("sales_orders").select("id,project_id,status").eq("id",salesOrderId).maybeSingle();
   if(orderError||!order)return{ok:false,error:"Transaksi penjualan tidak ditemukan."};
@@ -56,7 +56,7 @@ export async function confirmSalesDispatch(salesOrderId:string):Promise<Result>{
   const {data:allocations,error:allocationError}=await admin.from("sales_order_lot_allocations").select("source_warehouse_id").eq("sales_order_id",salesOrderId);
   if(allocationError||!allocations?.length)return{ok:false,error:"Daftar Lot penjualan tidak ditemukan."};
   const warehouseIds=[...new Set(allocations.map(a=>a.source_warehouse_id))];
-  await assertScope(actor.userId,order.project_id,warehouseIds,actor.isOwner,actor.roles);
+  await assertScope(actor.userId,order.project_id,warehouseIds,actor.tenantRole === "superadmin",actor.roles);
   const {data,error}=await admin.rpc("confirm_sales_dispatch_with_audit",{p_sales_order_id:salesOrderId,p_actor_user_id:actor.userId});
   if(error||!data)return{ok:false,error:error?.message?.includes("available Lot stock")?"Stok Lot tidak lagi mencukupi. Muat ulang data Persediaan.":error?.message??"Konfirmasi barang keluar gagal."};
   revalidatePath("/dashboard/penjualan");revalidatePath("/dashboard/persediaan");
@@ -71,7 +71,7 @@ export async function finalizeSalesOrder(input:{salesOrderId:string;receivedWeig
  try{
   const actor=await requireAnyRole(["Sales"]);
   if(!uuid(input.salesOrderId))return{ok:false,error:"Transaksi penjualan tidak valid."};
-  if(!(await canWrite(actor.userId,actor.isOwner)))return{ok:false,error:"Permission transaksi belum diberikan oleh Owner."};
+  if(!(await canWrite(actor.userId,actor.tenantRole === "superadmin")))return{ok:false,error:"Permission transaksi belum diberikan oleh Superadmin perusahaan."};
   const weight=Number(input.receivedWeightKg),grade=Number(input.finalGradeValue),price=Number(input.finalPricePerKg);
   if(!Number.isFinite(weight)||weight<=0||!Number.isFinite(grade)||grade<0||!Number.isFinite(price)||price<=0)return{ok:false,error:"Berat, kadar, dan harga final harus valid."};
   if(!input.baNumber.trim()||input.baNumber.trim().length>100||!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(input.baDate)||!input.finalGradeUnit.trim()||input.finalGradeUnit.length>20||input.discrepancyNotes.length>1000)return{ok:false,error:"Lengkapi nomor/tanggal BA dan satuan kadar."};
@@ -81,7 +81,7 @@ export async function finalizeSalesOrder(input:{salesOrderId:string;receivedWeig
   if(oe||!order||order.status!=="Dikirim")return{ok:false,error:"Hanya transaksi Dikirim yang dapat difinalisasi."};
   const {data:allocs,error:ae}=await admin.from("sales_order_lot_allocations").select("source_warehouse_id").eq("sales_order_id",order.id);
   if(ae||!allocs?.length)return{ok:false,error:"Alokasi Lot transaksi tidak ditemukan."};
-  await assertScope(actor.userId,order.project_id,[...new Set(allocs.map(a=>a.source_warehouse_id))],actor.isOwner,actor.roles);
+  await assertScope(actor.userId,order.project_id,[...new Set(allocs.map(a=>a.source_warehouse_id))],actor.tenantRole === "superadmin",actor.roles);
   const path=order.id+"/"+crypto.randomUUID()+"_"+file.name.normalize("NFKD").replace(/[^a-zA-Z0-9._-]+/g,"_").slice(-100);
   const {error:uploadError}=await admin.storage.from(BA_BUCKET).upload(path,file,{contentType:file.type,upsert:false});
   if(uploadError)return{ok:false,error:"Dokumen BA gagal diunggah."};
