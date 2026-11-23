@@ -36,5 +36,5 @@ export default async function FundRequestPage() {
   return <FundRequestManager projects={visibleProjects} initialRequests={(requests ?? []) as unknown as FundRequest[]}
     balances={balances} canRequest={actor.isOwner || actor.roles.includes("Cashier")}
     canExecute={actor.isOwner || actor.roles.includes("Finance")}
-    readOnly={!actor.isOwner && !actor.roles.some(r => r === "Cashier" || r === "Finance")} />;
+    />;
 }
