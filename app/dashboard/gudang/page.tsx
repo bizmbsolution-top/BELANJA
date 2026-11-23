@@ -21,5 +21,5 @@ export default async function WarehousePage() {
   const projectIdsByWarehouse = new Map<string, string[]>();
   for (const row of mappings ?? []) projectIdsByWarehouse.set(row.warehouse_id, [...(projectIdsByWarehouse.get(row.warehouse_id) ?? []), row.project_id]);
   const warehouses = (data ?? []).map(item => ({ ...item, projectIds: projectIdsByWarehouse.get(item.id) ?? [] }));
-  return <WarehouseManager initialWarehouses={warehouses as Warehouse[]} initialProjects={projects ?? []} canManageAssignments={context.isOwner} />;
+  return <WarehouseManager initialWarehouses={warehouses as Warehouse[]} initialProjects={projects ?? []} canManageAssignments={context.tenantRole === "superadmin"} />;
 }
