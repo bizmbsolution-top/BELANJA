@@ -12,7 +12,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     <DashboardShell
       email={context.email}
       roles={context.displayRoles}
-      isOwner={false}
+      isSuperadmin={context.tenantRole === "superadmin"}
     >
       {children}
     </DashboardShell>
