@@ -59,7 +59,7 @@ export async function createTenantSuperadmin(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
 
-  if (!/^[0-9a-f-]{36}$/i.test(tenantId) || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email) || password.length < 8) {
+  if (!/^[0-9a-f-]{36}$/i.test(tenantId) || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || password.length < 8) {
     redirect("/platform?adminError=invalid");
   }
 
