@@ -18,7 +18,7 @@ export default async function PlatformPage({
 }: {
   searchParams: Promise<{ created?: string; error?: string }>;
 }) {
-  await guardPage(requirePlatformOwner);
+  const owner = await guardPage(requirePlatformOwner);
   const params = await searchParams;
   const admin = createAdminClient();
 
@@ -58,7 +58,7 @@ export default async function PlatformPage({
         </div>
         <div className={styles.account}>
           <span className={styles.avatar}>O</span>
-          <span><strong>Platform Owner</strong><small>sentralogis@gmail.com</small></span>
+          <span><strong>Platform Owner</strong><small>{owner.email}</small></span>
         </div>
       </header>
 
