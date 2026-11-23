@@ -143,7 +143,7 @@ export default function UserAccess({ initialUsers, initialProjects, initialWareh
       const projectIds = user.projectIds.includes(projectId) ? user.projectIds.filter((id) => id !== projectId) : [...user.projectIds, projectId];
       const allowedWarehouseIds = initialWarehouses.filter(warehouse => warehouse.projectIds.some(id => projectIds.includes(id))).map(warehouse => warehouse.id);
       const warehouseIds = user.warehouseIds.filter(id => allowedWarehouseIds.includes(id));
-      return { ...user, projectIds, warehouseIds, scopes: { ...user.scopes, project: projectIds.length ? "selected" : user.scopes.project, ...(warehouseIds.length ? {} : { warehouse: "none" as const }) } };
+      return { ...user, projectIds, warehouseIds, scopes: { ...user.scopes, project: projectIds.length ? "selected" : "none", ...(warehouseIds.length ? {} : { warehouse: "none" as const }) } };
     }));
     setSaved(false);
   }
@@ -279,8 +279,6 @@ export default function UserAccess({ initialUsers, initialProjects, initialWareh
       permissions: selectedUser.permissions,
       projectIds: selectedUser.projectIds,
       warehouseIds: selectedUser.warehouseIds,
-      warehouseIds: selectedUser.warehouseIds,
-      warehouseIds: selectedUser.warehouseIds,
     });
     setSaveBusy(false);
     if (!result.ok) {
@@ -390,6 +388,7 @@ export default function UserAccess({ initialUsers, initialProjects, initialWareh
                       type="radio"
                       name={`scope-${selectedId}-${dimension.id}`}
                       checked={selectedUser.scopes[dimension.id] === "all"}
+                      disabled={dimension.id === "warehouse" && selectedUser.scopes.project === "none"}
                       onChange={() => updateScope(dimension.id, "all")}
                     />
                     <span>All — seluruh {dimension.label}</span>
