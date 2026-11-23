@@ -58,6 +58,7 @@ const groups: MenuGroup[] = [
       { label: "Proyek & Departemen", roles: ["Management"] },
       { label: "Gudang / Warehouse", href: "/dashboard/gudang", roles: ["Procurement", "Warehouse", "Finance", "Management"] },
       { label: "Master Akun Biaya", href: "/dashboard/kategori-expenses", roles: ["Cashier", "Finance", "Management"] },
+      { label: "Master Biaya Penjualan", href: "/dashboard/biaya-penjualan", roles: ["Management"] },
       { label: "UOM / Satuan", href: "/dashboard/uom", roles: ["Procurement", "Warehouse", "Finance", "Management"] },
     ],
   },
