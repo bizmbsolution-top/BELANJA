@@ -5,6 +5,8 @@ import styles from "../riwayat-aktivitas/activity.module.css";
 type Snapshot = Record<string, unknown> | null;
 type AuditRow = {
   id: string;
+  actor_user_id: string | null;
+  target_user_id: string | null;
   action: string;
   entity_type: string;
   entity_id: string | null;
@@ -64,13 +66,16 @@ export default async function MyActivityPage() {
   const admin = createAdminClient();
   const { data, error } = await admin
     .from("audit_logs")
-    .select("id, action, entity_type, entity_id, before_data, after_data, created_at")
-    .eq("actor_user_id", actor.userId)
+    .select("id, actor_user_id, target_user_id, action, entity_type, entity_id, before_data, after_data, created_at")
+    .or(`actor_user_id.eq.${actor.userId},target_user_id.eq.${actor.userId}`)
     .order("created_at", { ascending: false })
     .limit(200);
 
   if (error) throw new Error("Riwayat aktivitas Anda gagal dimuat.");
   const rows = (data ?? []) as AuditRow[];
+  const actorIds = [...new Set(rows.map((row) => row.actor_user_id).filter((id): id is string => Boolean(id)))];
+  const { data: authUsers } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+  const emailById = new Map((authUsers?.users ?? []).map((user) => [user.id, user.email ?? user.id] as const));
 
   return (
     <main className={styles.page}>
@@ -78,7 +83,7 @@ export default async function MyActivityPage() {
         <div>
           <p className={styles.eyebrow}>AKTIVITAS AKUN</p>
           <h1>Aktivitas Saya</h1>
-          <p>Catatan tindakan yang dilakukan oleh akun {actor.email}.</p>
+          <p>Aktivitas yang dilakukan oleh akun Anda dan perubahan yang berkaitan dengan akun Anda.</p>
         </div>
       </header>
       <section className={styles.summary}>
@@ -103,7 +108,7 @@ export default async function MyActivityPage() {
                 </div>
                 <div className={styles.people}>
                   <div><small>OBJEK AKTIVITAS</small><strong>{targetLabel(row)}</strong></div>
-                  <div><small>JENIS DATA</small><strong>{row.entity_type.replaceAll("_", " ")}</strong></div>
+                  <div><small>DILAKUKAN OLEH</small><strong>{row.actor_user_id === actor.userId ? "Anda" : row.actor_user_id ? emailById.get(row.actor_user_id) ?? row.actor_user_id : "Sistem"}</strong></div>
                 </div>
                 {(beforeLines.length > 0 || afterLines.length > 0) && (
                   <details className={styles.details}>
