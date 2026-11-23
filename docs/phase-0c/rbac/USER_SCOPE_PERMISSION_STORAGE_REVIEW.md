@@ -1,6 +1,6 @@
 # Belanja — Review Desain Penyimpanan Scope & Permission Pengguna
 
-Status: **DRAFT — menunggu persetujuan Owner; belum diterapkan ke Supabase**  
+Status: **MIGRATION SUDAH DITERAPKAN DAN DIVERIFIKASI — integrasi aplikasi belum dikerjakan**  
 Target implementasi: branch `ui-user-access-preview`  
 Supabase project: `zguzjoqmghmmviyixecz`
 
@@ -79,12 +79,14 @@ Kedua tabel baru:
 
 Dengan desain ini, pengguna biasa tidak dapat membaca atau mengubah tabel otorisasi langsung melalui Supabase Data API. RLS menjadi lapisan perlindungan tambahan, bukan pengganti otorisasi server.
 
-## 4. Draft SQL migration — BELUM DIJALANKAN
+## 4. Migration Supabase — SUDAH DITERAPKAN
 
-SQL berikut hanya rancangan untuk ditinjau. Belum ada perubahan pada Supabase.
+Owner menyetujui ketiga keputusan pada 23 November 2026. Migration `20261123022117_create_user_work_scopes_and_permission_overrides` berhasil diterapkan pada project Supabase `zguzjoqmghmmviyixecz`.
+
+SQL aktual yang diterapkan:
 
 ```sql
-create table if not exists public.user_work_scopes (
+create table public.user_work_scopes (
   user_id uuid not null references auth.users(id) on delete cascade,
   dimension text not null
     check (dimension in ('project', 'department', 'warehouse')),
@@ -92,18 +94,20 @@ create table if not exists public.user_work_scopes (
     check (scope_mode in ('all', 'selected')),
   resource_ids text[] not null default '{}',
   created_at timestamptz not null default now(),
-  created_by uuid not null references auth.users(id),
+  created_by uuid references auth.users(id) on delete set null,
   updated_at timestamptz not null default now(),
-  updated_by uuid not null references auth.users(id),
+  updated_by uuid references auth.users(id) on delete set null,
   primary key (user_id, dimension),
   constraint user_work_scopes_mode_ids_check check (
     (scope_mode = 'all' and cardinality(resource_ids) = 0)
     or
-    (scope_mode = 'selected' and cardinality(resource_ids) > 0)
+    (scope_mode = 'selected' and cardinality(resource_ids) > 0
+      and array_position(resource_ids, null) is null
+      and array_position(resource_ids, '') is null)
   )
 );
 
-create table if not exists public.user_permission_overrides (
+create table public.user_permission_overrides (
   user_id uuid not null references auth.users(id) on delete cascade,
   permission_key text not null check (
     permission_key in (
@@ -125,9 +129,9 @@ alter table public.user_work_scopes enable row level security;
 alter table public.user_permission_overrides enable row level security;
 
 revoke all on table public.user_work_scopes
-  from anon, authenticated;
+  from public, anon, authenticated;
 revoke all on table public.user_permission_overrides
-  from anon, authenticated;
+  from public, anon, authenticated;
 
 grant select, insert, update, delete on table public.user_work_scopes
   to service_role;
@@ -136,9 +140,10 @@ grant select, insert, update, delete on table public.user_permission_overrides
 ```
 
 Catatan:
-- `ON DELETE CASCADE` membersihkan konfigurasi akses saat akun Auth benar-benar dihapus. Status Nonaktif tetap menggunakan soft-disable pada `user_access_profiles`, bukan penghapusan akun.
-- Tidak ada policy `service_role` yang diperlukan karena role tersebut memiliki bypass RLS.
-- SQL final perlu disesuaikan bila pemeriksaan ulang menemukan grant default atau kebijakan organisasi tambahan.
+- `user_id` menggunakan `ON DELETE CASCADE`; penghapusan akun Auth membersihkan konfigurasi aksesnya. Kolom audit `created_by` dan `updated_by` nullable dengan `ON DELETE SET NULL` agar penghapusan akun pembuat tidak menghalangi proses.
+- Hak akses tabel untuk `public`, `anon`, dan `authenticated` dicabut; DML hanya diberikan kepada `service_role`. Tidak ada policy `service_role` karena role tersebut melewati RLS.
+- Verifikasi pascamigration: kedua tabel memiliki RLS aktif, tidak memiliki policy, tidak memberi hak SELECT kepada `anon`/`authenticated`, dan memberi hak DML kepada `service_role`.
+- Advisor masih menampilkan temuan INFO `RLS Enabled No Policy` pada tabel baru (sesuai desain tertutup ini) serta satu temuan lama pada `user_access_profiles`. Advisor juga melaporkan fungsi `public.rls_auto_enable()` sebagai SECURITY DEFINER yang dapat dipanggil `anon` dan `authenticated`; temuan ini sudah ada di luar migration ini dan perlu ditinjau terpisah.
 
 ## 5. Integrasi aplikasi yang diperlukan setelah migration disetujui
 
@@ -160,12 +165,12 @@ Catatan:
 - Belum menerapkan SQL ke Supabase.
 - Belum mengubah branch `main` atau deployment production.
 
-## 7. Persetujuan Owner yang diperlukan
+## 7. Persetujuan Owner
 
-Mohon tinjau tiga keputusan berikut sebelum migration dijalankan:
+Disetujui pada 23 November 2026:
 
-1. Setuju dua tabel terpisah seperti rancangan ini?
-2. Setuju scope `All` dan `Selected`, dengan scope yang tidak disetel berarti tidak ada akses?
-3. Setuju akses langsung dari browser ke kedua tabel ditutup, dan pengelolaan hanya melalui server action Owner?
+1. Dua tabel terpisah.
+2. Scope `All` dan `Selected`; scope yang tidak disetel berarti tidak ada akses.
+3. Akses langsung dari browser ditutup; pengelolaan melalui server action Owner.
 
-Setelah disetujui, migration akan diterapkan ke Supabase, lalu integrasi server actions dan UI dikerjakan di branch preview terlebih dahulu.
+Tahap berikutnya adalah implementasi server actions dan UI di branch `ui-user-access-preview`. Tabel master Project/Department/Warehouse belum tersedia, sehingga pilihan `Selected` belum boleh menampilkan pilihan resource palsu atau mengarang ID.
