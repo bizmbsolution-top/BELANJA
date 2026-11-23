@@ -378,7 +378,7 @@ export default function UserAccess({ initialUsers }: { initialUsers: UserRecord[
           </section>
 
           <div className={styles.footerActions}>
-            {saved && <p className={styles.savedMessage}>Role dan status berhasil disimpan ke Supabase.</p>}
+            {saved && <p className={styles.savedMessage}>Role, status, Area Kerja, dan Permission berhasil disimpan ke Supabase.</p>}
             {saveError && <p className={styles.formError} role="alert">{saveError}</p>}
             <button type="button" className={styles.saveButton} onClick={savePreview} disabled={saveBusy || !selectedUser.id}>{saveBusy ? "Menyimpan..." : "Simpan Perubahan"}</button>
           </div>
