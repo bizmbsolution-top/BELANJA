@@ -29,7 +29,7 @@ export default async function FundRequestPage() {
   const visibleIds = visibleProjects.map(p => p.id);
   const [{ data: requests, error: requestError }, { data: ledger, error: ledgerError }] = await Promise.all([
     admin.from("fund_requests")
-      .select("id,code,project_id,request_amount,purpose,status,requested_at,requested_by,executed_amount,payment_method,execution_note,executed_at,executed_by,projects(name,code).eq("tenant_id", actor.tenantId),fund_request_documents(id,file_name,mime_type,file_size,uploaded_at)")
+      .select("id,code,project_id,request_amount,purpose,status,requested_at,requested_by,executed_amount,payment_method,execution_note,executed_at,executed_by,projects(name,code),fund_request_documents(id,file_name,mime_type,file_size,uploaded_at)").eq("tenant_id", actor.tenantId)
       .in("project_id", visibleIds.length ? visibleIds : ["00000000-0000-0000-0000-000000000000"])
       .order("requested_at", { ascending: false }).limit(300),
     admin.from("project_cash_ledger").select("project_id,amount").eq("tenant_id", actor.tenantId).in("project_id", visibleIds.length ? visibleIds : ["00000000-0000-0000-0000-000000000000"]),
