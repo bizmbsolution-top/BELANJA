@@ -56,3 +56,22 @@ export async function updateWarehouse(id: string, input: WarehouseInput): Promis
     return { ok: false, error: "Akses atau perubahan gudang gagal. Silakan muat ulang halaman." };
   }
 }
+
+
+export async function setWarehouseProjects(input: { warehouseId: string; projectIds: string[] }): Promise<ActionResult> {
+  try {
+    const owner = await requireOwner();
+    if (!/^[0-9a-f-]{36}$/i.test(input?.warehouseId ?? "")) return { ok: false, error: "Gudang tidak valid." };
+    const projectIds = Array.isArray(input.projectIds) ? [...new Set(input.projectIds)] : [];
+    if (!projectIds.every((id) => /^[0-9a-f-]{36}$/i.test(id))) return { ok: false, error: "Project tidak valid." };
+    const { error } = await createAdminClient().rpc("set_warehouse_projects_with_audit", {
+      p_actor_user_id: owner.userId,
+      p_warehouse_id: input.warehouseId,
+      p_project_ids: projectIds,
+    });
+    if (error) return { ok: false, error: "Hubungan Project dan Warehouse gagal disimpan." };
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Hanya Superadmin yang dapat mengatur Project untuk gudang." };
+  }
+}
