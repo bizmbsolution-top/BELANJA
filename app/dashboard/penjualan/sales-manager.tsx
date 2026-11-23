@@ -17,7 +17,7 @@ export default function SalesManager({data}:{data:SalesPageData}){
  const [busy,setBusy]=useState(false),[error,setError]=useState(""),[message,setMessage]=useState(""),[salePriceInput,setSalePriceInput]=useState(""),[confirmDispatchId,setConfirmDispatchId]=useState(""),[dispatchingId,setDispatchingId]=useState("");
  const selectedCustomer=data.customers.find(c=>c.id===customerId);
  const warehousesForProject=useMemo(()=>data.warehouses.filter(w=>data.warehouseProjects.some(m=>m.project_id===projectId&&m.warehouse_id===w.id)),[data.warehouses,data.warehouseProjects,projectId]);
- const selectableLots=data.lots.filter(l=>l.project_id===projectId&&warehouseIds.includes(l.warehouse_id));
+ const selectableLots=data.lots.filter(l=>l.project_id===projectId&&warehouseIds.includes(l.warehouse_id)&&l.available_weight_kg>0.0001);
  const selected=Object.entries(weights).filter(([id,v])=>selectableLots.some(l=>l.id===id)&&Number(v)>0);
  const selectedWeight=selected.reduce((s,[,v])=>s+Number(v),0);
  const estimatedCost=selected.reduce((s,[id,v])=>{const l=data.lots.find(x=>x.id===id);return s+(l?Number(l.total_purchase_cost)/Number(l.initial_weight_kg)*Number(v):0)},0);
