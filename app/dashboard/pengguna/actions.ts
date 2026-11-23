@@ -22,6 +22,7 @@ type ManagedUser = {
   status: "Aktif" | "Nonaktif";
   scopes: ScopeSettings;
   permissions: PermissionSettings;
+  projectIds: string[];
 };
 
 const DEFAULT_SCOPES: ScopeSettings = { project: "none", department: "none", warehouse: "none" };
@@ -105,12 +106,16 @@ export async function getManagedUsers(): Promise<ManagedUser[]> {
 
     const profileById = new Map((profileResult.data ?? []).map((profile) => [profile.user_id, profile]));
     const scopesById = new Map<string, ScopeSettings>();
+    const projectIdsById = new Map<string, string[]>();
     for (const row of scopeResult.data ?? []) {
       if (!["project", "department", "warehouse"].includes(row.dimension)) continue;
       const current = scopesById.get(row.user_id) ?? { ...DEFAULT_SCOPES };
       current[row.dimension as keyof ScopeSettings] =
         row.scope_mode === "all" ? "all" : row.scope_mode === "selected" ? "selected" : "none";
       scopesById.set(row.user_id, current);
+      if (row.dimension === "project" && row.scope_mode === "selected") {
+        projectIdsById.set(row.user_id, (row.resource_ids ?? []).filter((id: string) => /^[0-9a-f-]{36}$/i.test(id)));
+      }
     }
     const permissionsById = new Map<string, PermissionSettings>();
     for (const row of permissionResult.data ?? []) {
@@ -130,6 +135,7 @@ export async function getManagedUsers(): Promise<ManagedUser[]> {
         roles: user.email?.toLowerCase() === ownerEmail ? ["Superadmin"] : (profile?.roles ?? []),
         status: profile?.is_active === true ? "Aktif" : "Nonaktif",
         scopes: scopesById.get(user.id) ?? { ...DEFAULT_SCOPES },
+        projectIds: projectIdsById.get(user.id) ?? [],
         permissions: permissionsById.get(user.id) ?? { ...DEFAULT_PERMISSIONS },
       });
     }
@@ -147,6 +153,7 @@ export async function saveUserAccessProfile(input: {
   status: "Aktif" | "Nonaktif";
   scopes: ScopeSettings;
   permissions: PermissionSettings;
+  projectIds: string[];
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
     const owner = await requireOwner();
@@ -155,6 +162,7 @@ export async function saveUserAccessProfile(input: {
     const status = input?.status;
     const scopes = input?.scopes;
     const permissions = input?.permissions;
+    const projectIds = Array.isArray(input?.projectIds) ? [...new Set(input.projectIds)] : [];
     const dimensions = ["project", "department", "warehouse"] as const;
     const permissionKeys = [
       "transaction.post_recognition",
@@ -171,9 +179,11 @@ export async function saveUserAccessProfile(input: {
     if (status !== "Aktif" && status !== "Nonaktif") {
       return { ok: false, error: "Status akun tidak valid." };
     }
-    if (!scopes || dimensions.some((key) => scopes[key] !== "none" && scopes[key] !== "all")) {
-      return { ok: false, error: "Area Kerja Selected belum tersedia. Gunakan Semua atau Tidak Ada." };
+    if (!scopes || !["none", "all", "selected"].includes(scopes.project) || ["department", "warehouse"].some((key) => scopes[key as "department" | "warehouse"] !== "none" && scopes[key as "department" | "warehouse"] !== "all")) {
+      return { ok: false, error: "Pengaturan Area Kerja tidak valid." };
     }
+    if (scopes.project === "selected" && projectIds.length === 0) return { ok: false, error: "Pilih minimal satu Project untuk Area Kerja Selected." };
+    if (scopes.project !== "selected" && projectIds.length > 0) return { ok: false, error: "Daftar Project Selected tidak sesuai dengan mode Area Kerja." };
     if (!permissions || permissionKeys.some((key) =>
       permissions[key] !== "unset" && permissions[key] !== "allow" && permissions[key] !== "deny"
     )) {
@@ -188,6 +198,7 @@ export async function saveUserAccessProfile(input: {
       p_is_active: status === "Aktif",
       p_scopes: scopes,
       p_permissions: permissions,
+      p_project_ids: projectIds,
     });
 
     if (error) {
