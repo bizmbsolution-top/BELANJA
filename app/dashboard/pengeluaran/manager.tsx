@@ -57,7 +57,8 @@ export default function ExpenseManager({ categories, initialItems }: { categorie
   async function viewDocument(id: string) {
     const tab = window.open("about:blank", "_blank");
     setBusyId(id); const result = await openExpenseDocument(id); setBusyId("");
-    if (!result.ok || !result.url) { tab?.close(); setError(result.error); return; }
+    if (!result.ok) { tab?.close(); setError(result.error); return; }
+    if (!result.url) { tab?.close(); setError("Dokumen tidak memiliki tautan yang dapat dibuka."); return; }
     if (tab) tab.location.href = result.url; else window.location.href = result.url;
   }
   async function removeDocument(id: string) {
