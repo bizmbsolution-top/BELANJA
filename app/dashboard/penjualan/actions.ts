@@ -43,3 +43,23 @@ export async function createSalesDraft(input:{customerId:string;projectId:string
   revalidatePath("/dashboard/penjualan");revalidatePath("/dashboard/persediaan");return{ok:true,id:data as string};
  }catch(error){return{ok:false,error:error instanceof Error?error.message:"Draft Penjualan gagal disimpan."};}
 }
+
+export async function confirmSalesDispatch(salesOrderId:string):Promise<Result>{
+ try{
+  const actor=await requireAnyRole(["Sales","Warehouse"]);
+  if(!uuid(salesOrderId))return{ok:false,error:"Transaksi penjualan tidak valid."};
+  if(!(await canWrite(actor.userId,actor.isOwner)))return{ok:false,error:"Permission transaksi belum diberikan oleh Owner."};
+  const admin=createAdminClient();
+  const {data:order,error:orderError}=await admin.from("sales_orders").select("id,project_id,status").eq("id",salesOrderId).maybeSingle();
+  if(orderError||!order)return{ok:false,error:"Transaksi penjualan tidak ditemukan."};
+  if(order.status!=="Draft")return{ok:false,error:"Hanya Draft yang dapat dikonfirmasi keluar."};
+  const {data:allocations,error:allocationError}=await admin.from("sales_order_lot_allocations").select("source_warehouse_id").eq("sales_order_id",salesOrderId);
+  if(allocationError||!allocations?.length)return{ok:false,error:"Daftar Lot penjualan tidak ditemukan."};
+  const warehouseIds=[...new Set(allocations.map(a=>a.source_warehouse_id))];
+  await assertScope(actor.userId,order.project_id,warehouseIds,actor.isOwner,actor.roles);
+  const {data,error}=await admin.rpc("confirm_sales_dispatch_with_audit",{p_sales_order_id:salesOrderId,p_actor_user_id:actor.userId});
+  if(error||!data)return{ok:false,error:error?.message?.includes("available Lot stock")?"Stok Lot tidak lagi mencukupi. Muat ulang data Persediaan.":error?.message??"Konfirmasi barang keluar gagal."};
+  revalidatePath("/dashboard/penjualan");revalidatePath("/dashboard/persediaan");
+  return{ok:true,id:data as string};
+ }catch(error){return{ok:false,error:error instanceof Error?error.message:"Konfirmasi barang keluar gagal."};}
+}
