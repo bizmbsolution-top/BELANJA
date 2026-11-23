@@ -186,3 +186,96 @@ export function evaluateOwnerAccess(lookup: OwnerProfileLookup): AccessDecision 
 
   return ALLOW;
 }
+
+/**
+ * Scope assignments are independent for each organizational dimension.
+ * "all" includes current and future records in this Organization.
+ * "selected" is an explicit allow-list; an empty or malformed list denies.
+ */
+export type ScopeAssignment =
+  | { mode: "all" }
+  | { mode: "selected"; ids: readonly string[] };
+
+export type WorkScope = {
+  project: ScopeAssignment;
+  department: ScopeAssignment;
+  warehouse: ScopeAssignment;
+};
+
+export type ScopeDimension = keyof WorkScope;
+
+/**
+ * Fail-closed scope check. Missing, malformed, or unknown assignments never
+ * widen access. The caller must supply the resource ID from trusted server
+ * data, not from a browser-provided authorization claim.
+ */
+export function evaluateScopeAccess(
+  assignment: unknown,
+  resourceId: unknown,
+): boolean {
+  if (!assignment || typeof assignment !== "object") return false;
+  if (typeof resourceId !== "string" || resourceId.trim().length === 0) {
+    return false;
+  }
+
+  const candidate = assignment as { mode?: unknown; ids?: unknown };
+
+  if (candidate.mode === "all") return true;
+  if (candidate.mode !== "selected" || !Array.isArray(candidate.ids)) {
+    return false;
+  }
+
+  return candidate.ids.some(
+    (id) => typeof id === "string" && id === resourceId,
+  );
+}
+
+/**
+ * Permission keys that must only ever be granted directly to an individual
+ * user. A Role grant must never enable one of these sensitive actions.
+ */
+export const INDIVIDUAL_ONLY_PERMISSIONS = [
+  "transaction.post_recognition",
+  "fund_utilization.post_recognition",
+  "payment.post",
+  "payment.allocate",
+] as const;
+
+export type IndividualOnlyPermission =
+  (typeof INDIVIDUAL_ONLY_PERMISSIONS)[number];
+
+export type PermissionOverride = "allow" | "deny";
+
+/**
+ * Evaluates effective permission:
+ * - explicit individual deny overrides every Role grant;
+ * - explicit individual allow grants ordinary permissions;
+ * - ordinary permissions otherwise use the union of Role grants;
+ * - sensitive individual-only permissions require an explicit user allow.
+ *
+ * Missing or malformed assignment data fails closed.
+ */
+export function evaluatePermissionAccess(input: {
+  permission: unknown;
+  roleGrants: unknown;
+  userOverride: unknown;
+}): boolean {
+  const { permission, roleGrants, userOverride } = input;
+
+  if (typeof permission !== "string" || permission.trim().length === 0) {
+    return false;
+  }
+
+  if (userOverride === "deny") return false;
+
+  const individualOnly = (
+    INDIVIDUAL_ONLY_PERMISSIONS as readonly string[]
+  ).includes(permission);
+
+  if (individualOnly) return userOverride === "allow";
+  if (userOverride === "allow") return true;
+
+  if (!Array.isArray(roleGrants)) return false;
+  return roleGrants.some((grant) => grant === permission);
+}
+
