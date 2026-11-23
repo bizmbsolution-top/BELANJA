@@ -24,7 +24,7 @@ export default function FundRequestManager({ projects, initialRequests, balances
 }) {
   const router = useRouter();
   const [showForm, setShowForm] = useState(false);
-  const [projectId, setProjectId] = useState(projects[0]?.id ?? "");
+  const [projectId, setProjectId] = useState(requestProjects[0]?.id ?? "");
   const [amount, setAmount] = useState("");
   const [purpose, setPurpose] = useState("");
   const [busy, setBusy] = useState("");
@@ -75,12 +75,12 @@ export default function FundRequestManager({ projects, initialRequests, balances
       {projects.length ? <div className={styles.balanceGrid}>{projects.map(p => <article key={p.id}><small>{p.code}</small><strong>{money(balances[p.id] ?? 0)}</strong><span>{p.name}</span></article>)}</div> : <p className={styles.empty}>Belum ada Project aktif yang menjadi area kerja akun ini.</p>}
     </section>
     {message && <p className={styles.success} role="status">{message}</p>}{error && <p className={styles.error} role="alert">{error}</p>}
-    {showForm && <section className={styles.panel}><h2>Ajukan Permintaan Dana</h2><p>Permintaan akan masuk ke antrean Finance. Saldo belum berubah sampai dana benar-benar diserahkan.</p>
+    {showForm && <section className={styles.panel}><h2>Ajukan Permintaan Dana</h2><p>Permintaan akan masuk ke antrean Finance. Saldo belum berubah sampai dana benar-benar diserahkan.</p>{!requestProjects.length && <p className={styles.error}>Belum ada Project yang ditetapkan sebagai area kerja Kasir. Hubungi Owner.</p>}
       <form className={styles.form} onSubmit={submitRequest}>
-        <label>Project *<select required value={projectId} onChange={e => setProjectId(e.target.value)}><option value="">Pilih Project</option>{projects.map(p => <option key={p.id} value={p.id}>{p.code} · {p.name}</option>)}</select></label>
+        <label>Project *<select required value={projectId} onChange={e => setProjectId(e.target.value)}><option value="">Pilih Project</option>{requestProjects.map(p => <option key={p.id} value={p.id}>{p.code} · {p.name}</option>)}</select></label>
         <label>Nominal yang Diminta (Rp) *<input required inputMode="numeric" value={amount} onChange={e => setAmount(amountInput(e.target.value))} placeholder="0" /></label>
         <label className={styles.wide}>Tujuan / Keperluan Dana *<textarea required maxLength={1000} rows={3} value={purpose} onChange={e => setPurpose(e.target.value)} placeholder="Jelaskan kebutuhan dana kasir..." /></label>
-        <div className={styles.wide}><button className={styles.primary} disabled={busy === "new" || !projects.length}>{busy === "new" ? "Mengirim..." : "Kirim Permintaan ke Finance"}</button></div>
+        <div className={styles.wide}><button className={styles.primary} disabled={busy === "new" || !requestProjects.length}>{busy === "new" ? "Mengirim..." : "Kirim Permintaan ke Finance"}</button></div>
       </form>
     </section>}
     <section className={styles.panel}><div className={styles.listHead}><div><h2>Riwayat Permintaan Dana</h2><p>{filtered.length} permintaan ditampilkan · maksimal 300 terbaru</p></div><div className={styles.filters}><input placeholder="Cari kode, Project, keperluan..." value={query} onChange={e => setQuery(e.target.value)} /><select value={filter} onChange={e => setFilter(e.target.value)}><option>Semua</option><option>Menunggu Eksekusi</option><option>Selesai</option></select></div></div>
@@ -97,7 +97,7 @@ export default function FundRequestManager({ projects, initialRequests, balances
         {!!r.fund_request_documents?.length && <div className={styles.docs}>{r.fund_request_documents.map(d => <div className={styles.doc} key={d.id}><span>{d.mime_type === "application/pdf" ? "PDF" : "IMG"}</span><div><strong>{d.file_name}</strong><small>{size(d.file_size)}</small></div><button type="button" disabled={busy === d.id} onClick={() => openEvidence(d.id)}>Lihat</button></div>)}</div>}
         </div>
         {canExecute && r.status === "Menunggu Eksekusi" && <div className={styles.executeArea}>{executeId === r.id ? <form className={styles.executeForm} onSubmit={submitExecution}>
-          <h3>Eksekusi Penyerahan Dana</h3><p>Nominal aktual tidak boleh kurang dari {money(Number(r.request_amount))}.</p>
+          <h3>Eksekusi Penyerahan Dana</h3><p>Nominal aktual tidak boleh kurang dari {money(Number(r.request_amount))}. Unggah bukti transfer atau penyerahan pada bagian bukti di atas sebelum konfirmasi.</p>
           <label>Nominal Aktual Diserahkan (Rp) *<input required inputMode="numeric" value={actualAmount} onChange={e => setActualAmount(amountInput(e.target.value))} placeholder="0" /></label>
           <label>Metode Penyerahan *<select value={method} onChange={e => setMethod(e.target.value)}><option>Transfer</option><option>Tunai</option></select></label>
           <label>Catatan (opsional)<textarea rows={2} maxLength={500} value={note} onChange={e => setNote(e.target.value)} placeholder="Referensi transfer atau catatan penyerahan" /></label>
