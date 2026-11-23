@@ -9,11 +9,12 @@ type Deduction={settlement_id:string;component_name:string;deduction_amount:numb
 const money=(n:number)=>new Intl.NumberFormat("id-ID",{style:"currency",currency:"IDR",maximumFractionDigits:0}).format(n);
 const date=(v:string)=>new Date(v+"T00:00:00").toLocaleDateString("id-ID");
 export default function SettlementManager({orders,components,settlements,deductions}:{orders:Order[];components:Component[];settlements:Settlement[];deductions:Deduction[]}){
- const router=useRouter();const [selected,setSelected]=useState("");const [amounts,setAmounts]=useState<Record<string,string>>({});const [included,setIncluded]=useState<Record<string,boolean>>({});const [method,setMethod]=useState("Transfer");const [receivedAt,setReceivedAt]=useState(new Date().toISOString().slice(0,16));const [reference,setReference]=useState("");const [notes,setNotes]=useState("");const [file,setFile]=useState<File|null>(null);const [busy,setBusy]=useState(false);const [error,setError]=useState("");const [message,setMessage]=useState("");
+ const router=useRouter();const [selected,setSelected]=useState("");const [amounts,setAmounts]=useState<Record<string,string>>({});const [included,setIncluded]=useState<string[]>([]);const [componentToAdd,setComponentToAdd]=useState("");const [method,setMethod]=useState("Transfer");const [receivedAt,setReceivedAt]=useState(new Date().toISOString().slice(0,16));const [reference,setReference]=useState("");const [notes,setNotes]=useState("");const [file,setFile]=useState<File|null>(null);const [busy,setBusy]=useState(false);const [error,setError]=useState("");const [message,setMessage]=useState("");
  const order=orders.find(o=>o.id===selected);
  const applicable=useMemo(()=>order?components.filter(c=>c.customer_id===null||c.customer_id===order.customer_id).sort((a,b)=>a.sort_order-b.sort_order):[],[order,components]);
- function choose(id:string){setSelected(id);setError("");setMessage("");setAmounts({});setIncluded({});setFile(null);}
- function isIncluded(c:Component){return included[c.id]??true;}
+ function choose(id:string){setSelected(id);setError("");setMessage("");setAmounts({});setIncluded([]);setComponentToAdd("");setFile(null);}
+ function isIncluded(c:Component){return included.includes(c.id);}
+ function addComponent(){if(componentToAdd&&!included.includes(componentToAdd)){setIncluded(v=>[...v,componentToAdd]);setComponentToAdd("");}}
  function amountFor(c:Component){if(amounts[c.id]!==undefined)return Number(amounts[c.id]||0);return c.calculation_method==="percent"?Math.round(Number(order?.final_amount??0)*Number(c.default_value)/100):Number(c.default_value);}
  const total=applicable.filter(isIncluded).reduce((s,c)=>s+amountFor(c),0);const gross=Number(order?.final_amount??0);const net=gross-total;
  async function submit(e:FormEvent){e.preventDefault();if(!order)return;setError("");setMessage("");if(!file){setError("Lampirkan invoice breakdown PT TIMAH / pembeli.");return;}if(total>gross){setError("Total potongan melebihi nilai invoice.");return;}
@@ -27,10 +28,17 @@ export default function SettlementManager({orders,components,settlements,deducti
   {order&&<section style={panel}><h2 style={h2}>Perincian Invoice · {order.code} / BA {order.ba_number}</h2><p style={muted}>{order.customer_name} · Nilai invoice final dari BA</p>
    <form onSubmit={submit} style={{display:"grid",gap:13}}>
     <div style={summary}><span>Nilai Invoice / BA</span><b>{money(gross)}</b></div>
-    <div><b style={{fontSize:13}}>Potongan sesuai Master</b><p style={muted}>Finance dapat menonaktifkan komponen yang tidak berlaku dan mengubah nominal mengikuti invoice aktual.</p>
-     {applicable.length===0?<p style={muted}>Belum ada komponen potongan aktif untuk pembeli ini.</p>:applicable.map(c=><div key={c.id} style={deductionRow}>
-      <label style={{display:"flex",alignItems:"center",gap:8,minWidth:170}}><input type="checkbox" checked={isIncluded(c)} onChange={e=>setIncluded(v=>({...v,[c.id]:e.target.checked}))}/><span><b>{c.name}</b><small style={muted}>{c.calculation_method==="percent"?"Default "+c.default_value+"%":"Default "+money(Number(c.default_value))}</small></span></label>
-      <label style={{display:"grid",gap:4,fontSize:11,color:"#64748b",flex:1}}>Nominal Potongan (Rp)<input type="number" min="0" step="1" disabled={!isIncluded(c)} value={amountFor(c)} onChange={e=>setAmounts(v=>({...v,[c.id]:e.target.value}))} style={control}/></label></div>)}
+    <div><b style={{fontSize:13}}>Potongan Invoice</b><p style={muted}>Tidak ada potongan otomatis. Tambahkan komponen yang tercantum pada invoice aktual.</p>
+     <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",marginTop:10}}>
+      <select style={{...control,flex:1,minWidth:200}} value={componentToAdd} onChange={e=>setComponentToAdd(e.target.value)}>
+       <option value="">Pilih komponen potongan...</option>{applicable.filter(c=>!included.includes(c.id)).map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
+      </select><button type="button" style={secondary} disabled={!componentToAdd} onClick={addComponent}>+ Tambah Potongan</button>
+     </div>
+     {included.length===0?<p style={muted}>Belum ada potongan ditambahkan. Net pembayaran sama dengan nilai invoice.</p>:applicable.filter(isIncluded).map(c=><div key={c.id} style={deductionRow}>
+      <div style={{minWidth:150,flex:1}}><b>{c.name}</b><small style={muted}>Acuan master: {c.calculation_method==="percent"?c.default_value+"%":money(Number(c.default_value))}</small></div>
+      <label style={{display:"grid",gap:4,fontSize:11,color:"#64748b",flex:2,minWidth:180}}>Nominal Potongan (Rp)<input type="number" min="0" step="1" value={amountFor(c)} onChange={e=>setAmounts(v=>({...v,[c.id]:e.target.value}))} style={control}/></label>
+      <button type="button" style={secondary} onClick={()=>setIncluded(v=>v.filter(id=>id!==c.id))}>Hapus</button>
+     </div>)}
     </div>
     <div style={summary}><span>Total Potongan</span><b>{money(total)}</b><span>Net Pembayaran Diterima</span><b style={{fontSize:21,color:"#12804a"}}>{money(net)}</b></div>
     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(210px,1fr))",gap:12}}>
