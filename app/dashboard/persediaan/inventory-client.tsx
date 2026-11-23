@@ -41,7 +41,7 @@ export default function InventoryClient({ warehouses, movements, totalKg, moveme
     <p className={styles.footnote}>Pilih Gudang untuk melihat rincian stok per kategori dan kartu stok masuk/keluar.</p>
     {active && <div className={styles.modalBackdrop} role="presentation" onMouseDown={e => { if (e.target === e.currentTarget) close(); }}>
       <section className={styles.modal} role="dialog" aria-modal="true" aria-labelledby="inventory-modal-title">
-        <header className={styles.modalHeader}><div><p className={styles.eyebrow}>DETAIL PERSEDIAAN</p><h2 id="inventory-modal-title">{active.name}</h2><p>{active.code} · {active.projectCode} · {active.projectName}</p></div><button type="button" className={styles.closeButton} onClick={close} aria-label="Tutup">×</button></header>
+        <header className={styles.modalHeader}><div><p className={styles.eyebrow}>DETAIL PERSEDIAAN</p><h2 id="inventory-modal-title">{active.name}</h2><p>{active.code} · {active.projectLabel}</p></div><button type="button" className={styles.closeButton} onClick={close} aria-label="Tutup">×</button></header>
         <div className={styles.modalTotal}><span>Total/sisa stok Gudang</span><strong>{qty(active.totalKg)}</strong></div>
         <section className={styles.modalSection}><h3>Rincian Stok</h3>
           {active.categories.map((c,i) => <div className={styles.categoryRow} key={i}><div><strong>{c.name}</strong><span>Value rata-rata {c.averageValue.toLocaleString("id-ID", { maximumFractionDigits: 3 })} {c.valueUnit}</span></div><b>{qty(c.weight)}</b></div>)}
