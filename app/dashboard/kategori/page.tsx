@@ -9,7 +9,7 @@ export default async function CategoryPage() {
   const admin = createAdminClient();
   const { data, error } = await admin
     .from("purchase_categories")
-    .select("id, code, name, description, is_active").eq("tenant_id", context.tenantId)
+    .select("id, code, name, description, is_active").eq("tenant_id", context.tenantId).eq("tenant_id", context.tenantId)
     .order("name", { ascending: true })
     .limit(500);
 
