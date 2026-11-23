@@ -7,7 +7,7 @@ type Lookup={id:string;code:string;name:string};
 type Lot={id:string;code:string;project_id:string;warehouse_id:string;category_id:string;supplier_id:string;initial_weight_kg:number;grade_value:number;grade_unit:string;purchase_price_per_kg:number;total_purchase_cost:number;inbound_date:string;available_weight_kg:number;category_name:string;supplier_name:string};
 type Order={id:string;code:string;customer_id:string;project_id:string;destination:string;sale_price_per_kg:number;notes:string|null;status:string;created_at:string};
 type Allocation={id:string;sales_order_id:string;lot_id:string;source_warehouse_id:string;category_id:string;allocated_weight_kg:number;grade_value:number;grade_unit:string;purchase_cost_per_kg:number;allocated_purchase_cost:number};
-export type SalesPageData={actorRoles:string[];projects:Lookup[];warehouses:Lookup[];warehouseProjects:{project_id:string;warehouse_id:string}[];customers:Lookup[];lots:Lot[];orders:Order[];allocations:Allocation[];categories:Lookup[];suppliers:Lookup[]};
+export type SalesPageData={actorRoles:string[];projects:Lookup[];warehouses:Lookup[];warehouseProjects:{project_id:string;warehouse_id:string}[];customers:Lookup[];lots:Lot[];orders:Order[];allocations:Allocation[];categories:{id:string;name:string}[];suppliers:{id:string;name:string}[]};
 const money=(n:number)=>new Intl.NumberFormat("id-ID",{style:"currency",currency:"IDR",maximumFractionDigits:0}).format(n);
 const qty=(n:number)=>Number(n).toLocaleString("id-ID",{maximumFractionDigits:3});
 export default function SalesManager({data}:{data:SalesPageData}){
