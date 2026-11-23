@@ -40,7 +40,7 @@ Tidak menyimpan password, token, Secret Key, session, OTP, atau data autentikasi
 - `user.access_updated` — mencakup perubahan Role, status, Scope, dan Permission; snapshot hanya memuat field yang relevan.
 - `user.email_updated` — email lama dan email baru boleh dicatat.
 - `user.password_reset` — event saja, tanpa password.
-  
+
 Event hanya dibuat setelah tindakan berhasil. Perubahan multi-tabel pada Role/status/Scope/Permission harus diperlakukan sebagai satu operasi yang konsisten: jangan membuat event sukses bila sebagian penyimpanan gagal. Implementasi perlu menggunakan transaksi database (misalnya RPC terverifikasi) atau strategi server yang menjamin perubahan dan audit event tersimpan bersama.
 
 ## 4. Keamanan dan integritas
@@ -90,16 +90,17 @@ Detail sebelum/sesudah dibuka saat dipilih. Filter awal: rentang tanggal, pelaku
 
 ## 7. Tahapan pengerjaan
 
-1. Review dan persetujuan Owner atas skema tabel, aturan keamanan, dan daftar event.
-2. Migration Supabase setelah persetujuan eksplisit.
-3. Helper server-side untuk menulis event secara atomik bersama perubahan.
-4. Integrasi ke aksi administrasi pengguna.
-5. Halaman Riwayat Aktivitas khusus Owner.
-6. Uji: event berhasil tercatat; perubahan gagal tidak menghasilkan event sukses; user non-Owner tidak bisa membaca; password/secret tidak pernah tersimpan; event tidak dapat diedit/dihapus.
+1. Review SQL schema draft dan persetujuan Owner.
+2. Buat migration formal melalui Supabase CLI setelah draft disetujui; jangan jalankan sebelum persetujuan.
+3. Integrasikan operasi database administrasi pengguna dan audit dalam transaksi yang sama.
+4. Integrasikan event permintaan/hasil untuk operasi Supabase Auth.
+5. Buat halaman Riwayat Aktivitas khusus Owner.
+6. Uji keamanan, atomisitas, kegagalan, dan larangan menyimpan secret.
 
 ## 8. Batasan
 
-- Belum ada migration yang dibuat atau dijalankan.
+- SQL schema draft tersedia di \`AUDIT_LOG_SCHEMA_MIGRATION_REVIEW.sql\`; file ini masih berada di folder dokumentasi, bukan migration formal.
+- Belum ada migration formal yang dibuat atau dijalankan.
 - Belum ada tabel atau data Supabase yang diubah.
 - Belum ada kode aplikasi yang diubah untuk menulis atau membaca audit event.
 - Belum menyatakan Audit Log aktif sampai migration, integrasi, dan pengujian selesai.
