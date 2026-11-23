@@ -282,9 +282,9 @@ export default function UserAccess({ initialUsers }: { initialUsers: UserRecord[
           <section className={styles.section} id="role-status-editor">
             <h3>Role &amp; Akses Pengguna</h3>
             <p className={styles.editInstruction}>Pilih Role yang sesuai. Anda dapat memilih lebih dari satu Role. Setelah selesai, tekan <strong>Simpan Perubahan</strong> yang selalu tersedia di bagian bawah layar.</p>
-            <p className={styles.helper}>Role menentukan modul operasional yang dapat dibuka pengguna.</p>
+            <p className={styles.helper}>Role menentukan fungsi operasional. Procurement menangani proses pembelian; Sales menangani proses penjualan. Hak posting transaksi, pembayaran, dan alokasi tetap diatur secara individual pada Permission khusus.</p>
             <div className={styles.choiceRow}>
-              {["Cashier", "Finance", "Warehouse", "Management"].map((role) => (
+              {["Procurement", "Sales", "Cashier", "Finance", "Warehouse", "Management"].map((role) => (
                 <label className={styles.checkChoice} key={role}>
                   <input type="checkbox" checked={selectedUser.roles.includes(role)} onChange={() => toggleRole(role)} />
                   <span>{role}</span>
