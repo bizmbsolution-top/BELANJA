@@ -8,7 +8,7 @@ export const revalidate = 0;
 export default async function SalesExpenseReportPage() {
   const actor = await guardPage(() => requireAnyRole(["Cashier", "Finance", "Management"]));
   const admin = createAdminClient();
-  const broadAccess = actor.isOwner || actor.roles.some(role => role === "Finance" || role === "Management");
+  const broadAccess = actor.tenantRole === "superadmin" || actor.roles.some(role => role === "Finance" || role === "Management");
   const [{ data: allProjects, error: projectError }, { data: overrides, error: permissionError }, scopeResult] = await Promise.all([
     admin.from("projects").select("id,code,name").eq("tenant_id", actor.tenantId).eq("is_active", true).order("name"),
     admin.from("user_permission_overrides").select("permission_key,effect").eq("tenant_id", actor.tenantId).eq("user_id", actor.userId),
@@ -34,7 +34,7 @@ export default async function SalesExpenseReportPage() {
   const visibleItemIds = new Set(visibleItems.map(item => item.id));
   const visibleExpenses = (expenses ?? []).filter(expense => visibleItemIds.has(expense.sales_order_expense_item_id));
   const visibleClosings = (closings ?? []).filter(closing => projectIds.includes(closing.project_id));
-  const canClose = actor.isOwner || (actor.roles.includes("Cashier") && (overrides ?? []).some(row => row.permission_key === "payment.post" && row.effect === "allow"));
+  const canClose = actor.tenantRole === "superadmin" || (actor.roles.includes("Cashier") && (overrides ?? []).some(row => row.permission_key === "payment.post" && row.effect === "allow"));
   return <SalesExpenseReport
     orders={(orders ?? []).map(order => ({...order, customer_name:(customers ?? []).find(customer => customer.id === order.customer_id)?.name ?? "Pembeli"})) as ReportBA[]}
     items={visibleItems as ReportItem[]}
@@ -42,6 +42,6 @@ export default async function SalesExpenseReportPage() {
     projects={projects as ReportProject[]}
     closings={visibleClosings as ReportClosing[]}
     canClose={canClose}
-    viewerIsCashier={actor.isOwner || actor.roles.includes("Cashier")}
+    viewerIsCashier={actor.tenantRole === "superadmin" || actor.roles.includes("Cashier")}
   />;
 }
