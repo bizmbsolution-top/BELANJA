@@ -1,5 +1,5 @@
 "use client";
-import {useState,type FormEvent} from "react";
+import {useState,type FormEvent,type CSSProperties} from "react";
 import {useRouter} from "next/navigation";
 import {saveInvoiceDeduction} from "./actions";
 type Component={id:string;customer_id:string|null;code:string;name:string;calculation_method:string;default_value:number;is_active:boolean;sort_order:number;notes:string|null};
@@ -32,9 +32,9 @@ export default function DeductionMaster({components,customers}:{components:Compo
   <p style={{fontSize:12,color:"#64748b",marginTop:14}}>Perubahan master hanya berlaku untuk settlement berikutnya. Settlement lama menyimpan snapshot komponen dan nominalnya.</p>
  </main>;
 }
-const panel={background:"var(--surface,#fff)",border:"1px solid var(--line,#e2e8f0)",borderRadius:14,padding:18,marginTop:18};
-const primary={background:"#155eef",color:"#fff",border:0,borderRadius:9,padding:"11px 15px",fontWeight:800,cursor:"pointer"};
-const secondary={background:"transparent",color:"inherit",border:"1px solid #cbd5e1",borderRadius:8,padding:"8px 12px",fontWeight:700,cursor:"pointer"};
-const notice={padding:10,borderRadius:8,background:"#eef6ff",color:"#155eef",fontSize:12};
-const field={display:"grid",gap:6,fontSize:12,fontWeight:700};
-const control={width:"100%",minHeight:40,border:"1px solid #cbd5e1",borderRadius:8,padding:"8px 10px",background:"var(--surface,#fff)",color:"inherit",font:"inherit"};
+const panel:CSSProperties={background:"var(--surface,#fff)",border:"1px solid var(--line,#e2e8f0)",borderRadius:14,padding:18,marginTop:18};
+const primary:CSSProperties={background:"#155eef",color:"#fff",border:0,borderRadius:9,padding:"11px 15px",fontWeight:800,cursor:"pointer"};
+const secondary:CSSProperties={background:"transparent",color:"inherit",border:"1px solid #cbd5e1",borderRadius:8,padding:"8px 12px",fontWeight:700,cursor:"pointer"};
+const notice:CSSProperties={padding:10,borderRadius:8,background:"#eef6ff",color:"#155eef",fontSize:12};
+const field:CSSProperties={display:"grid",gap:6,fontSize:12,fontWeight:700};
+const control:CSSProperties={width:"100%",minHeight:40,border:"1px solid #cbd5e1",borderRadius:8,padding:"8px 10px",background:"var(--surface,#fff)",color:"inherit",font:"inherit"};
