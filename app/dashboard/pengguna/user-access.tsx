@@ -131,7 +131,7 @@ export default function UserAccess({ initialUsers, initialProjects }: { initialU
 
   function updateScope(dimension: keyof UserRecord["scopes"], value: "none" | "all" | "selected") {
     setUsers((current) => current.map((user) =>
-      user.id === selectedId ? { ...user, scopes: { ...user.scopes, [dimension]: value } } : user
+      user.id === selectedId ? { ...user, scopes: { ...user.scopes, [dimension]: value }, ...(dimension === "project" && value !== "selected" ? { projectIds: [] } : {}) } : user
     ));
     setSaved(false);
   }
