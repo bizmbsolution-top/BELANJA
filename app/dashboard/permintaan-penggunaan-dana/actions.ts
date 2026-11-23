@@ -45,7 +45,7 @@ export async function createFundRequest(input: { projectId: string; amount: stri
 
 export async function uploadFundRequestDocuments(requestId: string, formData: FormData): Promise<Result> {
   try {
-    const actor = await requireAnyRole(["Cashier", "Finance"]);
+    const actor = await requireAnyRole(["Finance"]);
     if (!isUuid(requestId)) return { ok: false, error: "Permintaan dana tidak valid." };
     const admin = createAdminClient();
     const { data: request } = await admin.from("fund_requests").select("id,project_id,status").eq("id", requestId).maybeSingle();
@@ -111,7 +111,7 @@ export async function executeFundRequest(input: { requestId: string; amount: str
     const admin = createAdminClient();
     const { data: request } = await admin.from("fund_requests").select("project_id,request_amount,status").eq("id", requestId).maybeSingle();
     if (!request || request.status !== "Menunggu Eksekusi") return { ok: false, error: "Permintaan tidak ditemukan atau sudah dieksekusi." };
-    await assertProjectAccess(actor.userId, request.project_id, actor.isOwner);
+    await assertProjectAccess(actor.userId, request.project_id, actor.isOwner || actor.roles.includes("Finance"));
     if (amount < Number(request.request_amount)) return { ok: false, error: "Nominal aktual tidak boleh kurang dari nominal yang diminta." };
     const { error } = await admin.rpc("execute_fund_request_with_audit", {
       p_fund_request_id: requestId, p_actor_user_id: actor.userId, p_executed_amount: amount,
