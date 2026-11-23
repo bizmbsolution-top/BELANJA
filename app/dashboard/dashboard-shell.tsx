@@ -37,6 +37,7 @@ const groups: MenuGroup[] = [
       { label: "Permintaan Dana Kasir", href: "/dashboard/permintaan-penggunaan-dana", roles: ["Cashier", "Finance", "Management"] },
       { label: "Persediaan", href: "/dashboard/persediaan", roles: ["Warehouse", "Management", "Finance", "Cashier", "Sales", "Procurement"] },
       { label: "Penjualan", href: "/dashboard/penjualan", roles: ["Sales", "Warehouse", "Management"] },
+      { label: "Rekap Penjualan", href: "/dashboard/laporan-penjualan", roles: ["Finance", "Management"] },
     ],
   },
   {
