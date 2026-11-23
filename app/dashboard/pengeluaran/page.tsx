@@ -2,6 +2,9 @@ import { guardPage, requireAnyRole } from "@/lib/auth/authorization";
 import { createAdminClient } from "@/lib/supabase/admin";
 import ExpenseManager, { type Expense, type ExpenseCategory } from "./manager";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 const ROLES = ["Cashier", "Finance", "Management"] as const;
 
 export default async function PengeluaranPage() {
