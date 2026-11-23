@@ -96,10 +96,18 @@ export async function deleteExpenseDocument(documentId: string): Promise<Result>
     const admin = createAdminClient();
     const { data: doc, error: lookupError } = await admin.from("expense_documents").select("storage_path").eq("id", documentId).maybeSingle();
     if (lookupError || !doc) return { ok: false, error: "Dokumen tidak ditemukan." };
-    const { error: storageError } = await admin.storage.from(BUCKET).remove([doc.storage_path]);
-    if (storageError) return { ok: false, error: "File gagal dihapus dari penyimpanan. Data dokumen tidak diubah." };
+    // Remove the database record and write its audit event first. This keeps the
+    // UI and database consistent if the Storage operation succeeds but the RPC fails.
     const { error } = await admin.rpc("delete_expense_document_with_audit", { p_document_id: documentId, p_actor_user_id: actor.userId });
-    if (error) return { ok: false, error: "File sudah terhapus, tetapi catatan dokumen gagal diperbarui. Hubungi administrator." };
+    if (error) {
+      console.error("deleteExpenseDocument RPC failed:", error);
+      return { ok: false, error: "Catatan dokumen gagal dihapus. File belum dihapus dari penyimpanan." };
+    }
+    const { error: storageError } = await admin.storage.from(BUCKET).remove([doc.storage_path]);
+    if (storageError) {
+      console.error("deleteExpenseDocument Storage cleanup failed:", storageError);
+      return { ok: false, error: "Catatan dokumen sudah dihapus, tetapi file fisik gagal dibersihkan. Hubungi administrator." };
+    }
     return { ok: true };
   } catch { return { ok: false, error: "Akses atau penghapusan dokumen gagal." }; }
 }
