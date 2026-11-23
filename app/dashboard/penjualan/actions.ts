@@ -82,7 +82,7 @@ export async function finalizeSalesOrder(input:{salesOrderId:string;receivedWeig
   const {data:allocs,error:ae}=await admin.from("sales_order_lot_allocations").select("source_warehouse_id").eq("tenant_id",actor.tenantId).eq("sales_order_id",order.id);
   if(ae||!allocs?.length)return{ok:false,error:"Alokasi Lot transaksi tidak ditemukan."};
   await assertScope(actor.userId,order.project_id,[...new Set(allocs.map(a=>a.source_warehouse_id))],actor.tenantRole === "superadmin",actor.roles);
-  const path=order.id+"/"+crypto.randomUUID()+"_"+file.name.normalize("NFKD").replace(/[^a-zA-Z0-9._-]+/g,"_").slice(-100);
+  const path=actor.tenantId+"/"+order.id+"/"+crypto.randomUUID()+"_"+file.name.normalize("NFKD").replace(/[^a-zA-Z0-9._-]+/g,"_").slice(-100);
   const {error:uploadError}=await admin.storage.from(BA_BUCKET).upload(path,file,{contentType:file.type,upsert:false});
   if(uploadError)return{ok:false,error:"Dokumen BA gagal diunggah."};
   uploadedPath=path;
