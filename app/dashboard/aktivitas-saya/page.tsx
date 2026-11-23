@@ -73,7 +73,6 @@ export default async function MyActivityPage() {
 
   if (error) throw new Error("Riwayat aktivitas Anda gagal dimuat.");
   const rows = (data ?? []) as AuditRow[];
-  const actorIds = [...new Set(rows.map((row) => row.actor_user_id).filter((id): id is string => Boolean(id)))];
   const { data: authUsers } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
   const emailById = new Map((authUsers?.users ?? []).map((user) => [user.id, user.email ?? user.id] as const));
 
