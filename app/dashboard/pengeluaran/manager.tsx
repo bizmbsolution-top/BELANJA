@@ -55,9 +55,10 @@ export default function ExpenseManager({ categories, initialItems }: { categorie
     setMessage("Dokumen billing berhasil ditambahkan."); form.reset(); setUploadId(""); router.refresh();
   }
   async function viewDocument(id: string) {
+    const tab = window.open("about:blank", "_blank");
     setBusyId(id); const result = await openExpenseDocument(id); setBusyId("");
-    if (!result.ok || !result.url) { setError(result.error); return; }
-    window.open(result.url, "_blank", "noopener,noreferrer");
+    if (!result.ok || !result.url) { tab?.close(); setError(result.error); return; }
+    if (tab) tab.location.href = result.url; else window.location.href = result.url;
   }
   async function removeDocument(id: string) {
     if (!window.confirm("Hapus permanen dokumen ini dari transaksi dan penyimpanan?")) return;
@@ -91,7 +92,7 @@ export default function ExpenseManager({ categories, initialItems }: { categorie
       <div className={styles.itemMain}><div><h3>{item.description}</h3><p>{item.expense_categories?.name ?? "Kategori tidak tersedia"} · {item.payment_method}</p></div><strong className={styles.amount}>{money(Number(item.amount))}</strong></div>
       {item.status === "Dibatalkan" && <p className={styles.cancelNote}>Dibatalkan: {item.cancellation_reason}</p>}
       <div className={styles.docs}><div className={styles.docsHead}><strong>Dokumen / Billing ({item.expense_documents?.length ?? 0})</strong>{item.status === "Aktif" && <form onSubmit={e => submitDocuments(item.id, e)}><label className={styles.fileButton}>+ Tambah Dokumen<input name="files" type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" multiple onChange={e => { if (e.target.files?.length) setUploadId(item.id); }} /></label>{uploadId === item.id && <button className={styles.smallPrimary} disabled={busyId === item.id}>{busyId === item.id ? "Mengunggah..." : "Unggah File"}</button>}</form>}</div>
-      {(item.expense_documents ?? []).length > 0 && <div className={styles.docList}>{item.expense_documents.map(doc => <div className={styles.doc} key={doc.id}><span className={styles.fileIcon}>{doc.mime_type === "application/pdf" ? "PDF" : "IMG"}</span><span className={styles.fileName}><strong>{doc.file_name}</strong><small>{bytes(Number(doc.file_size))}</small></span><button type="button" onClick={() => viewDocument(doc.id)} disabled={busyId === doc.id}>Lihat</button>{item.status === "Aktif" && <button type="button" className={styles.delete} onClick={() => removeDocument(doc.id)} disabled={busyId === doc.id}>Hapus</button>}</div>)}</div>}
+      {(item.expense_documents ?? []).length > 0 && <div className={styles.docList}>{item.expense_documents.map(doc => <div className={styles.doc} key={doc.id}><span className={styles.fileIcon}>{doc.mime_type === "application/pdf" ? "PDF" : "IMG"}</span><span className={styles.fileName}><strong>{doc.file_name}</strong><small>{bytes(Number(doc.file_size))}</small></span><button type="button" onClick={() => viewDocument(doc.id)} disabled={busyId === doc.id}>Lihat</button><button type="button" className={styles.delete} onClick={() => removeDocument(doc.id)} disabled={busyId === doc.id}>Hapus</button></div>)}</div>}
       </div>
       {item.status === "Aktif" && <div className={styles.itemActions}>{cancelId === item.id ? <form onSubmit={submitCancel} className={styles.cancelForm}><label>Alasan pembatalan *<textarea required maxLength={500} rows={2} value={cancelReason} onChange={e => setCancelReason(e.target.value)} /></label><button className={styles.danger} disabled={busyId === item.id}>{busyId === item.id ? "Memproses..." : "Konfirmasi Pembatalan"}</button><button type="button" onClick={() => { setCancelId(""); setCancelReason(""); }}>Kembali</button></form> : <button type="button" className={styles.cancelButton} onClick={() => { setCancelId(item.id); setError(""); }}>Batalkan Transaksi</button>}</div>}
     </article>)}</div>}</section>
