@@ -42,9 +42,21 @@ begin
   where not exists(select 1 from public.platform_owners po where po.user_id=p.user_id)
   on conflict(tenant_id,user_id) do update
     set is_active=excluded.is_active,tenant_role=excluded.tenant_role,updated_at=now();
-end $$;
+end $;
 
-do $$
+do $
+declare t record;
+begin
+  for t in
+    select table_name from information_schema.columns
+    where table_schema='public' and column_name='tenant_id'
+      and table_name not in ('tenants','platform_owners','tenant_memberships','tenant_health_snapshots','platform_audit_logs','user_access_profiles')
+  loop
+    execute format('alter table public.%I alter column tenant_id set not null',t.table_name);
+  end loop;
+end $;
+
+do $
 declare
   t text;
   policy_base text;
