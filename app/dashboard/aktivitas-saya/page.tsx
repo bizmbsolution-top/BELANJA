@@ -34,7 +34,10 @@ const actionLabels: Record<string, string> = {
   "expense_category.updated": "Kategori expenses diperbarui",
   "uom.created": "Satuan dibuat",
   "uom.updated": "Satuan diperbarui",
-  "expense.created": "Pengeluaran dibuat",
+  "expense.created": "Draft voucher Expenses dibuat",
+  "expense.updated": "Draft voucher Expenses diperbarui",
+  "expense.submitted": "Voucher Expenses dikirim ke Kasir",
+  "expense.paid": "Voucher Expenses dibayar oleh Kasir",
   "expense.cancelled": "Pengeluaran dibatalkan",
   "expense_document.uploaded": "Dokumen billing diunggah",
   "expense_document.deleted": "Dokumen billing dihapus",
@@ -67,6 +70,8 @@ function snapshotLines(snapshot: Snapshot): string[] {
   if (typeof snapshot.expense_date === "string") lines.push(`Tanggal pengeluaran: ${snapshot.expense_date}`);
   if (typeof snapshot.category === "string") lines.push(`Kategori: ${snapshot.category}`);
   if (typeof snapshot.amount === "number" || typeof snapshot.amount === "string") lines.push(`Nominal: Rp ${Number(snapshot.amount).toLocaleString("id-ID")}`);
+  if (typeof snapshot.paid_amount === "number" || typeof snapshot.paid_amount === "string") lines.push(`Nominal dibayar: Rp ${Number(snapshot.paid_amount).toLocaleString("id-ID")}`);
+  if (typeof snapshot.project_code === "string") lines.push(`Kode Project: ${snapshot.project_code}`);
   if (typeof snapshot.payment_method === "string") lines.push(`Pembayaran: ${snapshot.payment_method}`);
   if (typeof snapshot.reason === "string") lines.push(`Alasan: ${snapshot.reason}`);
   if (typeof snapshot.expense_code === "string") lines.push(`Transaksi: ${snapshot.expense_code}`);
