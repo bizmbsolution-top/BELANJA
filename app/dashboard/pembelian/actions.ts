@@ -76,11 +76,11 @@ export async function createPurchaseRequest(input: {
 
 export async function recordPurchaseReceipt(formData: FormData): Promise<Result> {
   let receiptId: string | null = null;
-  let tenantId: string | null = null;
+  const cleanupContext: { tenantId: string | null } = { tenantId: null };
   const uploadedPaths: string[] = [];
   try {
     const actor = await requireAnyRole(["Procurement"]);
-    tenantId = actor.tenantId;
+    cleanupContext.tenantId = actor.tenantId;
     if (!(await hasPermission(actor.userId, "transaction.post_recognition", actor.tenantRole === "superadmin", actor.tenantId))) return { ok: false, error: "Permission transaksi belum diberikan oleh Superadmin perusahaan." };
     const requestId = String(formData.get("requestId") ?? "");
     if (!uuid(requestId)) return { ok: false, error: "Permintaan pembelian tidak valid." };
@@ -133,8 +133,8 @@ export async function recordPurchaseReceipt(formData: FormData): Promise<Result>
     if (receiptId) {
       const admin = createAdminClient();
       if (uploadedPaths.length) await admin.storage.from(RECEIPT_BUCKET).remove(uploadedPaths);
-      await admin.from("purchase_receipt_documents").delete().eq("tenant_id", tenantId).eq("receipt_id",receiptId);
-      await admin.from("purchase_receipts").delete().eq("tenant_id", tenantId).eq("id",receiptId).eq("status","Draft");
+      await admin.from("purchase_receipt_documents").delete().eq("tenant_id", cleanupContext.tenantId).eq("receipt_id",receiptId);
+      await admin.from("purchase_receipts").delete().eq("tenant_id", cleanupContext.tenantId).eq("id",receiptId).eq("status","Draft");
     }
     return { ok: false, error: error instanceof Error ? error.message : "Penerimaan gagal disimpan." };
   }
