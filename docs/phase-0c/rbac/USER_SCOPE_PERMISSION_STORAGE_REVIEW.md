@@ -162,7 +162,6 @@ Catatan:
 - Belum membuat Role-Permission matrix umum.
 - Belum membuat sistem Riwayat Aktivitas lengkap.
 - Belum mengubah data pengguna yang sudah ada.
-- Belum membuat tabel master Project, Department, Warehouse, sehingga pilihan Scope `Selected` belum dapat digunakan.
 - Belum mengubah branch `main` atau deployment production.
 
 ## 7. Persetujuan Owner
@@ -173,4 +172,4 @@ Disetujui pada 23 November 2026:
 2. Scope `All` dan `Selected`; scope yang tidak disetel berarti tidak ada akses.
 3. Akses langsung dari browser ditutup; pengelolaan melalui server action Owner.
 
-Tahap berikutnya adalah implementasi server actions dan UI di branch `ui-user-access-preview`. Tabel master Project/Department/Warehouse belum tersedia, sehingga pilihan `Selected` belum boleh menampilkan pilihan resource palsu atau mengarang ID.
+Scope `All` dan Permission individual kini dapat diatur melalui UI Owner di branch `ui-user-access-preview`. Pilihan `Selected` tetap nonaktif sampai master Project/Department/Warehouse tersedia. Pemeriksaan Scope/Permission pada setiap operasi data masih menjadi tahap implementasi terpisah.
