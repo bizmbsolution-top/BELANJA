@@ -39,6 +39,37 @@ const DEFAULT_PERMISSIONS: PermissionSettings = {
  */
 const allowedRoles: readonly string[] = APPROVED_OPERATIONAL_ROLES;
 
+type AuditAction =
+  | "user.created"
+  | "user.access_updated"
+  | "user.email_update_requested"
+  | "user.email_updated"
+  | "user.email_update_failed"
+  | "user.password_reset_requested"
+  | "user.password_reset"
+  | "user.password_reset_failed";
+
+async function writeAuditEvent(
+  admin: ReturnType<typeof createAdminClient>,
+  actorUserId: string,
+  targetUserId: string,
+  action: AuditAction,
+  entityType: "user_access" | "auth_user",
+  beforeData?: Record<string, unknown>,
+  afterData?: Record<string, unknown>,
+): Promise<boolean> {
+  const { error } = await admin.from("audit_logs").insert({
+    actor_user_id: actorUserId,
+    target_user_id: targetUserId,
+    action,
+    entity_type: entityType,
+    entity_id: targetUserId,
+    before_data: beforeData ?? null,
+    after_data: afterData ?? null,
+  });
+  return !error;
+}
+
 function displayName(email: string) {
   return email.split("@")[0]
     .replace(/[._-]+/g, " ")
@@ -172,9 +203,9 @@ export async function saveUserAccessProfile(input: {
 export async function resetUserPassword(input: {
   userId: string;
   password: string;
-}): Promise<{ ok: true } | { ok: false; error: string }> {
+}): Promise<{ ok: true; warning?: string } | { ok: false; error: string }> {
   try {
-    await requireOwner();
+    const owner = await requireOwner();
 
     if (!input || typeof input.userId !== "string" || !input.userId.trim()) {
       return { ok: false, error: "Pengguna tidak valid." };
@@ -184,12 +215,31 @@ export async function resetUserPassword(input: {
     }
 
     const admin = createAdminClient();
-    const { error } = await admin.auth.admin.updateUserById(input.userId, {
+    const targetUserId = input.userId.trim();
+    const requestLogged = await writeAuditEvent(
+      admin, owner.userId, targetUserId, "user.password_reset_requested", "auth_user",
+    );
+    if (!requestLogged) {
+      return { ok: false, error: "Permintaan reset tidak dijalankan karena Audit Log gagal disimpan." };
+    }
+
+    const { error } = await admin.auth.admin.updateUserById(targetUserId, {
       password: input.password,
     });
 
-    if (error) return { ok: false, error: "Password gagal diperbarui. Periksa akun pengguna dan coba lagi." };
-    return { ok: true };
+    if (error) {
+      await writeAuditEvent(
+        admin, owner.userId, targetUserId, "user.password_reset_failed", "auth_user",
+      );
+      return { ok: false, error: "Password gagal diperbarui. Periksa akun pengguna dan coba lagi." };
+    }
+
+    const resultLogged = await writeAuditEvent(
+      admin, owner.userId, targetUserId, "user.password_reset", "auth_user",
+    );
+    return resultLogged
+      ? { ok: true }
+      : { ok: true, warning: "Password berhasil diperbarui, tetapi catatan hasil Audit Log gagal disimpan." };
   } catch (error) {
     return {
       ok: false,
@@ -201,14 +251,14 @@ export async function resetUserPassword(input: {
 export async function createManagedUser(input: {
   email: string;
   password: string;
-}): Promise<{ ok: true; user: ManagedUser } | { ok: false; error: string }> {
+}): Promise<{ ok: true; user: ManagedUser; warning?: string } | { ok: false; error: string }> {
   try {
     const owner = await requireOwner();
 
     const email = typeof input?.email === "string" ? input.email.trim().toLowerCase() : "";
     const password = typeof input?.password === "string" ? input.password : "";
 
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) {
       return { ok: false, error: "Masukkan alamat email yang valid." };
     }
     if (password.length < 8) {
@@ -245,6 +295,22 @@ export async function createManagedUser(input: {
       return { ok: false, error: "Akun gagal disiapkan. Silakan coba lagi." };
     }
 
+    const auditLogged = await writeAuditEvent(
+      admin,
+      owner.userId,
+      data.user.id,
+      "user.created",
+      "auth_user",
+      undefined,
+      { email: data.user.email ?? email },
+    );
+
+    if (!auditLogged) {
+      await admin.from("user_access_profiles").delete().eq("user_id", data.user.id);
+      await admin.auth.admin.deleteUser(data.user.id);
+      return { ok: false, error: "Akun dibatalkan karena Audit Log gagal disimpan. Silakan coba lagi." };
+    }
+
     return {
       ok: true,
       user: {
@@ -265,6 +331,89 @@ export async function createManagedUser(input: {
   }
 }
 
+export async function updateManagedUserEmail(input: {
+  userId: string;
+  email: string;
+}): Promise<{ ok: true; email: string; name: string; warning?: string } | { ok: false; error: string }> {
+  try {
+    const owner = await requireOwner();
+
+    const userId = typeof input?.userId === "string" ? input.userId.trim() : "";
+    const email = typeof input?.email === "string" ? input.email.trim().toLowerCase() : "";
+
+    if (!userId) return { ok: false, error: "Pengguna tidak valid." };
+    if (userId === owner.userId) return { ok: false, error: "Email akun Owner utama tidak dapat diubah dari halaman ini." };
+    if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) {
+      return { ok: false, error: "Masukkan alamat email yang valid." };
+    }
+
+    const admin = createAdminClient();
+    const { data: currentUserData, error: currentUserError } = await admin.auth.admin.getUserById(userId);
+    if (currentUserError || !currentUserData.user) {
+      return { ok: false, error: "Akun pengguna tidak ditemukan." };
+    }
+    const oldEmail = currentUserData.user.email ?? "";
+
+    const requestLogged = await writeAuditEvent(
+      admin,
+      owner.userId,
+      userId,
+      "user.email_update_requested",
+      "auth_user",
+      { email: oldEmail },
+      { email },
+    );
+    if (!requestLogged) {
+      return { ok: false, error: "Perubahan email tidak dijalankan karena Audit Log gagal disimpan." };
+    }
+
+    const { data, error } = await admin.auth.admin.updateUserById(userId, {
+      email,
+      email_confirm: true,
+    });
+
+    if (error || !data.user) {
+      await writeAuditEvent(
+        admin,
+        owner.userId,
+        userId,
+        "user.email_update_failed",
+        "auth_user",
+        { email: oldEmail },
+        { requested_email: email },
+      );
+      const message = error?.message.toLowerCase() ?? "";
+      return {
+        ok: false,
+        error: message.includes("already") || message.includes("registered") || message.includes("exists")
+          ? "Email ini sudah digunakan oleh akun lain."
+          : "Email gagal diperbarui. Periksa email dan coba lagi.",
+      };
+    }
+
+    const updatedEmail = data.user.email ?? email;
+    const resultLogged = await writeAuditEvent(
+      admin,
+      owner.userId,
+      userId,
+      "user.email_updated",
+      "auth_user",
+      { email: oldEmail },
+      { email: updatedEmail },
+    );
+    return {
+      ok: true,
+      email: updatedEmail,
+      name: displayName(updatedEmail),
+      ...(resultLogged ? {} : { warning: "Email berhasil diperbarui, tetapi catatan hasil Audit Log gagal disimpan." }),
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Edit email pengguna gagal.",
+    };
+  }
+}
 export async function updateManagedUserEmail(input: {
   userId: string;
   email: string;
