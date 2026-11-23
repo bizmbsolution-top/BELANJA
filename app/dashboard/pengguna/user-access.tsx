@@ -14,6 +14,7 @@ type UserRecord = {
   roles: string[];
   status: "Aktif" | "Nonaktif";
   scopes: { project: "none" | "all" | "selected"; department: "none" | "all" | "selected"; warehouse: "none" | "all" | "selected" };
+  projectIds: string[];
   permissions: {
     "transaction.post_recognition": "unset" | "allow" | "deny";
     "fund_utilization.post_recognition": "unset" | "allow" | "deny";
@@ -79,7 +80,7 @@ const scopeDimensions = [
   { id: "warehouse", label: "Warehouse" },
 ] as const;
 
-export default function UserAccess({ initialUsers }: { initialUsers: UserRecord[] }) {
+export default function UserAccess({ initialUsers, initialProjects }: { initialUsers: UserRecord[]; initialProjects: { id: string; code: string; name: string }[] }) {
   const [users, setUsers] = useState(initialUsers);
   const [selectedId, setSelectedId] = useState(initialUsers[0]?.id ?? "");
   const [saved, setSaved] = useState(false);
@@ -102,7 +103,7 @@ export default function UserAccess({ initialUsers }: { initialUsers: UserRecord[
   const [saveError, setSaveError] = useState("");
 
   const selectedUser = useMemo(
-    () => users.find((user) => user.id === selectedId) ?? users[0] ?? { id: "", name: "Belum ada pengguna", email: "", roles: [], status: "Nonaktif" as const, scopes: { project: "none" as const, department: "none" as const, warehouse: "none" as const }, permissions: { "transaction.post_recognition": "unset" as const, "fund_utilization.post_recognition": "unset" as const, "payment.post": "unset" as const, "payment.allocate": "unset" as const } },
+    () => users.find((user) => user.id === selectedId) ?? users[0] ?? { id: "", name: "Belum ada pengguna", email: "", roles: [], status: "Nonaktif" as const, scopes: { project: "none" as const, department: "none" as const, warehouse: "none" as const }, projectIds: [], permissions: { "transaction.post_recognition": "unset" as const, "fund_utilization.post_recognition": "unset" as const, "payment.post": "unset" as const, "payment.allocate": "unset" as const } },
     [users, selectedId],
   );
 
@@ -128,10 +129,19 @@ export default function UserAccess({ initialUsers }: { initialUsers: UserRecord[
     setSaved(false);
   }
 
-  function updateScope(dimension: keyof UserRecord["scopes"], value: "none" | "all") {
+  function updateScope(dimension: keyof UserRecord["scopes"], value: "none" | "all" | "selected") {
     setUsers((current) => current.map((user) =>
       user.id === selectedId ? { ...user, scopes: { ...user.scopes, [dimension]: value } } : user
     ));
+    setSaved(false);
+  }
+
+  function toggleProject(projectId: string) {
+    setUsers((current) => current.map((user) => {
+      if (user.id !== selectedId) return user;
+      const projectIds = user.projectIds.includes(projectId) ? user.projectIds.filter((id) => id !== projectId) : [...user.projectIds, projectId];
+      return { ...user, projectIds, scopes: { ...user.scopes, project: projectIds.length ? "selected" : user.scopes.project } };
+    }));
     setSaved(false);
   }
 
@@ -255,6 +265,7 @@ export default function UserAccess({ initialUsers }: { initialUsers: UserRecord[
       status: selectedUser.status,
       scopes: selectedUser.scopes,
       permissions: selectedUser.permissions,
+      projectIds: selectedUser.projectIds,
     });
     setSaveBusy(false);
     if (!result.ok) {
@@ -353,7 +364,7 @@ export default function UserAccess({ initialUsers }: { initialUsers: UserRecord[
             <h3>Area Kerja</h3>
             <p className={styles.helper}>
               Atur batas data yang dapat dibuka pengguna. Scope yang tidak dipilih berarti tidak ada akses.
-              Pilihan Selected akan diaktifkan setelah master data tersedia.
+              Project dapat ditetapkan satu per satu dari Master Project yang aktif.
             </p>
             <div className={styles.scopeGrid}>
               {scopeDimensions.map((dimension) => (
@@ -378,10 +389,20 @@ export default function UserAccess({ initialUsers }: { initialUsers: UserRecord[
                     <span>Tidak ada akses</span>
                   </label>
                   <label className={styles.radioChoice}>
-                    <input type="radio" name={`scope-${selectedId}-${dimension.id}`} checked={selectedUser.scopes[dimension.id] === "selected"} disabled readOnly />
-                    <span>Selected — menunggu master data</span>
+                    <input type="radio" name={`scope-${selectedId}-${dimension.id}`} checked={selectedUser.scopes[dimension.id] === "selected"} disabled={dimension.id !== "project" || initialProjects.length === 0} onChange={() => updateScope(dimension.id, "selected")} />
+                    <span>{dimension.id === "project" ? "Selected — pilih Project tertentu" : "Selected — menunggu master data"}</span>
                   </label>
-                  <p className={styles.allHint}>Pilihan Selected belum dapat diubah sampai master {dimension.label} tersedia.</p>
+                  {dimension.id === "project" && selectedUser.scopes.project === "selected" && (
+                    <div className={styles.optionList}>
+                      {initialProjects.length ? initialProjects.map((project) => (
+                        <label className={styles.option} key={project.id}>
+                          <input type="checkbox" checked={selectedUser.projectIds.includes(project.id)} onChange={() => toggleProject(project.id)} />
+                          <span>{project.code} · {project.name}</span>
+                        </label>
+                      )) : <p className={styles.allHint}>Belum ada Project aktif. Tambahkan melalui Master Project.</p>}
+                    </div>
+                  )}
+                  <p className={styles.allHint}>{dimension.id === "project" ? "Hanya Project yang dipilih yang dapat diakses pengguna." : `Pilihan Selected ${dimension.label} akan diaktifkan setelah master data tersedia.`}</p>
                 </div>
               ))}
             </div>
