@@ -50,6 +50,8 @@ const groups: MenuGroup[] = [
       { label: "Kategori Pembelian", href: "/dashboard/kategori", roles: ["Procurement", "Finance", "Management"] },
       { label: "Proyek & Departemen", roles: ["Management"] },
       { label: "Gudang / Warehouse", href: "/dashboard/gudang", roles: ["Procurement", "Warehouse", "Finance", "Management"] },
+      { label: "Kategori Expenses", href: "/dashboard/kategori-expenses", roles: ["Cashier", "Finance", "Management"] },
+      { label: "UOM / Satuan", href: "/dashboard/uom", roles: ["Procurement", "Warehouse", "Finance", "Management"] },
     ],
   },
   {
