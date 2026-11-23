@@ -397,12 +397,12 @@ export default function UserAccess({ initialUsers }: { initialUsers: UserRecord[
             <>
             <div className={styles.permissionSectionPicker} role="radiogroup" aria-label="Pilih Section Permission">
               {visiblePermissionSections.map((section) => (
-                <label className={activePermissionSection === section.id ? styles.permissionSectionActive : styles.permissionSectionChoice} key={section.id}>
+                <label className={currentPermissionSection === section.id ? styles.permissionSectionActive : styles.permissionSectionChoice} key={section.id}>
                   <input
                     type="radio"
                     name={`permission-section-${selectedId}`}
                     value={section.id}
-                    checked={activePermissionSection === section.id}
+                    checked={currentPermissionSection === section.id}
                     onChange={() => setActivePermissionSection(section.id)}
                   />
                   <span>{section.label}</span>
