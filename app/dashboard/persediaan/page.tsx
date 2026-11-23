@@ -25,10 +25,10 @@ export default async function PersediaanPage() {
   let warehouseIds: string[] | null = null, projectIds: string[] | null = null;
 
   if (!broadAccess) {
-    const projectScopePromise = admin.from("user_work_scopes").select("scope_mode,resource_ids").eq("user_id", actor.userId).eq("dimension", "project").maybeSingle();
+    const projectScopePromise = admin.from("user_work_scopes").select("scope_mode,resource_ids").eq("tenant_id", actor.tenantId).eq("user_id", actor.userId).eq("dimension", "project").maybeSingle();
     const warehouseScopePromise = cashierAccess
       ? Promise.resolve({ data: null, error: null })
-      : admin.from("user_work_scopes").select("scope_mode,resource_ids").eq("user_id", actor.userId).eq("dimension", "warehouse").maybeSingle();
+      : admin.from("user_work_scopes").select("scope_mode,resource_ids").eq("tenant_id", actor.tenantId).eq("user_id", actor.userId).eq("dimension", "warehouse").maybeSingle();
     const [{ data: ws, error: we }, { data: ps, error: pe }] = await Promise.all([warehouseScopePromise, projectScopePromise]);
     if (pe || !ps) throw new Error("Area kerja Project belum dapat diverifikasi.");
     projectIds = ps.scope_mode === "all" ? null : ps.scope_mode === "selected" ? ps.resource_ids ?? [] : [];
@@ -40,12 +40,12 @@ export default async function PersediaanPage() {
 
   const [{ data: movements, error }, { data: allWarehouses }, { data: projects }, { data: categories },
     { data: rawLots, error: lotError }, { data: suppliers }] = await Promise.all([
-    admin.from("inventory_movements").select("id,movement_type,receipt_id,lot_id,project_id,warehouse_id,category_id,weight_kg,value,value_unit,created_at").order("created_at", { ascending: false }).limit(5000),
-    admin.from("warehouses").select("id,code,name,location").order("name"),
-    admin.from("projects").select("id,code,name").order("name"),
-    admin.from("purchase_categories").select("id,name").order("name"),
-    admin.from("inventory_lots").select("id,code,source_receipt_id,purchase_request_id,supplier_id,inbound_date,project_id,warehouse_id,category_id,initial_weight_kg,grade_value,grade_unit,purchase_price_per_kg,total_purchase_cost").order("inbound_date", { ascending: false }).limit(5000),
-    admin.from("suppliers").select("id,name").order("name"),
+    admin.from("inventory_movements").select("id,movement_type,receipt_id,lot_id,project_id,warehouse_id,category_id,weight_kg,value,value_unit,created_at").eq("tenant_id", actor.tenantId).order("created_at", { ascending: false }).limit(5000),
+    admin.from("warehouses").select("id,code,name,location").eq("tenant_id", actor.tenantId).order("name"),
+    admin.from("projects").select("id,code,name").eq("tenant_id", actor.tenantId).order("name"),
+    admin.from("purchase_categories").select("id,name").eq("tenant_id", actor.tenantId).order("name"),
+    admin.from("inventory_lots").select("id,code,source_receipt_id,purchase_request_id,supplier_id,inbound_date,project_id,warehouse_id,category_id,initial_weight_kg,grade_value,grade_unit,purchase_price_per_kg,total_purchase_cost").eq("tenant_id", actor.tenantId).order("inbound_date", { ascending: false }).limit(5000),
+    admin.from("suppliers").select("id,name").eq("tenant_id", actor.tenantId).order("name"),
   ]);
   if (error) throw new Error("Data pergerakan persediaan gagal dimuat.");
   if (lotError) throw new Error("Data Lot persediaan gagal dimuat.");
@@ -60,7 +60,7 @@ export default async function PersediaanPage() {
   );
   const receiptIds = [...new Set(visible.map(m => m.receipt_id).filter((id): id is string => Boolean(id)))];
   const { data: receipts } = receiptIds.length
-    ? await admin.from("purchase_receipts").select("id,code").in("id", receiptIds)
+    ? await admin.from("purchase_receipts").select("id,code").eq("tenant_id", actor.tenantId).in("id", receiptIds)
     : { data: [] };
   const receiptMap = new Map((receipts ?? []).map(r => [r.id, r.code]));
   const projectMap = new Map((projects ?? []).map(p => [p.id, p]));
