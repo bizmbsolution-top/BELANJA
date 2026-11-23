@@ -45,7 +45,7 @@ const groups: MenuGroup[] = [
   {
     title: "DATA MASTER",
     items: [
-      { label: "Supplier", roles: ["Finance", "Management"] },
+      { label: "Supplier", href: "/dashboard/supplier", roles: ["Procurement", "Finance", "Management"] },
       { label: "Kategori", roles: ["Finance", "Management"] },
       { label: "Proyek & Departemen", roles: ["Management"] },
       { label: "Gudang", roles: ["Warehouse", "Management"] },

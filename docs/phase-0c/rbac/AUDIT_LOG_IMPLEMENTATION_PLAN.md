@@ -11,7 +11,7 @@ Audit Log tahap pertama mencatat administrasi pengguna:
 - Permintaan dan hasil perubahan email.
 - Permintaan dan hasil reset password.
 
-Tidak mencatat isi transaksi, aktivitas pembelian/penjualan, atau klik/navigasi.
+Tidak mencatat isi transaksi Pembelian/Penjualan, atau klik/navigasi. Perubahan Master Supplier dicatat sebagai event data master.
 
 ## 2. Data dan keamanan
 
@@ -70,7 +70,16 @@ File SQL yang sesuai disimpan di `supabase/migrations/` pada branch preview. Fil
 - Uji fungsi akses dilakukan dalam transaksi yang di-rollback; fungsi berjalan tanpa error dan tidak meninggalkan event uji.
 - Pemeriksaan advisor masih menampilkan peringatan lama pada `public.rls_auto_enable()` yang dapat dieksekusi `anon` dan `authenticated`, serta peringatan perlindungan password bocor yang belum aktif. Peringatan tersebut tidak dibuat oleh migration Audit Log dan belum diubah.
 
-## 8. Belum diverifikasi
+## 8. Master Supplier (tahap awal)
+
+- Tabel `public.suppliers` tersedia dengan kode otomatis, nama, kontak, telepon, email, alamat, catatan, status aktif, timestamp, dan pencatat.
+- RLS aktif; akses tabel hanya melalui server-side `service_role`, tanpa grant untuk browser.
+- Create/update menggunakan RPC `SECURITY INVOKER`; perubahan data dan insert Audit Log berada dalam satu transaksi.
+- Tidak ada hard delete. Supplier yang tidak digunakan dapat dinonaktifkan.
+- Event: `supplier.created` dan `supplier.updated`.
+- Menu Supplier tersedia untuk Procurement, Finance, dan Management.
+
+## 9. Belum diverifikasi
 
 - Build Vercel dan pengujian browser end-to-end untuk halaman Riwayat Aktivitas.
 - Uji login sebagai non-Owner untuk memastikan halaman ditolak.

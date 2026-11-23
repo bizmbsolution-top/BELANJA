@@ -24,6 +24,8 @@ const actionLabels: Record<string, string> = {
   "user.password_reset_requested": "Permintaan reset password",
   "user.password_reset": "Password direset",
   "user.password_reset_failed": "Reset password gagal",
+  "supplier.created": "Supplier dibuat",
+  "supplier.updated": "Supplier diperbarui",
 };
 
 function formatDate(value: string) {
@@ -41,7 +43,13 @@ function snapshotLines(snapshot: Snapshot): string[] {
   if (Array.isArray(snapshot.roles)) lines.push(`Role: ${snapshot.roles.join(", ") || "Tidak ada"}`);
   if (typeof snapshot.is_active === "boolean") lines.push(`Status: ${snapshot.is_active ? "Aktif" : "Nonaktif"}`);
 
+  if (snapshot.code && typeof snapshot.code === "string") lines.push(`Kode supplier: ${snapshot.code}`);
+  if (snapshot.name && typeof snapshot.name === "string") lines.push(`Nama supplier: ${snapshot.name}`);
+  if (snapshot.contact_person && typeof snapshot.contact_person === "string") lines.push(`Kontak: ${snapshot.contact_person}`);
+  if (snapshot.phone && typeof snapshot.phone === "string") lines.push(`Telepon: ${snapshot.phone}`);
   if (snapshot.email && typeof snapshot.email === "string") lines.push(`Email: ${snapshot.email}`);
+  if (snapshot.address && typeof snapshot.address === "string") lines.push(`Alamat: ${snapshot.address}`);
+  if (snapshot.notes && typeof snapshot.notes === "string") lines.push(`Catatan: ${snapshot.notes}`);
   if (snapshot.requested_email && typeof snapshot.requested_email === "string") lines.push(`Email diminta: ${snapshot.requested_email}`);
 
   const scopes = snapshot.scopes;
@@ -115,7 +123,7 @@ export default async function ActivityHistoryPage() {
                 </div>
                 <div className={styles.people}>
                   <div><small>DILAKUKAN OLEH</small><strong>{row.actor_user_id ? emailById.get(row.actor_user_id) ?? row.actor_user_id : "Akun dihapus"}</strong></div>
-                  <div><small>PENGGUNA TERKAIT</small><strong>{row.target_user_id ? emailById.get(row.target_user_id) ?? row.target_user_id : "Tidak tersedia"}</strong></div>
+                  <div><small>{row.entity_type === "supplier" ? "DATA SUPPLIER" : "PENGGUNA TERKAIT"}</small><strong>{row.entity_type === "supplier" ? String(row.after_data?.name ?? row.before_data?.name ?? row.entity_id ?? "Supplier") : row.target_user_id ? emailById.get(row.target_user_id) ?? row.target_user_id : "Tidak tersedia"}</strong></div>
                 </div>
                 {(beforeLines.length > 0 || afterLines.length > 0) && (
                   <details className={styles.details}>
