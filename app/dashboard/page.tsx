@@ -36,7 +36,7 @@ export default async function DashboardPage() {
       .order("expense_date", { ascending: false }).order("created_at", { ascending: false }).limit(1000);
     if (error) throw new Error("Ringkasan pengeluaran dashboard gagal dimuat.");
     const rows = data ?? [];
-    const activeRows = rows.filter((item) => item.status === "Aktif");
+    const activeRows = rows.filter((item) => item.status === "Dibayar");
     expenseTotal = activeRows.reduce((sum, item) => sum + Number(item.amount), 0);
     expenseCount = activeRows.length;
     recentExpenses = rows.slice(0, 5).map((item) => ({
@@ -64,7 +64,7 @@ export default async function DashboardPage() {
       </section>
       <section className="quick-grid">
         <article><span>Total Pembelian</span><strong>—</strong><small>Ringkasan tersedia setelah transaksi pembelian aktif.</small></article>
-        <article className="dashboard-live"><span>Pengeluaran Bulan Ini</span><strong>{canViewFinancialSummary ? rupiah(expenseTotal) : "—"}</strong><small>{canViewFinancialSummary ? `${expenseCount} transaksi aktif · ${month}/${year}` : "Ringkasan keuangan untuk Finance dan Management."}</small></article>
+        <article className="dashboard-live"><span>Pengeluaran Bulan Ini</span><strong>{canViewFinancialSummary ? rupiah(expenseTotal) : "—"}</strong><small>{canViewFinancialSummary ? `${expenseCount} transaksi dibayar · ${month}/${year}` : "Ringkasan keuangan untuk Finance dan Management."}</small></article>
         <article><span>Posisi Kas</span><strong>—</strong><small>Menunggu pencatatan kas dan pembayaran.</small></article>
         <article><span>Nilai Penjualan</span><strong>—</strong><small>Ringkasan tersedia setelah transaksi penjualan aktif.</small></article>
       </section>
@@ -73,11 +73,11 @@ export default async function DashboardPage() {
         {recentExpenses.length === 0 ? <p className="dashboard-empty">Belum ada transaksi pengeluaran bulan ini.</p> : <div className="dashboard-table">
           {recentExpenses.map((item) => <div className="dashboard-row" key={item.code}>
             <div><strong>{item.description}</strong><small>{item.code} · {dateLabel(item.expense_date)}</small></div>
-            <div className="dashboard-row-value"><strong>{rupiah(item.amount)}</strong><small className={item.status === "Aktif" ? "dashboard-status-active" : "dashboard-status-cancelled"}>{item.status}</small></div>
+            <div className="dashboard-row-value"><strong>{rupiah(item.amount)}</strong><small className={item.status === "Dibayar" ? "dashboard-status-active" : "dashboard-status-cancelled"}>{item.status}</small></div>
           </div>)}
         </div>}
       </section>}
-      <p className="dashboard-footnote">Posisi kas bukan laba. Nilai kas akan ditampilkan setelah modul kas dan pembayaran tersedia. Transaksi yang dibatalkan tidak dihitung dalam total pengeluaran aktif.</p>
+      <p className="dashboard-footnote">Posisi kas bukan laba. Nilai kas akan ditampilkan setelah modul kas dan pembayaran tersedia. Pengeluaran dihitung saat voucher dibayar oleh Kasir; Draft dan voucher menunggu pembayaran belum mengurangi posisi kas.</p>
     </div>
   );
 }
