@@ -80,7 +80,7 @@ const scopeDimensions = [
   { id: "warehouse", label: "Warehouse" },
 ] as const;
 
-export default function UserAccess({ initialUsers, initialProjects }: { initialUsers: UserRecord[]; initialProjects: { id: string; code: string; name: string }[] }) {
+export default function UserAccess({ initialUsers, initialProjects, initialWarehouses }: { initialUsers: UserRecord[]; initialProjects: { id: string; code: string; name: string }[]; initialWarehouses: { id: string; code: string; name: string; projectIds: string[] }[] }) {
   const [users, setUsers] = useState(initialUsers);
   const [selectedId, setSelectedId] = useState(initialUsers[0]?.id ?? "");
   const [saved, setSaved] = useState(false);
@@ -103,7 +103,7 @@ export default function UserAccess({ initialUsers, initialProjects }: { initialU
   const [saveError, setSaveError] = useState("");
 
   const selectedUser = useMemo(
-    () => users.find((user) => user.id === selectedId) ?? users[0] ?? { id: "", name: "Belum ada pengguna", email: "", roles: [], status: "Nonaktif" as const, scopes: { project: "none" as const, department: "none" as const, warehouse: "none" as const }, projectIds: [], permissions: { "transaction.post_recognition": "unset" as const, "fund_utilization.post_recognition": "unset" as const, "payment.post": "unset" as const, "payment.allocate": "unset" as const } },
+    () => users.find((user) => user.id === selectedId) ?? users[0] ?? { id: "", name: "Belum ada pengguna", email: "", roles: [], status: "Nonaktif" as const, scopes: { project: "none" as const, department: "none" as const, warehouse: "none" as const }, projectIds: [], warehouseIds: [], permissions: { "transaction.post_recognition": "unset" as const, "fund_utilization.post_recognition": "unset" as const, "payment.post": "unset" as const, "payment.allocate": "unset" as const } },
     [users, selectedId],
   );
 
@@ -131,7 +131,7 @@ export default function UserAccess({ initialUsers, initialProjects }: { initialU
 
   function updateScope(dimension: keyof UserRecord["scopes"], value: "none" | "all" | "selected") {
     setUsers((current) => current.map((user) =>
-      user.id === selectedId ? { ...user, scopes: { ...user.scopes, [dimension]: value }, ...(dimension === "project" && value !== "selected" ? { projectIds: [] } : {}) } : user
+      user.id === selectedId ? { ...user, scopes: { ...user.scopes, [dimension]: value }, ...(dimension === "project" && value !== "selected" ? { projectIds: [], warehouseIds: [], scopes: { ...user.scopes, [dimension]: value, warehouse: "none" as const } } : {}) } : user
     ));
     setSaved(false);
   }
@@ -140,12 +140,12 @@ export default function UserAccess({ initialUsers, initialProjects }: { initialU
     setUsers((current) => current.map((user) => {
       if (user.id !== selectedId) return user;
       const projectIds = user.projectIds.includes(projectId) ? user.projectIds.filter((id) => id !== projectId) : [...user.projectIds, projectId];
-      return { ...user, projectIds, scopes: { ...user.scopes, project: projectIds.length ? "selected" : user.scopes.project } };
+      const allowedWarehouseIds = initialWarehouses.filter(warehouse => warehouse.projectIds.some(id => projectIds.includes(id))).map(warehouse => warehouse.id);\n      const warehouseIds = user.warehouseIds.filter(id => allowedWarehouseIds.includes(id));\n      return { ...user, projectIds, warehouseIds, scopes: { ...user.scopes, project: projectIds.length ? "selected" : user.scopes.project, ...(warehouseIds.length ? {} : { warehouse: "none" as const }) } };
     }));
     setSaved(false);
   }
 
-  function updatePermission(permission: keyof UserRecord["permissions"], value: "unset" | "allow" | "deny") {
+  function toggleWarehouse(warehouseId: string) {\n    setUsers(current => current.map(user => {\n      if (user.id !== selectedId) return user;\n      const warehouseIds = user.warehouseIds.includes(warehouseId) ? user.warehouseIds.filter(id => id !== warehouseId) : [...user.warehouseIds, warehouseId];\n      return { ...user, warehouseIds, scopes: { ...user.scopes, warehouse: warehouseIds.length ? "selected" : "none" } };\n    }));\n    setSaved(false);\n  }\n\n  function updatePermission(permission: keyof UserRecord["permissions"], value: "unset" | "allow" | "deny") {
     setUsers((current) => current.map((user) =>
       user.id === selectedId ? { ...user, permissions: { ...user.permissions, [permission]: value } } : user
     ));
@@ -265,7 +265,7 @@ export default function UserAccess({ initialUsers, initialProjects }: { initialU
       status: selectedUser.status,
       scopes: selectedUser.scopes,
       permissions: selectedUser.permissions,
-      projectIds: selectedUser.projectIds,
+      projectIds: selectedUser.projectIds,\n      warehouseIds: selectedUser.warehouseIds,
     });
     setSaveBusy(false);
     if (!result.ok) {
@@ -364,7 +364,7 @@ export default function UserAccess({ initialUsers, initialProjects }: { initialU
             <h3>Area Kerja</h3>
             <p className={styles.helper}>
               Atur batas data yang dapat dibuka pengguna. Scope yang tidak dipilih berarti tidak ada akses.
-              Project dapat ditetapkan satu per satu dari Master Project yang aktif. Untuk pengguna dengan Role Cashier, Project terpilih juga menjadi lokasi tugas Kasir dan dasar saldo Kasir per Project.
+              Project dapat ditetapkan satu per satu. Warehouse hanya dapat dipilih setelah Project ditentukan, dan pilihannya mengikuti hubungan Project–Warehouse yang diatur Superadmin di Master Gudang.
             </p>
             <div className={styles.scopeGrid}>
               {scopeDimensions.map((dimension) => (
@@ -389,8 +389,8 @@ export default function UserAccess({ initialUsers, initialProjects }: { initialU
                     <span>Tidak ada akses</span>
                   </label>
                   <label className={styles.radioChoice}>
-                    <input type="radio" name={`scope-${selectedId}-${dimension.id}`} checked={selectedUser.scopes[dimension.id] === "selected"} disabled={dimension.id !== "project" || initialProjects.length === 0} onChange={() => updateScope(dimension.id, "selected")} />
-                    <span>{dimension.id === "project" ? "Selected — pilih Project tertentu" : "Selected — menunggu master data"}</span>
+                    <input type="radio" name={`scope-${selectedId}-${dimension.id}`} checked={selectedUser.scopes[dimension.id] === "selected"} disabled={(dimension.id === "project" && initialProjects.length === 0) || (dimension.id === "warehouse" && (selectedUser.scopes.project === "none" || initialWarehouses.filter(w => selectedUser.scopes.project === "all" || w.projectIds.some(id => selectedUser.projectIds.includes(id))).length === 0))} onChange={() => updateScope(dimension.id, "selected")} />
+                    <span>{dimension.id === "project" ? "Selected — pilih Project tertentu" : dimension.id === "warehouse" ? "Selected — pilih Warehouse untuk Project" : "Selected — menunggu master data"}</span>
                   </label>
                   {dimension.id === "project" && selectedUser.scopes.project === "selected" && (
                     <div className={styles.optionList}>
@@ -402,7 +402,7 @@ export default function UserAccess({ initialUsers, initialProjects }: { initialU
                       )) : <p className={styles.allHint}>Belum ada Project aktif. Tambahkan melalui Master Project.</p>}
                     </div>
                   )}
-                  <p className={styles.allHint}>{dimension.id === "project" ? "Hanya Project yang dipilih yang dapat diakses pengguna." : `Pilihan Selected ${dimension.label} akan diaktifkan setelah master data tersedia.`}</p>
+                  {dimension.id === "warehouse" && selectedUser.scopes.warehouse === "selected" && (\n                    <div className={styles.optionList}>\n                      {initialWarehouses.filter(w => selectedUser.scopes.project === "all" || w.projectIds.some(id => selectedUser.projectIds.includes(id))).map(warehouse => (\n                        <label className={styles.option} key={warehouse.id}>\n                          <input type="checkbox" checked={selectedUser.warehouseIds.includes(warehouse.id)} onChange={() => toggleWarehouse(warehouse.id)} />\n                          <span>{warehouse.code} · {warehouse.name}</span>\n                        </label>\n                      ))}\n                    </div>\n                  )}\n                  <p className={styles.allHint}>{dimension.id === "project" ? "Hanya Project yang dipilih yang dapat diakses pengguna." : dimension.id === "warehouse" ? "Daftar Warehouse mengikuti Project yang dipilih." : "Pilihan Selected Department akan diaktifkan setelah master data tersedia."}</p>
                 </div>
               ))}
             </div>
