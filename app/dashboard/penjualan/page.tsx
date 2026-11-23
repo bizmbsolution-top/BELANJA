@@ -25,7 +25,7 @@ export default async function PenjualanPage(){
   admin.from("suppliers").select("id,name"),
   admin.from("purchase_categories").select("id,name")
  ]);
- const available=(lots??[]).map(l=>({...l,available_weight_kg:(movements??[]).filter(m=>m.lot_id===l.id).reduce((sum,m)=>sum+(["issue","transfer_out"].includes(m.movement_type)?-1:1)*Number(m.weight_kg),0)})).filter(l=>l.available_weight_kg>0.0001);
+ const available=(lots??[]).map(l=>({...l,available_weight_kg:(movements??[]).filter(m=>m.lot_id===l.id).reduce((sum,m)=>sum+(["issue","transfer_out","sale_dispatch"].includes(m.movement_type)?-1:1)*Number(m.weight_kg),0)})).filter(l=>l.available_weight_kg>0.0001);
  let orderQuery=admin.from("sales_orders").select("*").order("created_at",{ascending:false}).limit(300);
  if(projectIds!==null)orderQuery=orderQuery.in("project_id",projectIds.length?projectIds:["00000000-0000-0000-0000-000000000000"]);
  const {data:orders}=await orderQuery;
@@ -33,6 +33,6 @@ export default async function PenjualanPage(){
  const {data:allocations}=orderIds.length?await admin.from("sales_order_lot_allocations").select("*").in("sales_order_id",orderIds):{data:[]};
  const visibleOrderIds=new Set((orders??[]).filter(o=>(allocations??[]).filter(a=>a.sales_order_id===o.id).every(a=>warehouseIds===null||warehouseIds.includes(a.source_warehouse_id))).map(o=>o.id));
  const visibleOrders=(orders??[]).filter(o=>visibleOrderIds.has(o.id));
- const data:SalesPageData={actorRoles:actor.isOwner?["Superadmin"]:actor.roles,projects:scopedProjects,warehouses:scopedWarehouses,warehouseProjects:mappings??[],customers:(customers??[]).map(c=>({...c,warehouse_addresses:(c.customer_warehouse_addresses??[]).filter(a=>a.is_active)})),lots:available.map(l=>({...l,category_name:(categories??[]).find(c=>c.id===l.category_id)?.name??"—",supplier_name:(suppliers??[]).find(s=>s.id===l.supplier_id)?.name??"—"})),orders:visibleOrders,allocations:(allocations??[]).filter(a=>visibleOrderIds.has(a.sales_order_id)),categories:categories??[],suppliers:suppliers??[]};
+ const data:SalesPageData={actorRoles:actor.isOwner?["Superadmin"]:actor.roles,projects:scopedProjects,warehouses:scopedWarehouses,warehouseProjects:mappings??[],customers:(customers??[]).map(c=>({...c,warehouse_addresses:(c.customer_warehouse_addresses??[]).filter(a=>a.is_active)})),lots:(lots??[]).map(l=>({...l,available_weight_kg:available.find(a=>a.id===l.id)?.available_weight_kg??0,category_name:(categories??[]).find(c=>c.id===l.category_id)?.name??"—",supplier_name:(suppliers??[]).find(s=>s.id===l.supplier_id)?.name??"—"})),orders:visibleOrders,allocations:(allocations??[]).filter(a=>visibleOrderIds.has(a.sales_order_id)),categories:categories??[],suppliers:suppliers??[]};
  return <SalesManager data={data}/>;
 }
