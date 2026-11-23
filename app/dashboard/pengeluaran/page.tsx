@@ -27,7 +27,7 @@ export default async function PengeluaranPage() {
   const allowedIds = new Set(projects.map(p => p.id));
   const canViewBalances = actor.isOwner || actor.roles.some(r => ["Cashier", "Finance", "Management"].includes(r));
   const [{ data: rawExpenses, error: expenseError }, ledgerResult] = await Promise.all([
-    admin.from("expenses").select("id,code,expense_date,project_id,expense_category_id,description,amount,payment_method,paid_method,paid_at,paid_amount,submitted_at,status,cancellation_reason,cancelled_at,created_at,created_by,expense_categories(name),projects(code,name),expense_documents(id,file_name,mime_type,file_size,uploaded_at)")
+    admin.from("expenses").select("id,code,expense_date,project_id,expense_category_id,description,amount,payment_method,paid_method,paid_at,paid_amount,submitted_at,status,cancellation_reason,cancelled_at,created_at,created_by,expense_categories(name),projects(code,name),expense_documents(id,file_name,mime_type,file_size,uploaded_at),expense_payment_documents(id,file_name,mime_type,file_size,uploaded_at)")
       .order("created_at", { ascending: false }).limit(300),
     canViewBalances
       ? admin.from("project_cash_ledger").select("project_id,amount").in("project_id", projects.length ? projects.map(p => p.id) : ["00000000-0000-0000-0000-000000000000"])
