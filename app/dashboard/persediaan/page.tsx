@@ -66,10 +66,9 @@ export default async function PersediaanPage() {
     const w = warehouseMap.get(id), firstProject = projectMap.get(rows[0].project_id);
     const total = rows.reduce((s,r)=>s+r.weight,0);
     return { id, code:w?.code ?? "GDG", name:w?.name ?? "Gudang", location:w?.location ?? null,
-      projectCode:firstProject?.code ?? "", projectName:firstProject?.name ?? "",
+      projectLabel:projectLabels.join(", "),
       totalKg:total,
-      categories: rows.map(r => ({name:categoryMap.get(r.category_id)?.name ?? "Barang",weight:r.weight,
-        averageValue:r.weight ? r.valueWeight/r.weight : 0,valueUnit:r.value_unit})).sort((a,b)=>a.name.localeCompare(b.name))
+      categories: [...rows.reduce((map,r) => { const name=categoryMap.get(r.category_id)?.name ?? "Barang"; const key=name+"|"+r.value_unit; const item=map.get(key) ?? {name,weight:0,valueWeight:0,valueUnit:r.value_unit}; item.weight+=r.weight; item.valueWeight+=r.valueWeight; map.set(key,item); return map; },new Map<string,{name:string;weight:number;valueWeight:number;valueUnit:string}>()).values()].map(r=>({name:r.name,weight:r.weight,averageValue:r.weight?r.valueWeight/r.weight:0,valueUnit:r.valueUnit})).sort((a,b)=>a.name.localeCompare(b.name))
     };
   }).sort((a,b)=>a.name.localeCompare(b.name));
 
