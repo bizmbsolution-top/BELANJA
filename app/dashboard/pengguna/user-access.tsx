@@ -5,7 +5,6 @@ import styles from "./user-access.module.css";
 import { createManagedUser, resetUserPassword, saveUserAccessProfile, updateManagedUserEmail } from "./actions";
 import { signOut } from "@/app/login/actions";
 
-/*
 /** Owner-only access settings are loaded and saved by server actions. */
 
 type UserRecord = {
