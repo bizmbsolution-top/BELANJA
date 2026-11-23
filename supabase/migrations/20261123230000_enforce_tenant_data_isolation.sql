@@ -42,7 +42,7 @@ begin
   where not exists(select 1 from public.platform_owners po where po.user_id=p.user_id)
   on conflict(tenant_id,user_id) do update
     set is_active=excluded.is_active,tenant_role=excluded.tenant_role,updated_at=now();
-end $$;;
+end $$;
 
 do $$
 declare t record;
@@ -54,7 +54,7 @@ begin
   loop
     execute format('alter table public.%I alter column tenant_id set not null',t.table_name);
   end loop;
-end $$;;
+end $$;
 
 do $$
 declare
