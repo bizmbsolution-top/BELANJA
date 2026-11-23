@@ -330,6 +330,7 @@ export async function createManagedUser(input: {
         roles: [],
         status: "Aktif",
         scopes: { ...DEFAULT_SCOPES },
+        projectIds: [],
         permissions: { ...DEFAULT_PERMISSIONS },
       },
     };
