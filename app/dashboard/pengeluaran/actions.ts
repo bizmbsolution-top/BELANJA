@@ -214,7 +214,7 @@ export async function openExpenseDocument(documentId: string): Promise<Result> {
     const actor = await requireAnyRole(["Procurement","Sales","Cashier","Finance","Management"]);
     if (!uuid(documentId)) return { ok:false,error:"Dokumen tidak valid." };
     const admin = createAdminClient();
-    const { data: doc } = await admin.from("expense_documents").select("storage_path,expense_id").eq("id",documentId).maybeSingle();
+    const { data: doc } = await admin.from("expense_documents").select("storage_path,expense_id").eq("tenant_id",actor.tenantId).eq("id",documentId).maybeSingle();
     if (!doc) return { ok:false,error:"Dokumen tidak ditemukan." };
     const { data: expense } = await getExpense(doc.expense_id);
     if (!expense) return { ok:false,error:"Voucher tidak ditemukan." };
