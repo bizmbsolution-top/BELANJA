@@ -3,7 +3,7 @@
 import { requireAnyRole } from "@/lib/auth/authorization";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-const CATEGORY_ROLES = ["Finance", "Management"] as const;
+const CATEGORY_ROLES = ["Procurement", "Finance", "Management"] as const;
 
 type CategoryInput = { name: string; description: string; isActive?: boolean };
 type CleanCategory = { name: string; description: string | null };
