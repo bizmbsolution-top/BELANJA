@@ -21,13 +21,13 @@ export async function closeSalesExpensePeriod(input: { projectId: string; period
         return { ok: false, error: "Permission payment.post diperlukan untuk closing Kasir." };
       }
     }
-    if (!actor.isOwner) {
+    if (!actor.tenantRole === "superadmin") {
       const admin = createAdminClient();
       const { data: project } = await admin.from("projects").select("id,is_active").eq("id", input.projectId).maybeSingle();
       if (!project?.is_active) return { ok: false, error: "Project tidak aktif atau tidak ditemukan." };
       const { data: scope, error } = await admin.from("user_work_scopes").select("scope_mode,resource_ids")
         .eq("user_id", actor.userId).eq("dimension", "project").maybeSingle();
-      if (error || !scope) return { ok: false, error: "Area kerja Project belum diatur oleh Owner." };
+      if (error || !scope) return { ok: false, error: "Area kerja Project belum diatur oleh Superadmin perusahaan." };
       if (scope.scope_mode !== "all" && !(scope.scope_mode === "selected" && scope.resource_ids?.includes(input.projectId))) {
         return { ok: false, error: "Project di luar area kerja akun Anda." };
       }
