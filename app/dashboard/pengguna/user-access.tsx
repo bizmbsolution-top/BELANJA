@@ -280,6 +280,7 @@ export default function UserAccess({ initialUsers, initialProjects, initialWareh
       projectIds: selectedUser.projectIds,
       warehouseIds: selectedUser.warehouseIds,
       warehouseIds: selectedUser.warehouseIds,
+      warehouseIds: selectedUser.warehouseIds,
     });
     setSaveBusy(false);
     if (!result.ok) {
