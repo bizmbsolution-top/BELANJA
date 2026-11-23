@@ -142,7 +142,6 @@ export async function getManagedUsers(): Promise<ManagedUser[]> {
         scopes: scopesById.get(user.id) ?? { ...DEFAULT_SCOPES },
         projectIds: projectIdsById.get(user.id) ?? [],
         warehouseIds: warehouseIdsById.get(user.id) ?? [],
-        warehouseIds: warehouseIdsById.get(user.id) ?? [],
         permissions: permissionsById.get(user.id) ?? { ...DEFAULT_PERMISSIONS },
       });
     }
