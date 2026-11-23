@@ -95,7 +95,7 @@ export default async function ActivityHistoryPage() {
         <div>
           <p className={styles.eyebrow}>ADMINISTRASI OWNER</p>
           <h1>Riwayat Aktivitas</h1>
-          <p>Catatan perubahan administrasi pengguna di Belanja.</p>
+          <p>Catatan aktivitas seluruh pengguna dan perubahan data master yang sudah terhubung ke Audit Log.</p>
         </div>
         <a href="/dashboard/pengguna" className={styles.backLink}>Pengaturan Pengguna</a>
       </header>
@@ -123,7 +123,7 @@ export default async function ActivityHistoryPage() {
                 </div>
                 <div className={styles.people}>
                   <div><small>DILAKUKAN OLEH</small><strong>{row.actor_user_id ? emailById.get(row.actor_user_id) ?? row.actor_user_id : "Akun dihapus"}</strong></div>
-                  <div><small>{row.entity_type === "supplier" ? "DATA SUPPLIER" : "PENGGUNA TERKAIT"}</small><strong>{row.entity_type === "supplier" ? String(row.after_data?.name ?? row.before_data?.name ?? row.entity_id ?? "Supplier") : row.target_user_id ? emailById.get(row.target_user_id) ?? row.target_user_id : "Tidak tersedia"}</strong></div>
+                  <div><small>{row.entity_type === "supplier" ? "DATA SUPPLIER" : row.entity_type === "user_access" ? "PENGATURAN AKSES" : "PENGGUNA TERKAIT"}</small><strong>{row.entity_type === "supplier" ? String(row.after_data?.name ?? row.before_data?.name ?? row.entity_id ?? "Supplier") : row.target_user_id ? emailById.get(row.target_user_id) ?? row.target_user_id : "Tidak tersedia"}</strong></div>
                 </div>
                 {(beforeLines.length > 0 || afterLines.length > 0) && (
                   <details className={styles.details}>
