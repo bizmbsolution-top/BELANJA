@@ -253,15 +253,17 @@ export default function UserAccess({ initialUsers }: { initialUsers: UserRecord[
             </div>
             <div className={styles.accountActions}>
               <span className={selectedUser.status === "Aktif" ? styles.statusActive : styles.statusInactive}>{selectedUser.status}</span>
+              <button type="button" className={styles.editAccessButton} onClick={() => document.getElementById("role-status-editor")?.scrollIntoView({ behavior: "smooth", block: "center" })}>Edit Role &amp; Status</button>
               <button type="button" className={styles.resetButton} onClick={() => { setEditEmail(selectedUser.email); setEditEmailError(""); setEditEmailOpen(true); }}>Edit Email</button>
               <button type="button" className={styles.resetButton} onClick={() => { setResetOpen(true); setFormError(""); setResetMessage(""); }}>Reset Password</button>
             </div>
           </div>
           {resetMessage && <p className={styles.resetMessage}>{resetMessage}</p>}
 
-          <section className={styles.section}>
-            <h3>Role</h3>
-            <p className={styles.helper}>Pilih satu atau beberapa Role.</p>
+          <section className={styles.section} id="role-status-editor">
+            <h3>Role &amp; Akses Pengguna</h3>
+            <p className={styles.editInstruction}>Pilih Role yang sesuai. Anda dapat memilih lebih dari satu Role. Setelah selesai, tekan <strong>Simpan Perubahan</strong> yang selalu tersedia di bagian bawah layar.</p>
+            <p className={styles.helper}>Role menentukan modul operasional yang dapat dibuka pengguna.</p>
             <div className={styles.choiceRow}>
               {["Cashier", "Finance", "Warehouse", "Management"].map((role) => (
                 <label className={styles.checkChoice} key={role}>
