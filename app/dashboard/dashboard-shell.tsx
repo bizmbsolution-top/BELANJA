@@ -34,7 +34,7 @@ const groups: MenuGroup[] = [
     items: [
       { label: "Pembelian", href: "/dashboard/pembelian", roles: ["Procurement", "Finance", "Management"] },
       { label: "Pengeluaran", href: "/dashboard/pengeluaran", roles: ["Cashier", "Finance", "Management"] },
-      { label: "Permintaan & Penggunaan Dana", href: "/dashboard/permintaan-penggunaan-dana", roles: ["Cashier", "Finance", "Management"] },
+      { label: "Permintaan Dana Kasir", href: "/dashboard/permintaan-penggunaan-dana", roles: ["Cashier", "Finance", "Management"] },
       { label: "Persediaan", href: "/dashboard/persediaan", roles: ["Warehouse", "Management"] },
       { label: "Penjualan", href: "/dashboard/penjualan", roles: ["Sales", "Management"] },
     ],
