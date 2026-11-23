@@ -157,7 +157,7 @@ export default function UserAccess({ initialUsers }: { initialUsers: UserRecord[
     setResetOpen(false);
     setResetPassword("");
     setResetConfirm("");
-    setResetMessage("Password akun berhasil diperbarui.");
+    setResetMessage(result.warning ?? "Password akun berhasil diperbarui.");
   }
 
 
@@ -192,7 +192,7 @@ export default function UserAccess({ initialUsers }: { initialUsers: UserRecord[
     setEditEmailOpen(false);
     setEditEmail("");
     setEditEmailError("");
-    setResetMessage("Email pengguna berhasil diperbarui.");
+    setResetMessage(result.warning ?? "Email pengguna berhasil diperbarui.");
   }
 
   async function savePreview() {
