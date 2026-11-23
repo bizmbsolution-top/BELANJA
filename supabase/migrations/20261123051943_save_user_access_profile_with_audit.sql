@@ -28,8 +28,8 @@ begin
   end if;
 
   if exists (
-    select 1 from unnest(p_roles) as role_name
-    where role_name <> all (array['Procurement','Sales','Cashier','Finance','Warehouse','Management']::text[])
+    select 1 from unnest(p_roles) as roles(role_name)
+    where roles.role_name <> all (array['Procurement','Sales','Cashier','Finance','Warehouse','Management']::text[])
   ) then
     raise exception 'Invalid operational role.';
   end if;
@@ -57,12 +57,9 @@ begin
     end if;
   end loop;
 
-  if not exists (select 1 from auth.users where id = p_target_user_id) then
-    raise exception 'Target user does not exist.';
-  end if;
-  if not exists (select 1 from auth.users where id = p_actor_user_id) then
-    raise exception 'Actor user does not exist.';
-  end if;
+  -- User existence is enforced by the existing foreign keys on user_id,
+  -- created_by, updated_by, and audit_logs actor/target columns. Do not query
+  -- auth.users here: service_role is intentionally not granted direct SELECT.
 
   select jsonb_build_object(
     'roles', (select roles from public.user_access_profiles where user_id = p_target_user_id),
