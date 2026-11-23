@@ -28,6 +28,8 @@ const actionLabels: Record<string, string> = {
   "supplier.updated": "Supplier diperbarui",
   "purchase_category.created": "Kategori pembelian dibuat",
   "purchase_category.updated": "Kategori pembelian diperbarui",
+  "warehouse.created": "Gudang dibuat",
+  "warehouse.updated": "Gudang diperbarui",
 };
 
 function formatDate(value: string) {
@@ -51,6 +53,7 @@ function snapshotLines(snapshot: Snapshot): string[] {
   if (typeof snapshot.address === "string") lines.push(`Alamat: ${snapshot.address}`);
   if (typeof snapshot.notes === "string") lines.push(`Catatan: ${snapshot.notes}`);
   if (typeof snapshot.description === "string") lines.push(`Keterangan: ${snapshot.description}`);
+  if (typeof snapshot.location === "string") lines.push(`Lokasi: ${snapshot.location}`);
   if (typeof snapshot.requested_email === "string") lines.push(`Email diminta: ${snapshot.requested_email}`);
   return lines;
 }
@@ -59,6 +62,7 @@ function targetLabel(row: AuditRow) {
   if (row.entity_type === "purchase_category") {
     return String(row.after_data?.name ?? row.before_data?.name ?? row.entity_id ?? "Kategori pembelian");
   }
+  if (row.entity_type === "warehouse") return String(row.after_data?.name ?? row.before_data?.name ?? row.entity_id ?? "Gudang");
   if (row.entity_type === "supplier") {
     return String(row.after_data?.name ?? row.before_data?.name ?? row.entity_id ?? "Supplier");
   }
