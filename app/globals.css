@@ -183,3 +183,31 @@ footer {
 [data-theme="dark"] .quick-grid article span{color:#bdc9d9}
 [data-theme="dark"] .quick-grid article strong{color:#f4f7fb}
 [data-theme="dark"] .quick-grid article small{color:#91a1b8}
+
+.home-heading>p:last-child{line-height:1.5}
+.quick-grid .dashboard-live{border-color:#b8cdfa;background:#f5f8ff}
+.dashboard-live strong{color:#155eef!important;font-size:clamp(21px,2.4vw,28px)!important;overflow-wrap:anywhere}
+.dashboard-recent{margin-top:22px;padding:20px;border:1px solid #e5eaf2;border-radius:14px;background:#fff}
+.dashboard-section-heading{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px}
+.dashboard-section-heading h2{margin:0;font-size:17px}
+.dashboard-section-heading p{margin:5px 0 0;color:#62718a;font-size:12px}
+.dashboard-section-heading a{color:#155eef;font-size:12px;font-weight:800;text-decoration:none}
+.dashboard-table{display:grid}
+.dashboard-row{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:12px 0;border-top:1px solid #edf0f5}
+.dashboard-row>div:first-child{display:grid;gap:4px;min-width:0}
+.dashboard-row>div:first-child strong{font-size:13px;overflow-wrap:anywhere}
+.dashboard-row small{font-size:11px;color:#78869b}
+.dashboard-row-value{display:grid;justify-items:end;gap:4px;flex:0 0 auto}
+.dashboard-row-value>strong{font-size:13px}
+.dashboard-status-active{color:#18794e!important;font-weight:700}
+.dashboard-status-cancelled{color:#b42318!important;font-weight:700}
+.dashboard-empty,.dashboard-footnote{color:#78869b;font-size:12px;line-height:1.6}
+.dashboard-footnote{margin-top:14px}
+[data-theme="dark"] .quick-grid .dashboard-live{border-color:#385b91;background:#172b49}
+[data-theme="dark"] .dashboard-live strong{color:#8eb6ff!important}
+[data-theme="dark"] .dashboard-recent{border-color:#293b56;background:#142238}
+[data-theme="dark"] .dashboard-section-heading p,[data-theme="dark"] .dashboard-row small,[data-theme="dark"] .dashboard-empty,[data-theme="dark"] .dashboard-footnote{color:#aab8cc}
+[data-theme="dark"] .dashboard-section-heading a{color:#8eb6ff}
+[data-theme="dark"] .dashboard-row{border-color:#293b56}
+[data-theme="dark"] .dashboard-row>div:first-child strong,[data-theme="dark"] .dashboard-row-value>strong{color:#f4f7fb}
+@media(max-width:560px){.dashboard-recent{padding:15px}.dashboard-section-heading{align-items:flex-start}.dashboard-row{align-items:flex-start}.dashboard-row-value>strong{font-size:12px}}
