@@ -10,7 +10,7 @@ export type FinancialDeduction = { settlement_id:string; component_code:string|n
 const money=(n:number)=>new Intl.NumberFormat("id-ID",{style:"currency",currency:"IDR",maximumFractionDigits:0}).format(n);
 const month=(d:string)=>d.slice(0,7);
 const monthName=(m:string)=>new Intl.DateTimeFormat("id-ID",{month:"long",year:"numeric",timeZone:"Asia/Jakarta"}).format(new Date(m+"-01T00:00:00"));
-export default function FinancialReport({orders,projects,expenseItems,vouchers,settlements,deductions}:{orders:FinancialOrder[];projects:FinancialProject[];allocations:{sales_order_id:string;allocated_weight_kg:number}[];expenseItems:FinancialExpenseItem[];vouchers:FinancialVoucher[];settlements:FinancialSettlement[];deductions:FinancialDeduction[]}){
+export default function FinancialReport({orders,projects,expenseItems,vouchers,settlements,deductions}:{orders:FinancialOrder[];projects:FinancialProject[];expenseItems:FinancialExpenseItem[];vouchers:FinancialVoucher[];settlements:FinancialSettlement[];deductions:FinancialDeduction[]}){
  const months=useMemo(()=>Array.from(new Set(orders.map(o=>month(o.ba_date)))).sort(),[orders]);
  const [from,setFrom]=useState(months[0]??""); const [to,setTo]=useState(months[months.length-1]??""); const [project,setProject]=useState("all");
  const projectMap=new Map(projects.map(p=>[p.id,p])); const voucherMap=new Map(vouchers.map(v=>[v.sales_order_expense_item_id,v])); const settlementMap=new Map(settlements.map(s=>[s.sales_order_id,s]));
