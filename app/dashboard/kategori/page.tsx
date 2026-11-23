@@ -5,11 +5,11 @@ import CategoryManager, { type PurchaseCategory } from "./category-manager";
 const CATEGORY_ROLES = ["Procurement", "Finance", "Management"] as const;
 
 export default async function CategoryPage() {
-  await requireAnyRole(CATEGORY_ROLES);
+  const context = await requireAnyRole(CATEGORY_ROLES);
   const admin = createAdminClient();
   const { data, error } = await admin
     .from("purchase_categories")
-    .select("id, code, name, description, is_active")
+    .select("id, code, name, description, is_active").eq("tenant_id", context.tenantId)
     .order("name", { ascending: true })
     .limit(500);
 
