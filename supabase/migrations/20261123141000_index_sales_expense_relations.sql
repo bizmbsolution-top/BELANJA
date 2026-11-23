@@ -1,0 +1,3 @@
+create index if not exists expenses_sales_order_idx on public.expenses(sales_order_id) where sales_order_id is not null;
+create index if not exists sales_order_expense_items_master_idx on public.sales_order_expense_items(sales_expense_master_id);
+create index if not exists sales_order_expense_items_category_idx on public.sales_order_expense_items(expense_category_id) where expense_category_id is not null;
