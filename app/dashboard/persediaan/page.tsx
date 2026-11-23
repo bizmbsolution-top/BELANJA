@@ -63,7 +63,8 @@ export default async function PersediaanPage() {
     group.push(row); warehouseGroups.set(row.warehouse_id,group);
   }
   const warehouses = [...warehouseGroups.entries()].map(([id,rows]) => {
-    const w = warehouseMap.get(id);\n    const projectLabels = [...new Set(rows.map(r => projectMap.get(r.project_id)).filter((project): project is NonNullable<typeof project> => Boolean(project)).map(project => `${project.code} · ${project.name}`))];
+    const w = warehouseMap.get(id);
+    const projectLabels = [...new Set(rows.map(r => projectMap.get(r.project_id)).filter((project): project is NonNullable<typeof project> => Boolean(project)).map(project => `${project.code} · ${project.name}`))];
     const total = rows.reduce((s,r)=>s+r.weight,0);
     return { id, code:w?.code ?? "GDG", name:w?.name ?? "Gudang", location:w?.location ?? null,
       projectLabel:projectLabels.join(", "),
