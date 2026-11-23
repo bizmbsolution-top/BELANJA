@@ -1,6 +1,6 @@
 # Belanja — Review Desain Penyimpanan Scope & Permission Pengguna
 
-Status: **MIGRATION SUDAH DITERAPKAN DAN DIVERIFIKASI — integrasi aplikasi belum dikerjakan**  
+Status: **MIGRATION SUDAH DITERAPKAN DAN DIVERIFIKASI — integrasi Owner Scope/Permission sedang dikerjakan di preview**  
 Target implementasi: branch `ui-user-access-preview`  
 Supabase project: `zguzjoqmghmmviyixecz`
 
@@ -119,9 +119,9 @@ create table public.user_permission_overrides (
   ),
   effect text not null check (effect in ('allow', 'deny')),
   created_at timestamptz not null default now(),
-  created_by uuid not null references auth.users(id),
+  created_by uuid references auth.users(id) on delete set null,
   updated_at timestamptz not null default now(),
-  updated_by uuid not null references auth.users(id),
+  updated_by uuid references auth.users(id) on delete set null,
   primary key (user_id, permission_key)
 );
 
@@ -162,7 +162,7 @@ Catatan:
 - Belum membuat Role-Permission matrix umum.
 - Belum membuat sistem Riwayat Aktivitas lengkap.
 - Belum mengubah data pengguna yang sudah ada.
-- Belum menerapkan SQL ke Supabase.
+- Belum membuat tabel master Project, Department, Warehouse, sehingga pilihan Scope `Selected` belum dapat digunakan.
 - Belum mengubah branch `main` atau deployment production.
 
 ## 7. Persetujuan Owner
