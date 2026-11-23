@@ -110,12 +110,12 @@ function snapshotLines(snapshot: Snapshot): string[] {
 }
 
 export default async function ActivityHistoryPage() {
-  await requireOwner();
+  const context = await requireOwner();
   const admin = createAdminClient();
 
   const { data, error } = await admin
     .from("audit_logs")
-    .select("id, actor_user_id, target_user_id, action, entity_type, entity_id, before_data, after_data, created_at")
+    .select("id, actor_user_id, target_user_id, action, entity_type, entity_id, before_data, after_data, created_at").eq("tenant_id", context.tenantId)
     .order("created_at", { ascending: false })
     .limit(200);
 
