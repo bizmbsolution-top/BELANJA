@@ -25,12 +25,16 @@ export default async function PengeluaranPage() {
   const projects = broadAccess ? all : scope?.scope_mode === "all" ? all :
     all.filter(p => scope?.scope_mode === "selected" && scope.resource_ids?.includes(p.id));
   const allowedIds = new Set(projects.map(p => p.id));
-  const [{ data: rawExpenses, error: expenseError }, { data: ledger, error: ledgerError }] = await Promise.all([
+  const canViewBalances = actor.isOwner || actor.roles.some(r => ["Cashier", "Finance", "Management"].includes(r));
+  const [{ data: rawExpenses, error: expenseError }, ledgerResult] = await Promise.all([
     admin.from("expenses").select("id,code,expense_date,project_id,expense_category_id,description,amount,payment_method,paid_method,paid_at,paid_amount,submitted_at,status,cancellation_reason,cancelled_at,created_at,created_by,expense_categories(name),projects(code,name),expense_documents(id,file_name,mime_type,file_size,uploaded_at)")
       .order("created_at", { ascending: false }).limit(300),
-    admin.from("project_cash_ledger").select("project_id,amount").in("project_id", projects.length ? projects.map(p => p.id) : ["00000000-0000-0000-0000-000000000000"]),
+    canViewBalances
+      ? admin.from("project_cash_ledger").select("project_id,amount").in("project_id", projects.length ? projects.map(p => p.id) : ["00000000-0000-0000-0000-000000000000"])
+      : Promise.resolve({ data: [], error: null }),
   ]);
-  if (expenseError || ledgerError) throw new Error("Riwayat Expenses atau saldo Project gagal dimuat.");
+  if (expenseError || ledgerResult.error) throw new Error("Riwayat Expenses atau saldo Project gagal dimuat.");
+  const ledger = ledgerResult.data ?? [];
   const initialItems = (rawExpenses ?? []).filter(item =>
     item.project_id ? allowedIds.has(item.project_id) : broadAccess
   ) as unknown as Expense[];
@@ -40,6 +44,6 @@ export default async function PengeluaranPage() {
   const canCreate = actor.isOwner || (actor.roles.some(r => r === "Procurement" || r === "Sales") && permissionMap.get("transaction.post_recognition") === "allow");
   const canPay = actor.isOwner || (actor.roles.includes("Cashier") && permissionMap.get("payment.post") === "allow");
   return <ExpenseManager categories={(categories ?? []) as ExpenseCategory[]} projects={projects}
-    initialItems={initialItems} balances={balances} canCreate={canCreate} canPay={canPay}
+    initialItems={initialItems} balances={balances} canCreate={canCreate} canPay={canPay} canViewBalances={canViewBalances}
     canCancel={actor.isOwner || actor.roles.some(r => ["Procurement","Sales","Cashier","Finance"].includes(r))} />;
 }
