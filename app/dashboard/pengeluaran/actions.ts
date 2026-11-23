@@ -96,9 +96,32 @@ export async function deleteExpenseDocument(documentId: string): Promise<Result>
     if (!uuid(documentId)) return { ok: false, error: "Dokumen tidak valid." };
     const admin = createAdminClient();
     const { data: doc, error: lookupError } = await admin.from("expense_documents").select("storage_path").eq("id", documentId).maybeSingle();
-    if (lookupError || !doc) return { ok: false, error: "Dokumen tidak ditemukan." };
-    // Remove the database record and write its audit event first. This keeps the
-    // UI and database consistent if the Storage operation succeeds but the RPC fails.
+    if (lookupError) return { ok: false, error: "Data dokumen gagal diperiksa. Silakan coba lagi." };
+
+    // If the database record was already removed by an earlier partial attempt,
+    // use its immutable audit snapshot to clean up the matching orphaned object.
+    if (!doc) {
+      const { data: priorDelete, error: auditError } = await admin.from("audit_logs")
+        .select("before_data").eq("action", "expense_document.deleted").eq("entity_id", documentId)
+        .order("created_at", { ascending: false }).limit(1).maybeSingle();
+      const snapshot = priorDelete?.before_data as { file_name?: string; expense_code?: string } | null;
+      if (auditError || !snapshot?.file_name || !snapshot?.expense_code) {
+        return { ok: false, error: "Catatan dokumen tidak ditemukan. Muat ulang halaman Expenses." };
+      }
+      const { data: expense } = await admin.from("expenses").select("id").eq("code", snapshot.expense_code).maybeSingle();
+      if (!expense) return { ok: false, error: "Transaksi asal dokumen tidak ditemukan. Hubungi administrator." };
+      const { data: objects, error: listError } = await admin.storage.from(BUCKET).list(expense.id, { search: snapshot.file_name });
+      if (listError) return { ok: false, error: "File billing tertinggal gagal diperiksa di penyimpanan." };
+      const orphan = (objects ?? []).find((item) => item.name.endsWith("_" + snapshot.file_name));
+      if (orphan) {
+        const { error: cleanupError } = await admin.storage.from(BUCKET).remove([`${expense.id}/${orphan.name}`]);
+        if (cleanupError) return { ok: false, error: "File billing tertinggal gagal dihapus dari penyimpanan." };
+      }
+      revalidatePath("/dashboard/pengeluaran");
+      return { ok: true };
+    }
+
+    // Remove the database record and write its audit event first.
     const { error } = await admin.rpc("delete_expense_document_with_audit", { p_document_id: documentId, p_actor_user_id: actor.userId });
     if (error) {
       console.error("deleteExpenseDocument RPC failed:", error);
