@@ -1,66 +1,60 @@
 # Belanja — Rencana Implementasi Audit Log
 
-Status: **DESAIN UNTUK REVIEW OWNER — BELUM ADA MIGRATION ATAU PERUBAHAN DATABASE**
+Status: **SQL schema draft tersedia untuk review — belum ada migration formal atau perubahan database**
 Target: branch `ui-user-access-preview`
 
 ## 1. Tujuan tahap pertama
 
-Mencatat perubahan administrasi pengguna yang dilakukan melalui halaman Pengguna. Audit Log tahap pertama bukan log semua aktivitas aplikasi; cakupannya dibatasi pada:
-
-- Pembuatan akun pengguna.
+Mencatat perubahan administrasi pengguna melalui halaman Pengguna:
+- Pembuatan akun.
 - Perubahan Role dan status aktif/nonaktif.
-- Perubahan Scope Project, Department, dan Warehouse.
+- Perubahan Scope Project, Department, Warehouse.
 - Perubahan Permission individual (allow/deny/unset).
-- Perubahan email pengguna.
-- Reset password (hanya mencatat bahwa reset berhasil; tidak pernah menyimpan password).
+- Perubahan email.
+- Reset password (event saja; password tidak pernah disimpan).
 
-Tahap ini tidak mencatat isi transaksi, aktivitas pembelian/penjualan, atau setiap klik/navigasi.
+Tidak mencatat isi transaksi, aktivitas pembelian/penjualan, atau setiap klik/navigasi.
 
-## 2. Informasi yang disimpan
+## 2. Data yang disimpan
 
-Setiap event menyimpan:
+- `id`: ID event.
+- `actor_user_id`: pelaku yang diverifikasi server.
+- `target_user_id`: pengguna sasaran.
+- `action`: kode aktivitas.
+- `entity_type` dan `entity_id`: objek terkait.
+- `before_data` dan `after_data`: snapshot non-rahasia yang diizinkan.
+- `created_at`: waktu database/server.
 
-| Field | Tujuan |
-|---|---|
-| `id` | ID unik event |
-| `actor_user_id` | User yang melakukan tindakan |
-| `target_user_id` | User yang menjadi sasaran, bila ada |
-| `action` | Kode aktivitas yang stabil |
-| `entity_type` | Jenis objek, misalnya `user_access` atau `auth_user` |
-| `entity_id` | ID objek yang berubah |
-| `before_data` | Snapshot nilai sebelum perubahan |
-| `after_data` | Snapshot nilai setelah perubahan |
-| `created_at` | Waktu server saat event dicatat |
+Dilarang menyimpan password, token, Secret Key, session, OTP, atau data autentikasi sensitif.
 
-Tidak menyimpan password, token, Secret Key, session, OTP, atau data autentikasi sensitif. Untuk reset password hanya simpan event `user.password_reset` tanpa nilai sebelum/sesudah.
-
-## 3. Kode aktivitas tahap pertama
+## 3. Kode aktivitas
 
 - `user.created`
-- `user.access_updated` — mencakup perubahan Role, status, Scope, dan Permission; snapshot hanya memuat field yang relevan.
-- `user.email_updated` — email lama dan email baru boleh dicatat.
-- `user.password_reset` — event saja, tanpa password.
+- `user.access_updated`
+- `user.email_update_requested`, `user.email_updated`, `user.email_update_failed`
+- `user.password_reset_requested`, `user.password_reset`, `user.password_reset_failed`
 
-Event hanya dibuat setelah tindakan berhasil. Perubahan multi-tabel pada Role/status/Scope/Permission harus diperlakukan sebagai satu operasi yang konsisten: jangan membuat event sukses bila sebagian penyimpanan gagal. Implementasi perlu menggunakan transaksi database (misalnya RPC terverifikasi) atau strategi server yang menjamin perubahan dan audit event tersimpan bersama.
+Untuk email dan password, event hanya mencatat permintaan dan hasil; password tidak pernah masuk ke snapshot.
 
-## 4. Keamanan dan integritas
+## 4. Keamanan dan transaksi
 
-- Tabel audit memakai RLS aktif.
-- Tidak memberi akses langsung kepada `anon` atau `authenticated`.
-- Penulisan dilakukan server-side setelah `requireOwner()` dan validasi input.
-- Pembacaan tahap pertama hanya untuk Owner.
-- Tidak menyediakan edit atau delete event dari aplikasi.
-- Audit event harus ditulis dalam transaksi yang sama dengan perubahan yang diaudit.
-- Nilai `actor_user_id` berasal dari sesi server yang telah diverifikasi, bukan payload browser.
-- Waktu berasal dari database/server, bukan jam browser.
-- Kegagalan menulis audit harus menggagalkan perubahan yang diaudit (fail-closed), agar tidak ada perubahan tanpa jejak.
+- RLS aktif; tidak ada akses langsung untuk `anon` atau `authenticated`.
+- Hanya server-side code yang boleh membaca/menulis, setelah `requireOwner()`.
+- `service_role` hanya dipakai di server dan tidak boleh masuk ke browser.
+- Tidak menyediakan edit/delete event di aplikasi.
+- Nilai pelaku berasal dari sesi server, bukan payload browser.
+- Waktu dibuat oleh database/server.
+- Perubahan Role/status/Scope/Permission dan event audit harus berada dalam satu transaksi database. Jika audit gagal, perubahan database ikut dibatalkan.
+- Supabase Auth Admin API untuk email/password tidak dapat bergabung ke transaksi PostgreSQL. Karena itu dicatat sebagai event permintaan dan hasil (berhasil/gagal), tanpa mengklaim atomisitas lintas Auth dan database.
 
-## 5. Rancangan tabel yang diusulkan
+## 5. Skema tabel
 
-Nama tabel: `public.audit_logs`
+Nama tabel: `public.audit_logs`.
 
-Kolom awal:
-- `id uuid primary key default gen_random_uuid()`
+SQL schema draft terpisah: `AUDIT_LOG_SCHEMA_MIGRATION_REVIEW.sql`.
+
+Kolom:
+- `id uuid primary key`
 - `actor_user_id uuid null references auth.users(id) on delete set null`
 - `target_user_id uuid null references auth.users(id) on delete set null`
 - `action text not null`
@@ -70,37 +64,25 @@ Kolom awal:
 - `after_data jsonb null`
 - `created_at timestamptz not null default now()`
 
-Index yang diusulkan:
-- `created_at desc`
-- `target_user_id, created_at desc`
-- `actor_user_id, created_at desc`
+Index pada waktu, target+waktu, dan pelaku+waktu. Referensi akun memakai `ON DELETE SET NULL`, sehingga penghapusan akun tidak menghapus histori.
 
-Tidak ada FK cascade untuk audit log. Penghapusan akun tidak boleh menghapus riwayat; referensi aktor/target menjadi NULL bila akun Auth dihapus.
+## 6. Tampilan
 
-## 6. Tampilan Audit Log
+Halaman khusus Owner menampilkan waktu, pelaku, aktivitas, pengguna sasaran, dan ringkasan perubahan. Detail sebelum/sesudah dapat dibuka. Filter awal: tanggal, pelaku, pengguna, jenis aktivitas. JSON mentah tidak ditampilkan sebagai tampilan utama.
 
-Halaman Owner menampilkan:
-- Waktu.
-- Pelaku.
-- Aktivitas.
-- Pengguna/objek yang diubah.
-- Ringkasan perubahan.
+## 7. Tahapan
 
-Detail sebelum/sesudah dibuka saat dipilih. Filter awal: rentang tanggal, pelaku, pengguna, dan jenis aktivitas. Tampilan tidak menampilkan JSON mentah secara default.
-
-## 7. Tahapan pengerjaan
-
-1. Review SQL schema draft dan persetujuan Owner.
-2. Buat migration formal melalui Supabase CLI setelah draft disetujui; jangan jalankan sebelum persetujuan.
-3. Integrasikan operasi database administrasi pengguna dan audit dalam transaksi yang sama.
-4. Integrasikan event permintaan/hasil untuk operasi Supabase Auth.
+1. Review SQL schema draft.
+2. Setelah persetujuan, buat migration formal melalui Supabase CLI.
+3. Integrasikan perubahan Role/status/Scope/Permission dan audit dalam satu transaksi.
+4. Integrasikan event permintaan/hasil untuk operasi Auth.
 5. Buat halaman Riwayat Aktivitas khusus Owner.
-6. Uji keamanan, atomisitas, kegagalan, dan larangan menyimpan secret.
+6. Uji akses non-Owner, atomisitas, kegagalan, append-only, dan larangan penyimpanan secret.
 
-## 8. Batasan
+## 8. Status
 
-- SQL schema draft tersedia di \`AUDIT_LOG_SCHEMA_MIGRATION_REVIEW.sql\`; file ini masih berada di folder dokumentasi, bukan migration formal.
+- SQL schema draft tersedia di folder dokumentasi untuk ditinjau; **bukan migration formal**.
 - Belum ada migration formal yang dibuat atau dijalankan.
 - Belum ada tabel atau data Supabase yang diubah.
-- Belum ada kode aplikasi yang diubah untuk menulis atau membaca audit event.
-- Belum menyatakan Audit Log aktif sampai migration, integrasi, dan pengujian selesai.
+- Belum ada kode aplikasi yang menulis atau membaca audit event.
+- Audit Log belum aktif sampai implementasi dan pengujian selesai.
