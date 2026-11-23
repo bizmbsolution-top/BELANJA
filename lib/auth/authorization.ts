@@ -241,8 +241,13 @@ export async function requireActiveUser(): Promise<AccessContext> {
 export async function requireAnyRole(roles: readonly string[]): Promise<AccessContext> {
   const context = await getAccessContext();
 
+  // Platform Owner is deliberately not an operational tenant user.
+  if (context.isOwner) {
+    throw new AuthorizationError("not-owner", "Platform Owner tidak memiliki akses ke transaksi tenant.");
+  }
+
   const decision = evaluateRouteAccess({
-    isOwner: context.isOwner,
+    isOwner: false,
     profile: { is_active: true, roles: context.roles },
     requireAnyRole: roles,
   });
@@ -314,13 +319,11 @@ export async function requirePlatformOwner(): Promise<AccessContext> {
 export async function requireOwner(): Promise<AccessContext> {
   const identity = await requireAuthenticatedUser();
 
-  if (!identity.isOwner) {
-    throw new AuthorizationError("not-owner");
+  if (identity.isOwner) {
+    throw new AuthorizationError("not-owner", "Administrasi tenant dilakukan oleh Superadmin tenant, bukan Platform Owner.");
   }
 
-  await verifyOwnerActive(identity.userId);
-
-  return identity;
+  throw new AuthorizationError("not-owner", "Akses ini hanya tersedia untuk Superadmin tenant.");
 }
 
 /**
