@@ -11,7 +11,7 @@ Audit Log tahap pertama mencatat administrasi pengguna:
 - Permintaan dan hasil perubahan email.
 - Permintaan dan hasil reset password.
 
-Tidak mencatat isi transaksi Pembelian/Penjualan, atau klik/navigasi. Perubahan Master Supplier dicatat sebagai event data master.
+Tidak mencatat isi transaksi Pembelian/Penjualan, atau klik/navigasi. Perubahan Master Supplier dan Kategori Pembelian dicatat sebagai event data master.
 
 ## 2. Data dan keamanan
 
@@ -94,3 +94,14 @@ File SQL yang sesuai disimpan di `supabase/migrations/` pada branch preview. Fil
 - Uji bahwa event tidak dapat diubah/dihapus melalui jalur aplikasi.
 
 Audit Log sudah memiliki skema dan integrasi awal, tetapi belum dinyatakan lulus pengujian end-to-end sampai butir di atas selesai.
+
+
+## 10. Master Kategori Pembelian
+
+- Tabel `public.purchase_categories` tersedia dengan kode otomatis `KAT-000001`, nama unik (tanpa membedakan huruf besar/kecil), keterangan, status aktif, timestamp, dan pencatat.
+- RLS aktif; akses tabel hanya melalui server-side `service_role`, tanpa grant baca langsung untuk `anon` atau `authenticated`.
+- Create/update menggunakan RPC `SECURITY INVOKER`; perubahan data dan insert Audit Log berada dalam satu transaksi.
+- Tidak ada hard delete. Kategori yang sudah pernah dipakai dapat dinonaktifkan.
+- Event: `purchase_category.created` dan `purchase_category.updated`.
+- Menu Kategori Pembelian tersedia untuk Finance dan Management pada `/dashboard/kategori`.
+- Kategori aktif menjadi pilihan untuk transaksi pembelian pada tahap implementasi transaksi; modul transaksi belum dihubungkan saat ini.
