@@ -79,7 +79,7 @@ export default async function ActivityHistoryPage() {
 
   const rows = (data ?? []) as AuditRow[];
   const { data: userData } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
-  const emailById = new Map((userData?.users ?? []).map((user) => [user.id, user.email ?? user.id]));
+  const emailById = new Map((userData?.users ?? []).map((user) => [user.id, user.email ?? user.id] as const));
 
   return (
     <main className={styles.page}>
