@@ -26,6 +26,13 @@ type UserRecord = {
   email: string;
   roles: string[];
   status: "Aktif" | "Nonaktif";
+  scopes: { project: "none" | "all"; department: "none" | "all"; warehouse: "none" | "all" };
+  permissions: {
+    "transaction.post_recognition": "unset" | "allow" | "deny";
+    "fund_utilization.post_recognition": "unset" | "allow" | "deny";
+    "payment.post": "unset" | "allow" | "deny";
+    "payment.allocate": "unset" | "allow" | "deny";
+  };
 };
 
 
@@ -38,6 +45,12 @@ const sensitivePermissions = [
   { id: "fund_utilization.post_recognition", label: "Posting Fund Utilization" },
   { id: "payment.post", label: "Posting Payment" },
   { id: "payment.allocate", label: "Alokasi Payment" },
+] as const;
+
+const scopeDimensions = [
+  { id: "project", label: "Project" },
+  { id: "department", label: "Department" },
+  { id: "warehouse", label: "Warehouse" },
 ] as const;
 
 export default function UserAccess({ initialUsers }: { initialUsers: UserRecord[] }) {
@@ -76,6 +89,20 @@ export default function UserAccess({ initialUsers }: { initialUsers: UserRecord[
       ? selectedUser.roles.filter((item) => item !== role)
       : [...selectedUser.roles, role];
     setUsers((current) => current.map((user) => user.id === selectedId ? { ...user, roles } : user));
+    setSaved(false);
+  }
+
+  function updateScope(dimension: keyof UserRecord["scopes"], value: "none" | "all") {
+    setUsers((current) => current.map((user) =>
+      user.id === selectedId ? { ...user, scopes: { ...user.scopes, [dimension]: value } } : user
+    ));
+    setSaved(false);
+  }
+
+  function updatePermission(permission: keyof UserRecord["permissions"], value: "unset" | "allow" | "deny") {
+    setUsers((current) => current.map((user) =>
+      user.id === selectedId ? { ...user, permissions: { ...user.permissions, [permission]: value } } : user
+    ));
     setSaved(false);
   }
   async function addUserPreview(event: FormEvent<HTMLFormElement>) {
@@ -186,7 +213,13 @@ export default function UserAccess({ initialUsers }: { initialUsers: UserRecord[
     if (!selectedUser.id) return;
     setSaveBusy(true);
     setSaveError("");
-    const result = await saveUserAccessProfile({ userId: selectedUser.id, roles: selectedUser.roles, status: selectedUser.status });
+    const result = await saveUserAccessProfile({
+      userId: selectedUser.id,
+      roles: selectedUser.roles,
+      status: selectedUser.status,
+      scopes: selectedUser.scopes,
+      permissions: selectedUser.permissions,
+    });
     setSaveBusy(false);
     if (!result.ok) {
       setSaved(false);
@@ -202,14 +235,14 @@ export default function UserAccess({ initialUsers }: { initialUsers: UserRecord[
         <div>
           <p className={styles.eyebrow}>SENTRALOGIS · OPERATIONS</p>
           <h1>Pengaturan Pengguna</h1>
-          <p className={styles.subtitle}>Atur Role dan status akun pengguna. Area kerja dan permission khusus belum aktif.</p>
+          <p className={styles.subtitle}>Atur Role, area kerja, dan permission khusus setiap pengguna.</p>
         </div>
         <div className={styles.headerActions}><a className={styles.backLink} href="/dashboard">Kembali ke Dashboard</a><form action={signOut}><button className={styles.logoutButton} type="submit">Keluar</button></form></div>
       </header>
 
       <div className={styles.previewNote}>
         <strong>Mode preview</strong>
-        <span>Akun, Role, dan status terhubung ke Supabase. Area Kerja dan Permission belum aktif dan belum menyimpan pengaturan.</span>
+        <span>Role, status, Scope All, dan Permission khusus tersimpan ke Supabase. Pilihan Selected menunggu master data.</span>
       </div>
 
       <div className={styles.layout}>
@@ -283,19 +316,32 @@ export default function UserAccess({ initialUsers }: { initialUsers: UserRecord[
           <section className={styles.section}>
             <h3>Area Kerja</h3>
             <p className={styles.helper}>
-              Fitur ini belum aktif dan belum menyimpan pengaturan.
+              Atur batas data yang dapat dibuka pengguna. Scope yang tidak dipilih berarti tidak ada akses.
+              Pilihan Selected akan diaktifkan setelah master data tersedia.
             </p>
-            <p className={styles.helper}>
-              Penyimpanan Scope Project, Department, dan Warehouse belum tersedia di
-              database, sehingga kontrol Area Kerja dinonaktifkan sampai desain
-              penyimpanannya disetujui dan diimplementasikan. Tidak ada nilai Area
-              Kerja yang dikirim ke server dari halaman ini.
-            </p>
-            <div className={styles.deferredList} aria-disabled="true">
-              {(["Project", "Department", "Warehouse"] as const).map((dimension) => (
-                <div className={styles.deferredItem} key={dimension}>
-                  <span>{dimension}</span>
-                  <span className={styles.deferredBadge}>Belum aktif</span>
+            <div className={styles.scopeGrid}>
+              {scopeDimensions.map((dimension) => (
+                <div className={styles.scopeCard} key={dimension.id}>
+                  <h4>{dimension.label}</h4>
+                  <label className={styles.radioChoice}>
+                    <input
+                      type="radio"
+                      name={`scope-${selectedId}-${dimension.id}`}
+                      checked={selectedUser.scopes[dimension.id] === "all"}
+                      onChange={() => updateScope(dimension.id, "all")}
+                    />
+                    <span>All — seluruh {dimension.label}</span>
+                  </label>
+                  <label className={styles.radioChoice}>
+                    <input
+                      type="radio"
+                      name={`scope-${selectedId}-${dimension.id}`}
+                      checked={selectedUser.scopes[dimension.id] === "none"}
+                      onChange={() => updateScope(dimension.id, "none")}
+                    />
+                    <span>Tidak ada akses</span>
+                  </label>
+                  <p className={styles.allHint}>Selected belum tersedia — master {dimension.label} belum dibuat.</p>
                 </div>
               ))}
             </div>
@@ -304,19 +350,26 @@ export default function UserAccess({ initialUsers }: { initialUsers: UserRecord[
           <section className={styles.section}>
             <h3>Permission khusus</h3>
             <p className={styles.helper}>
-              Fitur ini belum aktif dan belum menyimpan pengaturan.
+              Pengaturan berlaku per pengguna, bukan dari Role. Pilih Izinkan atau Tolak.
+              Belum diatur berarti permission tidak diberikan.
             </p>
-            <p className={styles.helper}>
-              Permission sensitif bersifat individual dan tidak diturunkan dari Role.
-              Karena penyimpanan permission per pengguna belum tersedia di database,
-              tidak ada checkbox yang ditampilkan dan tidak ada nilai permission yang
-              dikirim ke server dari halaman ini.
-            </p>
-            <div className={styles.deferredList} aria-disabled="true">
+            <div className={styles.permissionList}>
               {sensitivePermissions.map((permission) => (
-                <div className={styles.deferredItem} key={permission.id}>
-                  <span>{permission.label}</span>
-                  <span className={styles.deferredBadge}>Belum aktif</span>
+                <div className={styles.permissionItem} key={permission.id}>
+                  <strong>{permission.label}</strong>
+                  <div className={styles.permissionControl}>
+                    {(["unset", "allow", "deny"] as const).map((effect) => (
+                      <label key={effect}>
+                        <input
+                          type="radio"
+                          name={`permission-${selectedId}-${permission.id}`}
+                          checked={selectedUser.permissions[permission.id] === effect}
+                          onChange={() => updatePermission(permission.id, effect)}
+                        />
+                        {effect === "unset" ? "Belum diatur" : effect === "allow" ? "Izinkan" : "Tolak"}
+                      </label>
+                    ))}
+                  </div>
                 </div>
               ))}
             </div>
