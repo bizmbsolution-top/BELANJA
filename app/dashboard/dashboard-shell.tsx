@@ -11,7 +11,7 @@ type Props = {
   children: React.ReactNode;
   email: string;
   roles: string[];
-  isOwner: boolean;
+  isSuperadmin: boolean;
 };
 
 type MenuItem = {
@@ -23,7 +23,7 @@ type MenuItem = {
 type MenuGroup = {
   title: string;
   items: MenuItem[];
-  ownerOnly?: boolean;
+  superadminOnly?: boolean;
 };
 
 const groups: MenuGroup[] = [
@@ -63,8 +63,8 @@ const groups: MenuGroup[] = [
     ],
   },
   {
-    title: "ADMINISTRASI OWNER",
-    ownerOnly: true,
+    title: "ADMINISTRASI SUPERADMIN",
+    superadminOnly: true,
     items: [
       { label: "Pengguna & Akses", href: "/dashboard/pengguna" },
       { label: "Role & Permission" },
@@ -93,7 +93,7 @@ function Brand() {
   );
 }
 
-export default function DashboardShell({ children, email, roles, isOwner }: Props) {
+export default function DashboardShell({ children, email, roles, isSuperadmin }: Props) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState<string[]>([]);
@@ -111,11 +111,11 @@ export default function DashboardShell({ children, email, roles, isOwner }: Prop
   }
 
   const visibleGroups = groups
-    .filter((group) => !group.ownerOnly || isOwner)
+    .filter((group) => !group.superadminOnly || isSuperadmin)
     .map((group) => ({
       ...group,
       items: group.items.filter((item) =>
-        isOwner || !item.roles || item.roles.some((role) => roles.includes(role))
+        isSuperadmin || !item.roles || item.roles.some((role) => roles.includes(role))
       ),
     }))
     .filter((group) => group.items.length > 0);
@@ -173,9 +173,9 @@ export default function DashboardShell({ children, email, roles, isOwner }: Prop
       </div>
       <div className={styles.sidebarFooter}>
         <div className={styles.userBadge}>
-          <span className={styles.userAvatar}>{isOwner ? "O" : (roles[0]?.[0] ?? "U")}</span>
+          <span className={styles.userAvatar}>{isSuperadmin ? "S" : (roles[0]?.[0] ?? "U")}</span>
           <span className={styles.userDetails}>
-            <strong>{isOwner ? "Superadmin" : roles.join(" · ")}</strong>
+            <strong>{isSuperadmin ? "Superadmin" : roles.join(" · ")}</strong>
             <small>{email}</small>
           </span>
         </div>
@@ -207,7 +207,7 @@ export default function DashboardShell({ children, email, roles, isOwner }: Prop
           <button type="button" className={styles.menuButton} onClick={() => setMobileOpen(true)} aria-label="Buka menu">☰</button>
           <Brand />
           <button type="button" className={styles.mobileThemeToggle} onClick={toggleTheme} aria-label={theme === "light" ? "Aktifkan mode gelap" : "Aktifkan mode terang"}>{theme === "light" ? "☾" : "☀"}</button>
-          <span className={styles.mobileRole}>{isOwner ? "Superadmin" : roles.join(", ")}</span>
+          <span className={styles.mobileRole}>{isSuperadmin ? "Superadmin" : roles.join(", ")}</span>
         </header>
         <main className={styles.content}>{children}</main>
       </div>
