@@ -1,0 +1,2 @@
+create index if not exists customer_warehouse_addresses_created_by_idx on public.customer_warehouse_addresses(created_by);
+create index if not exists customer_warehouse_addresses_updated_by_idx on public.customer_warehouse_addresses(updated_by);
