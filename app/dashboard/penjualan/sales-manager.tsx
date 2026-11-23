@@ -1,20 +1,21 @@
 "use client";
 import { useMemo,useState,type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { createSalesDraft, confirmSalesDispatch } from "./actions";
+import { createSalesDraft, confirmSalesDispatch, finalizeSalesOrder } from "./actions";
 import styles from "./sales.module.css";
 type Lookup={id:string;code:string;name:string};
 type CustomerLookup=Lookup&{billing_address:string|null;warehouse_addresses:{id:string;label:string;address:string}[]};
 type Lot={id:string;code:string;project_id:string;warehouse_id:string;category_id:string;supplier_id:string;initial_weight_kg:number;grade_value:number;grade_unit:string;purchase_price_per_kg:number;total_purchase_cost:number;inbound_date:string;available_weight_kg:number;category_name:string;supplier_name:string};
-type Order={id:string;code:string;customer_id:string;project_id:string;destination:string;sale_price_per_kg:number;notes:string|null;status:string;created_at:string;dispatched_weight_kg:number|null;dispatched_at:string|null};
+type Order={id:string;code:string;customer_id:string;project_id:string;destination:string;sale_price_per_kg:number;notes:string|null;status:string;created_at:string;dispatched_weight_kg:number|null;dispatched_at:string|null;received_weight_kg:number|null;final_grade_value:number|null;final_grade_unit:string|null;final_price_per_kg:number|null;final_amount:number|null;ba_number:string|null;ba_date:string|null;discrepancy_notes:string|null;dispatched_purchase_cost:number|null};
 type Allocation={id:string;sales_order_id:string;lot_id:string;source_warehouse_id:string;category_id:string;allocated_weight_kg:number;grade_value:number;grade_unit:string;purchase_cost_per_kg:number;allocated_purchase_cost:number};
-export type SalesPageData={actorRoles:string[];projects:Lookup[];warehouses:Lookup[];warehouseProjects:{project_id:string;warehouse_id:string}[];customers:CustomerLookup[];lots:Lot[];orders:Order[];allocations:Allocation[];categories:{id:string;name:string}[];suppliers:{id:string;name:string}[]};
+type SalesDocument={id:string;sales_order_id:string;file_name:string;signed_url:string|null;document_type:string};
+export type SalesPageData={actorRoles:string[];projects:Lookup[];warehouses:Lookup[];warehouseProjects:{project_id:string;warehouse_id:string}[];customers:CustomerLookup[];lots:Lot[];orders:Order[];allocations:Allocation[];documents:SalesDocument[];categories:{id:string;name:string}[];suppliers:{id:string;name:string}[]};
 const money=(n:number)=>new Intl.NumberFormat("id-ID",{style:"currency",currency:"IDR",maximumFractionDigits:0}).format(n);
 const qty=(n:number)=>Number(n).toLocaleString("id-ID",{maximumFractionDigits:3});
 export default function SalesManager({data}:{data:SalesPageData}){
  const router=useRouter();const canCreate=data.actorRoles.includes("Sales")||data.actorRoles.includes("Superadmin");const canDispatch=data.actorRoles.includes("Sales")||data.actorRoles.includes("Warehouse")||data.actorRoles.includes("Superadmin");
  const [open,setOpen]=useState(false),[customerId,setCustomerId]=useState(""),[deliveryAddressId,setDeliveryAddressId]=useState(""),[projectId,setProjectId]=useState(""),[warehouseIds,setWarehouseIds]=useState<string[]>([]),[weights,setWeights]=useState<Record<string,string>>({});
- const [busy,setBusy]=useState(false),[error,setError]=useState(""),[message,setMessage]=useState(""),[salePriceInput,setSalePriceInput]=useState(""),[confirmDispatchId,setConfirmDispatchId]=useState(""),[dispatchingId,setDispatchingId]=useState("");
+ const [busy,setBusy]=useState(false),[error,setError]=useState(""),[message,setMessage]=useState(""),[salePriceInput,setSalePriceInput]=useState(""),[confirmDispatchId,setConfirmDispatchId]=useState(""),[dispatchingId,setDispatchingId]=useState(""),[finalizeId,setFinalizeId]=useState(""),[finalizingId,setFinalizingId]=useState("");
  const selectedCustomer=data.customers.find(c=>c.id===customerId);
  const warehousesForProject=useMemo(()=>data.warehouses.filter(w=>data.warehouseProjects.some(m=>m.project_id===projectId&&m.warehouse_id===w.id)),[data.warehouses,data.warehouseProjects,projectId]);
  const selectableLots=data.lots.filter(l=>l.project_id===projectId&&warehouseIds.includes(l.warehouse_id)&&l.available_weight_kg>0.0001);
@@ -31,6 +32,14 @@ export default function SalesManager({data}:{data:SalesPageData}){
   setBusy(false);if(!r.ok){setError(r.error);return;}setMessage("Draft Penjualan berhasil dibuat.");reset();router.refresh();
  }
  function toggleWarehouse(id:string,checked:boolean){setWarehouseIds(old=>checked?[...old,id]:old.filter(x=>x!==id));}
+ async function finalizeOrder(e:FormEvent<HTMLFormElement>,id:string){
+  e.preventDefault();setFinalizingId(id);setError("");setMessage("");
+  const form=new FormData(e.currentTarget);const file=form.get("baFile");
+  if(!(file instanceof File)||!file.size){setFinalizingId("");setError("Lampirkan Berita Acara Penerimaan pembeli.");return;}
+  const result=await finalizeSalesOrder({salesOrderId:id,receivedWeightKg:String(form.get("receivedWeightKg")??""),finalGradeValue:String(form.get("finalGradeValue")??""),finalGradeUnit:String(form.get("finalGradeUnit")??"%"),finalPricePerKg:String(form.get("finalPricePerKg")??""),baNumber:String(form.get("baNumber")??""),baDate:String(form.get("baDate")??""),discrepancyNotes:String(form.get("discrepancyNotes")??"")},file);
+  setFinalizingId("");if(!result.ok){setError(result.error);return;}
+  setFinalizeId("");setMessage("Penerimaan pembeli berhasil difinalisasi berdasarkan BA.");router.refresh();
+ }
  async function dispatchOrder(id:string){
   setDispatchingId(id);setError("");setMessage("");
   const result=await confirmSalesDispatch(id);
@@ -69,6 +78,9 @@ export default function SalesManager({data}:{data:SalesPageData}){
     {o.notes&&<p className={styles.note}>{o.notes}</p>}
     {o.status==="Draft"&&<p className={styles.footnote}>Draft tersimpan · Stok belum dikurangi.</p>}
     {o.status==="Dikirim"&&<p className={styles.footnote}>Barang keluar dikonfirmasi · {qty(Number(o.dispatched_weight_kg??a.reduce((s,x)=>s+Number(x.allocated_weight_kg),0)))} kg · {o.dispatched_at?new Date(o.dispatched_at).toLocaleString("id-ID"):""}</p>}
+    {o.status==="Selesai"&&<div className={styles.finalSummary}><b>Penerimaan Pembeli · BA {o.ba_number} · {o.ba_date?new Date(o.ba_date+"T00:00:00").toLocaleDateString("id-ID"):""}</b><span>Berat diterima: <b>{qty(Number(o.received_weight_kg))} kg</b></span><span>Kadar final: <b>{qty(Number(o.final_grade_value))} {o.final_grade_unit}</b></span><span>Harga final: <b>{money(Number(o.final_price_per_kg))}/kg</b></span><span>Nilai penjualan final: <b>{money(Number(o.final_amount))}</b></span><span>Estimasi laba kotor: <b>{money(Number(o.final_amount)-Number(o.dispatched_purchase_cost??0))}</b></span>{o.discrepancy_notes&&<small>Selisih/keterangan: {o.discrepancy_notes}</small>}</div>}
+    {data.documents.filter(d=>d.sales_order_id===o.id).map(doc=>doc.signed_url&&<a className={styles.baLink} key={doc.id} href={doc.signed_url} target="_blank" rel="noreferrer">Buka BA Pembeli: {doc.file_name}</a>)}
+    {o.status==="Dikirim"&&canCreate&&<div className={styles.dispatchActions}>{finalizeId===o.id?<form className={styles.finalForm} onSubmit={e=>finalizeOrder(e,o.id)}><b>Finalisasi Penerimaan Pembeli</b><small>Isi sesuai Berita Acara Penerimaan resmi dari pembeli.</small><label>Berat Bersih Diterima (kg)<input name="receivedWeightKg" type="number" min="0.001" max={Number(o.dispatched_weight_kg??0)} step="0.001" defaultValue={o.dispatched_weight_kg??""} required/></label><label>Kadar Akhir<input name="finalGradeValue" type="number" min="0" step="0.0001" required/></label><label>Satuan Kadar<input name="finalGradeUnit" defaultValue="%" maxLength={20} required/></label><label>Harga Jual Final per kg (Rp)<input name="finalPricePerKg" type="number" min="0.01" step="0.01" defaultValue={o.sale_price_per_kg} required/></label><label>Nomor BA<input name="baNumber" maxLength={100} required/></label><label>Tanggal BA<input name="baDate" type="date" required/></label><label className={styles.finalWide}>Upload BA Pembeli (PDF/JPG/PNG, maks. 10 MB)<input name="baFile" type="file" accept="application/pdf,image/jpeg,image/png" required/></label><label className={styles.finalWide}>Catatan Selisih / Keterangan<textarea name="discrepancyNotes" maxLength={1000} rows={2} placeholder="Contoh: berat/kadar berbeda dari hasil pengiriman"/></label><div className={styles.finalWide}><button type="button" className={styles.secondary} onClick={()=>setFinalizeId("")}>Batal</button> <button type="submit" className={styles.primary} disabled={finalizingId===o.id}>{finalizingId===o.id?"Menyimpan...":"Selesaikan Penjualan"}</button></div></form>:<button type="button" className={styles.primary} onClick={()=>setFinalizeId(o.id)}>Finalisasi Penerimaan Pembeli</button>}</div>}
     {o.status==="Draft"&&canDispatch&&<div className={styles.dispatchActions}>{confirmDispatchId===o.id?<><span>Pastikan barang benar-benar sudah keluar dari gudang.</span><button type="button" className={styles.secondary} onClick={()=>setConfirmDispatchId("")}>Batal</button><button type="button" className={styles.primary} disabled={dispatchingId===o.id} onClick={()=>dispatchOrder(o.id)}>{dispatchingId===o.id?"Memproses...":"Ya, Konfirmasi Keluar"}</button></>:<button type="button" className={styles.primary} onClick={()=>setConfirmDispatchId(o.id)}>Konfirmasi Barang Keluar</button>}</div>}
    </article>})}
   </section>
