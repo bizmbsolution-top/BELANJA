@@ -8,20 +8,24 @@ export const revalidate = 0;
 export default async function FundRequestPage() {
   const actor = await guardPage(() => requireAnyRole(["Cashier", "Finance", "Management"]));
   const admin = createAdminClient();
+  const needsCashierScope = !actor.isOwner && actor.roles.includes("Cashier");
   const [{ data: projects, error: projectError }, scopeResult] = await Promise.all([
     admin.from("projects").select("id,code,name").eq("is_active", true).order("name"),
-    actor.isOwner || actor.roles.some(r => r === "Finance" || r === "Management")
-      ? Promise.resolve({ data: null, error: null })
-      : admin.from("user_work_scopes").select("scope_mode,resource_ids").eq("user_id", actor.userId).eq("dimension", "project").maybeSingle(),
+    needsCashierScope
+      ? admin.from("user_work_scopes").select("scope_mode,resource_ids").eq("user_id", actor.userId).eq("dimension", "project").maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
   ]);
   if (projectError || scopeResult.error) throw new Error("Data Project gagal dimuat.");
-  let visibleProjects = (projects ?? []) as ProjectOption[];
-  if (!actor.isOwner && !actor.roles.some(r => r === "Finance" || r === "Management")) {
+  const allProjects = (projects ?? []) as ProjectOption[];
+  let requestProjects: ProjectOption[] = [];
+  if (actor.isOwner) requestProjects = allProjects;
+  else if (needsCashierScope) {
     const scope = scopeResult.data as { scope_mode?: string; resource_ids?: string[] } | null;
-    visibleProjects = scope?.scope_mode === "all"
-      ? visibleProjects
-      : visibleProjects.filter(p => scope?.scope_mode === "selected" && scope.resource_ids?.includes(p.id));
+    requestProjects = scope?.scope_mode === "all" ? allProjects
+      : allProjects.filter(p => scope?.scope_mode === "selected" && scope.resource_ids?.includes(p.id));
   }
+  const canSeeAllProjects = actor.isOwner || actor.roles.some(r => r === "Finance" || r === "Management");
+  const visibleProjects = canSeeAllProjects ? allProjects : requestProjects;
   const visibleIds = visibleProjects.map(p => p.id);
   const [{ data: requests, error: requestError }, { data: ledger, error: ledgerError }] = await Promise.all([
     admin.from("fund_requests")
@@ -33,8 +37,8 @@ export default async function FundRequestPage() {
   if (requestError || ledgerError) throw new Error("Data permintaan atau saldo dana gagal dimuat.");
   const balances: Record<string, number> = {};
   for (const entry of ledger ?? []) balances[entry.project_id] = (balances[entry.project_id] ?? 0) + Number(entry.amount);
-  return <FundRequestManager projects={visibleProjects} initialRequests={(requests ?? []) as unknown as FundRequest[]}
-    balances={balances} canRequest={actor.isOwner || actor.roles.includes("Cashier")}
-    canExecute={actor.isOwner || actor.roles.includes("Finance")}
-    />;
+  return <FundRequestManager projects={visibleProjects} requestProjects={requestProjects}
+    initialRequests={(requests ?? []) as unknown as FundRequest[]} balances={balances}
+    canRequest={actor.isOwner || (actor.roles.includes("Cashier") && requestProjects.length > 0)}
+    canExecute={actor.isOwner || actor.roles.includes("Finance")} />;
 }
