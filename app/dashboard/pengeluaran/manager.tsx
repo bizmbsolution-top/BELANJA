@@ -12,6 +12,7 @@ export type Expense = {
   amount: number; payment_method: string; status: "Aktif" | "Dibatalkan"; cancellation_reason: string | null;
   cancelled_at: string | null; created_at: string; expense_categories: { name: string } | null; expense_documents: Document[];
 };
+const formatAmountInput = (value: string) => { const digits = value.replace(/\D/g, "").slice(0, 16); return digits.replace(/\B(?=(\d{3})+(?!\d))/g, "."); };
 const money = (value: number) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(value);
 const date = (value: string) => new Intl.DateTimeFormat("id-ID", { dateStyle: "medium", timeZone: "Asia/Jakarta" }).format(new Date(value + (value.length === 10 ? "T00:00:00" : "")));
 const bytes = (value: number) => value < 1024 * 1024 ? `${Math.max(1, Math.round(value / 1024))} KB` : `${(value / (1024 * 1024)).toFixed(1)} MB`;
@@ -41,7 +42,7 @@ export default function ExpenseManager({ categories, initialItems }: { categorie
   const total = active.reduce((sum, item) => sum + Number(item.amount), 0);
   async function submitExpense(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setSaving(true); setError(""); setMessage("");
-    const result = await createExpense({ expenseDate: dateValue, categoryId, description, amount, paymentMethod });
+    const result = await createExpense({ expenseDate: dateValue, categoryId, description, amount: amount.replace(/\./g, ""), paymentMethod });
     setSaving(false);
     if (!result.ok) { setError(result.error); return; }
     setMessage("Pengeluaran berhasil disimpan."); setShowForm(false); setCategoryId(""); setDescription(""); setAmount(""); router.refresh();
@@ -82,7 +83,7 @@ export default function ExpenseManager({ categories, initialItems }: { categorie
       <label>Tanggal *<input required type="date" value={dateValue} onChange={e => setDateValue(e.target.value)} /></label>
       <label>Kategori *<select required value={categoryId} onChange={e => setCategoryId(e.target.value)}><option value="">Pilih kategori</option>{categories.map(item => <option key={item.id} value={item.id}>{item.code} · {item.name}</option>)}</select></label>
       <label className={styles.wide}>Keterangan / Keperluan *<textarea required maxLength={1000} rows={3} value={description} onChange={e => setDescription(e.target.value)} placeholder="Contoh: Tiket pesawat perjalanan dinas ke Jakarta" /></label>
-      <label>Nominal (Rp) *<input required type="number" min="1" step="1" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0" /></label>
+      <label className={styles.amountField}>Nominal Pengeluaran (Rp) *<input className={styles.amountInput} required type="text" inputMode="numeric" autoComplete="off" value={amount} onChange={e => setAmount(formatAmountInput(e.target.value))} placeholder="0" aria-describedby="expense-amount-help" /><small id="expense-amount-help">Angka otomatis menggunakan titik pemisah ribuan.</small></label>
       <label>Metode Pembayaran *<select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)}><option>Transfer</option><option>Tunai</option><option>Kartu</option><option>E-Wallet</option><option>Lainnya</option></select></label>
       <div className={styles.wide}><button className={styles.primary} disabled={saving || categories.length === 0}>{saving ? "Menyimpan..." : "Simpan Pengeluaran"}</button></div>
       {categories.length === 0 && <p className={styles.error}>Belum ada kategori expenses aktif. Aktifkan kategori terlebih dahulu.</p>}
