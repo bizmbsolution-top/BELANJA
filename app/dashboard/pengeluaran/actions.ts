@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { requireAnyRole } from "@/lib/auth/authorization";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -108,6 +109,7 @@ export async function deleteExpenseDocument(documentId: string): Promise<Result>
       console.error("deleteExpenseDocument Storage cleanup failed:", storageError);
       return { ok: false, error: "Catatan dokumen sudah dihapus, tetapi file fisik gagal dibersihkan. Hubungi administrator." };
     }
+    revalidatePath("/dashboard/pengeluaran");
     return { ok: true };
   } catch { return { ok: false, error: "Akses atau penghapusan dokumen gagal." }; }
 }
