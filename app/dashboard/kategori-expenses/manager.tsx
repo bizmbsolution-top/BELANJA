@@ -50,7 +50,6 @@ export default function ExpenseCategoryManager({initialItems}:{initialItems:Expe
    <button className={styles.primaryButton} onClick={add} type="button">+ Tambah Akun Biaya</button>
   </header>
   <section className={styles.summary}>
-   <div><strong>{initialItems.length}</strong><span>Total akun</span></div>
    <div><strong>{direct}</strong><span>Direct Cost</span></div>
    <div><strong>{overhead}</strong><span>General Overhead</span></div>
    <div><strong>{flexible}</strong><span>Fleksibel</span></div>
