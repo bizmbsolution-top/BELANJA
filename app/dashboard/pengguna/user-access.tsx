@@ -6,19 +6,7 @@ import { createManagedUser, resetUserPassword, saveUserAccessProfile, updateMana
 import { signOut } from "@/app/login/actions";
 
 /*
- * Scope and Permission controls are intentionally NOT rendered as editable.
- *
- * The backend stores only user_id, roles and is_active. There is no table or
- * column for Project / Department / Warehouse scope, and no storage for the
- * sensitive per-user permissions. The former controls held placeholder data
- * ("Project A", "Gudang Utama", ...) in React state and were never sent to the
- * server, so they implied a capability that does not exist.
- *
- * The design decisions themselves are NOT withdrawn. They remain specified in
- * docs/phase-0c/ui-foundation/UI_03A_STAGE_2_AD_018_PROJECT_DEPT_SCOPE_ARCHITECTURE.md
- * and docs/phase-0c/rbac/AUTHORIZATION_SCOPE_MODEL.md, and must be implemented
- * once an Owner-approved storage design exists.
- */
+/** Owner-only access settings are loaded and saved by server actions. */
 
 type UserRecord = {
   id: string;
@@ -26,7 +14,7 @@ type UserRecord = {
   email: string;
   roles: string[];
   status: "Aktif" | "Nonaktif";
-  scopes: { project: "none" | "all"; department: "none" | "all"; warehouse: "none" | "all" };
+  scopes: { project: "none" | "all" | "selected"; department: "none" | "all" | "selected"; warehouse: "none" | "all" | "selected" };
   permissions: {
     "transaction.post_recognition": "unset" | "allow" | "deny";
     "fund_utilization.post_recognition": "unset" | "allow" | "deny";
@@ -37,8 +25,7 @@ type UserRecord = {
 
 
 /**
- * Sensitive per-user permissions. These remain individual grants and are NOT
- * derived from Role. Displayed read-only until backend storage exists.
+ * Sensitive permissions are configured per user and are never inherited from Role.
  */
 const sensitivePermissions = [
   { id: "transaction.post_recognition", label: "Posting Transaction" },
@@ -341,7 +328,11 @@ export default function UserAccess({ initialUsers }: { initialUsers: UserRecord[
                     />
                     <span>Tidak ada akses</span>
                   </label>
-                  <p className={styles.allHint}>Selected belum tersedia — master {dimension.label} belum dibuat.</p>
+                  <label className={styles.radioChoice}>
+                    <input type="radio" name={`scope-${selectedId}-${dimension.id}`} checked={selectedUser.scopes[dimension.id] === "selected"} disabled readOnly />
+                    <span>Selected — menunggu master data</span>
+                  </label>
+                  <p className={styles.allHint}>Pilihan Selected belum dapat diubah sampai master {dimension.label} tersedia.</p>
                 </div>
               ))}
             </div>
