@@ -74,7 +74,7 @@ export default async function PersediaanPage() {
   for (const m of visible) {
     const key = [m.warehouse_id,m.project_id,m.category_id,m.value_unit].join("|");
     const row = balances.get(key) ?? { warehouse_id:m.warehouse_id,project_id:m.project_id,category_id:m.category_id,value_unit:m.value_unit,weight:0,valueWeight:0 };
-    const sign = m.movement_type === "issue" || m.movement_type === "transfer_out" ? -1 : 1;
+    const sign = m.movement_type === "issue" || m.movement_type === "transfer_out" || m.movement_type === "sale_dispatch" ? -1 : 1;
     const kg = Number(m.weight_kg);
     row.weight += sign*kg; row.valueWeight += sign*kg*Number(m.value);
     balances.set(key,row);
