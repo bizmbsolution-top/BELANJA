@@ -15,7 +15,7 @@ async function assertProjectAccess(userId: string, projectId: string, isOwner: b
   if (!project || project.is_active !== true) throw new Error("Project tidak aktif atau tidak ditemukan.");
   if (isOwner) return;
   const { data: scope, error } = await admin.from("user_work_scopes").select("scope_mode,resource_ids").eq("user_id", userId).eq("dimension", "project").maybeSingle();
-  if (error || !scope) throw new Error("Area kerja Project belum diatur oleh Owner.");
+  if (error || !scope) throw new Error("Area kerja Project belum diatur oleh Superadmin perusahaan.");
   if (scope.scope_mode === "all") return;
   if (scope.scope_mode !== "selected" || !Array.isArray(scope.resource_ids) || !scope.resource_ids.includes(projectId)) {
     throw new Error("Project di luar area kerja akun Anda.");
@@ -31,7 +31,7 @@ export async function createFundRequest(input: { projectId: string; amount: stri
     if (!isUuid(projectId)) return { ok: false, error: "Project wajib dipilih." };
     if (!Number.isSafeInteger(amount) || amount <= 0 || amount > 9999999999999999) return { ok: false, error: "Nominal permintaan tidak valid." };
     if (!purpose || purpose.length > 1000) return { ok: false, error: "Tujuan penggunaan dana wajib diisi (maksimal 1.000 karakter)." };
-    await assertProjectAccess(actor.userId, projectId, actor.isOwner);
+    await assertProjectAccess(actor.userId, projectId, actor.tenantRole === "superadmin");
     const { data, error } = await createAdminClient().rpc("create_fund_request_with_audit", {
       p_actor_user_id: actor.userId, p_project_id: projectId, p_request_amount: amount, p_purpose: purpose,
     });
@@ -50,7 +50,7 @@ export async function uploadFundRequestDocuments(requestId: string, formData: Fo
     const admin = createAdminClient();
     const { data: request } = await admin.from("fund_requests").select("id,project_id,status").eq("id", requestId).maybeSingle();
     if (!request || request.status !== "Menunggu Eksekusi") return { ok: false, error: "Bukti hanya dapat ditambahkan sebelum eksekusi selesai." };
-    await assertProjectAccess(actor.userId, request.project_id, actor.isOwner || actor.roles.includes("Finance"));
+    await assertProjectAccess(actor.userId, request.project_id, actor.tenantRole === "superadmin" || actor.roles.includes("Finance"));
     const files = formData.getAll("files").filter((v): v is File => v instanceof File && v.size > 0);
     if (!files.length) return { ok: false, error: "Pilih minimal satu file." };
     if (files.length > 10 || files.reduce((n, f) => n + f.size, 0) > 20 * 1024 * 1024) return { ok: false, error: "Maksimal 10 file dan total 20 MB per unggahan." };
@@ -88,7 +88,7 @@ export async function openFundRequestDocument(documentId: string): Promise<Resul
     if (!doc) return { ok: false, error: "Dokumen tidak ditemukan." };
     const { data: request } = await admin.from("fund_requests").select("project_id").eq("id", doc.fund_request_id).maybeSingle();
     if (!request) return { ok: false, error: "Permintaan dana tidak ditemukan." };
-    await assertProjectAccess(actor.userId, request.project_id, actor.isOwner || actor.roles.includes("Finance") || actor.roles.includes("Management"));
+    await assertProjectAccess(actor.userId, request.project_id, actor.tenantRole === "superadmin" || actor.roles.includes("Finance") || actor.roles.includes("Management"));
     const { data, error } = await admin.storage.from(BUCKET).createSignedUrl(doc.storage_path, 60);
     if (error || !data?.signedUrl) return { ok: false, error: "Bukti gagal dibuka." };
     return { ok: true, url: data.signedUrl };
@@ -111,7 +111,7 @@ export async function executeFundRequest(input: { requestId: string; amount: str
     const admin = createAdminClient();
     const { data: request } = await admin.from("fund_requests").select("project_id,request_amount,status").eq("id", requestId).maybeSingle();
     if (!request || request.status !== "Menunggu Eksekusi") return { ok: false, error: "Permintaan tidak ditemukan atau sudah dieksekusi." };
-    await assertProjectAccess(actor.userId, request.project_id, actor.isOwner || actor.roles.includes("Finance"));
+    await assertProjectAccess(actor.userId, request.project_id, actor.tenantRole === "superadmin" || actor.roles.includes("Finance"));
     if (amount < Number(request.request_amount)) return { ok: false, error: "Nominal aktual tidak boleh kurang dari nominal yang diminta." };
     const { error } = await admin.rpc("execute_fund_request_with_audit", {
       p_fund_request_id: requestId, p_actor_user_id: actor.userId, p_executed_amount: amount,
