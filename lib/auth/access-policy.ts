@@ -11,6 +11,8 @@
 
 /** Roles that may be assigned through the user-administration screen. */
 export const APPROVED_OPERATIONAL_ROLES = [
+  "Procurement",
+  "Sales",
   "Cashier",
   "Finance",
   "Warehouse",
