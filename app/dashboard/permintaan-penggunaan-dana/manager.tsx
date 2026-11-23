@@ -18,8 +18,8 @@ const amountInput = (v: string) => v.replace(/\D/g, "").slice(0, 16).replace(/\B
 const dateTime = (v: string) => new Intl.DateTimeFormat("id-ID", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Jakarta" }).format(new Date(v));
 const size = (v: number) => v < 1048576 ? `${Math.max(1, Math.round(v / 1024))} KB` : `${(v / 1048576).toFixed(1)} MB`;
 
-export default function FundRequestManager({ projects, initialRequests, balances, canRequest, canExecute }: {
-  projects: ProjectOption[]; initialRequests: FundRequest[]; balances: Record<string, number>;
+export default function FundRequestManager({ projects, requestProjects, initialRequests, balances, canRequest, canExecute }: {
+  projects: ProjectOption[]; requestProjects: ProjectOption[]; initialRequests: FundRequest[]; balances: Record<string, number>;
   canRequest: boolean; canExecute: boolean;
 }) {
   const router = useRouter();
