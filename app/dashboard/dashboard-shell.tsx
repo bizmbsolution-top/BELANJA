@@ -37,6 +37,7 @@ const groups: MenuGroup[] = [
       { label: "Permintaan Dana Kasir", href: "/dashboard/permintaan-penggunaan-dana", roles: ["Cashier", "Finance", "Management"] },
       { label: "Persediaan", href: "/dashboard/persediaan", roles: ["Warehouse", "Management", "Finance", "Cashier", "Sales", "Procurement"] },
       { label: "Penjualan", href: "/dashboard/penjualan", roles: ["Sales", "Warehouse", "Management"] },
+      { label: "Penerimaan Penjualan", href: "/dashboard/penerimaan-penjualan", roles: ["Finance"] },
       { label: "Rekap Penjualan", href: "/dashboard/laporan-penjualan", roles: ["Finance", "Management"] },
       { label: "Laporan Biaya Penjualan", href: "/dashboard/laporan-biaya-penjualan", roles: ["Cashier", "Finance", "Management"] },
     ],
@@ -67,6 +68,7 @@ const groups: MenuGroup[] = [
       { label: "Riwayat Aktivitas", href: "/dashboard/riwayat-aktivitas" },
       { label: "Pengaturan Organisasi" },
       { label: "Master Project", href: "/dashboard/project" },
+      { label: "Master Potongan Invoice", href: "/dashboard/potongan-invoice" },
     ],
   },
 ];
