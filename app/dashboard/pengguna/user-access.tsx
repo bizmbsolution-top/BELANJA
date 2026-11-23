@@ -26,12 +26,52 @@ type UserRecord = {
 /**
  * Sensitive permissions are configured per user and are never inherited from Role.
  */
-const sensitivePermissions = [
-  { id: "transaction.post_recognition", label: "Posting Transaction" },
-  { id: "fund_utilization.post_recognition", label: "Posting Fund Utilization" },
-  { id: "payment.post", label: "Posting Payment" },
-  { id: "payment.allocate", label: "Alokasi Payment" },
+const permissionSections = [
+  {
+    id: "Procurement",
+    label: "Procurement",
+    permissions: [{ id: "transaction.post_recognition", label: "Posting Transaction" }],
+    note: "Hak membuat dan submit voucher Expenses akan ditambahkan bersama alur voucher agar langsung diterapkan pada prosesnya.",
+  },
+  {
+    id: "Sales",
+    label: "Sales",
+    permissions: [{ id: "transaction.post_recognition", label: "Posting Transaction" }],
+    note: "Hak membuat dan submit voucher Expenses akan ditambahkan bersama alur voucher agar langsung diterapkan pada prosesnya.",
+  },
+  {
+    id: "Cashier",
+    label: "Cashier",
+    permissions: [
+      { id: "fund_utilization.post_recognition", label: "Posting Fund Utilization" },
+      { id: "payment.post", label: "Posting Payment" },
+    ],
+    note: "Hak antrean dan pembayaran voucher Expenses akan ditambahkan bersama implementasi Cashier Model.",
+  },
+  {
+    id: "Finance",
+    label: "Finance",
+    permissions: [
+      { id: "payment.post", label: "Posting Payment" },
+      { id: "payment.allocate", label: "Alokasi Payment" },
+    ],
+    note: "Hak permintaan dan pencatatan penyerahan dana Kasir akan ditambahkan bersama implementasi Cashier Fund.",
+  },
+  {
+    id: "Warehouse",
+    label: "Warehouse",
+    permissions: [],
+    note: "Belum ada Permission khusus Warehouse yang aktif. Akses saat ini mengikuti Role dan Area Kerja.",
+  },
+  {
+    id: "Management",
+    label: "Management",
+    permissions: [],
+    note: "Management menggunakan akses pemantauan sesuai Role. Permission khusus tambahan dapat diaktifkan saat modul terkait tersedia.",
+  },
 ] as const;
+
+type PermissionSectionId = (typeof permissionSections)[number]["id"];
 
 const scopeDimensions = [
   { id: "project", label: "Project" },
@@ -43,6 +83,7 @@ export default function UserAccess({ initialUsers }: { initialUsers: UserRecord[
   const [users, setUsers] = useState(initialUsers);
   const [selectedId, setSelectedId] = useState(initialUsers[0]?.id ?? "");
   const [saved, setSaved] = useState(false);
+  const [activePermissionSection, setActivePermissionSection] = useState<PermissionSectionId>("Cashier");
   const [addOpen, setAddOpen] = useState(false);
   const [newEmail, setNewEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -340,29 +381,52 @@ export default function UserAccess({ initialUsers }: { initialUsers: UserRecord[
           <section className={styles.section}>
             <h3>Permission khusus</h3>
             <p className={styles.helper}>
-              Pengaturan berlaku per pengguna, bukan dari Role. Pilih Izinkan atau Tolak.
-              Belum diatur berarti permission tidak diberikan.
+              Pilih Section untuk melihat Permission yang relevan. Pengaturan tetap berlaku per pengguna,
+              bukan otomatis diwariskan dari Role. Belum diatur berarti hak tidak diberikan.
             </p>
-            <div className={styles.permissionList}>
-              {sensitivePermissions.map((permission) => (
-                <div className={styles.permissionItem} key={permission.id}>
-                  <strong>{permission.label}</strong>
-                  <div className={styles.permissionControl}>
-                    {(["unset", "allow", "deny"] as const).map((effect) => (
-                      <label key={effect}>
-                        <input
-                          type="radio"
-                          name={`permission-${selectedId}-${permission.id}`}
-                          checked={selectedUser.permissions[permission.id] === effect}
-                          onChange={() => updatePermission(permission.id, effect)}
-                        />
-                        {effect === "unset" ? "Belum diatur" : effect === "allow" ? "Izinkan" : "Tolak"}
-                      </label>
-                    ))}
-                  </div>
-                </div>
+            <div className={styles.permissionSectionPicker} role="radiogroup" aria-label="Pilih Section Permission">
+              {permissionSections.map((section) => (
+                <label className={activePermissionSection === section.id ? styles.permissionSectionActive : styles.permissionSectionChoice} key={section.id}>
+                  <input
+                    type="radio"
+                    name={`permission-section-${selectedId}`}
+                    value={section.id}
+                    checked={activePermissionSection === section.id}
+                    onChange={() => setActivePermissionSection(section.id)}
+                  />
+                  <span>{section.label}</span>
+                </label>
               ))}
             </div>
+            {permissionSections.filter((section) => section.id === activePermissionSection).map((section) => (
+              <div className={styles.permissionSectionContent} key={section.id}>
+                {section.permissions.length > 0 ? (
+                  <div className={styles.permissionList}>
+                    {section.permissions.map((permission) => (
+                      <div className={styles.permissionItem} key={permission.id}>
+                        <strong>{permission.label}</strong>
+                        <div className={styles.permissionControl}>
+                          {(["unset", "allow", "deny"] as const).map((effect) => (
+                            <label key={effect}>
+                              <input
+                                type="radio"
+                                name={`permission-${selectedId}-${permission.id}`}
+                                checked={selectedUser.permissions[permission.id] === effect}
+                                onChange={() => updatePermission(permission.id, effect)}
+                              />
+                              {effect === "unset" ? "Belum diatur" : effect === "allow" ? "Izinkan" : "Tolak"}
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className={styles.permissionEmpty}>Belum ada Permission khusus yang aktif pada Section ini.</p>
+                )}
+                <p className={styles.permissionNote}>{section.note}</p>
+              </div>
+            ))}
           </section>
           <section className={styles.section}>
             <h3>Status akun</h3>
