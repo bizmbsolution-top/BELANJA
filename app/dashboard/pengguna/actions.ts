@@ -297,6 +297,8 @@ export async function createManagedUser(input: {
         email: data.user.email ?? email,
         roles: [],
         status: "Aktif",
+        scopes: { ...DEFAULT_SCOPES },
+        permissions: { ...DEFAULT_PERMISSIONS },
       },
     };
   } catch (error) {
