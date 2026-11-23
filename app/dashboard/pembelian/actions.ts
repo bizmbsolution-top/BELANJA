@@ -87,7 +87,7 @@ export async function recordPurchaseReceipt(formData: FormData): Promise<Result>
     const { data: request } = await getRequest(requestId, actor.tenantId);
     if (!request || request.status !== "Menunggu Barang") return { ok: false, error: "Permintaan tidak tersedia untuk penerimaan." };
     await assertProjectAccess(actor.userId, request.project_id, actor.tenantRole === "superadmin", actor.roles, actor.tenantId);
-    await assertWarehouseAccess(actor.userId, request.project_id, request.warehouse_id, actor.tenantRole === "superadmin", actor.roles);
+    await assertWarehouseAccess(actor.userId, request.project_id, request.warehouse_id, actor.tenantRole === "superadmin", actor.roles, actor.tenantId);
     const receiptDate = String(formData.get("receiptDate") ?? ""), value = Number(formData.get("value"));
     const valueUnit = String(formData.get("valueUnit") ?? "%").trim(), weight = Number(formData.get("weight"));
     const weightUnit = String(formData.get("weightUnit") ?? "kg"), notes = String(formData.get("notes") ?? "").trim();
@@ -172,7 +172,7 @@ export async function payPurchasePayment(paymentRequestId: string): Promise<Resu
     const actor=await requireAnyRole(["Cashier"]);
     if(!(await hasPermission(actor.userId,"payment.post",actor.tenantRole === "superadmin",actor.tenantId))) return {ok:false,error:"Permission pembayaran belum diberikan oleh Superadmin perusahaan."};
     if(!uuid(paymentRequestId)) return {ok:false,error:"Pengajuan pembayaran tidak valid."};
-    const context=await getPaymentContext(paymentRequestId);
+    const context=await getPaymentContext(paymentRequestId, actor.tenantId);
     if(!context||context.payment.status!=="Menunggu Pembayaran") return {ok:false,error:"Pengajuan sudah diproses atau tidak ditemukan."};
     await assertProjectAccess(actor.userId,context.request.project_id,actor.tenantRole === "superadmin",actor.roles,actor.tenantId);
     const {error}=await createAdminClient().rpc("pay_purchase_payment_with_audit",{p_payment_request_id:paymentRequestId,p_actor_user_id:actor.userId});
