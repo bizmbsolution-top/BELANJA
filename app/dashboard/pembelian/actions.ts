@@ -12,16 +12,16 @@ type Result = { ok: true; id?: string } | { ok: false; error: string };
 
 async function hasPermission(userId: string, key: string, isOwner: boolean) {
   if (isOwner) return true;
-  const { data, error } = await createAdminClient().from("user_permission_overrides").select("effect")
+  const { data, error } = await createAdminClient().from("user_permission_overrides").select("effect").eq("tenant_id", actor.tenantId)
     .eq("user_id", userId).eq("permission_key", key).maybeSingle();
   return !error && data?.effect === "allow";
 }
 async function assertProjectAccess(userId: string, projectId: string, isOwner: boolean, roles: string[]) {
   if (isOwner || roles.includes("Finance") || roles.includes("Management")) return;
   const admin = createAdminClient();
-  const { data: project } = await admin.from("projects").select("id,is_active").eq("id", projectId).maybeSingle();
+  const { data: project } = await admin.from("projects").select("id,is_active").eq("tenant_id", actor.tenantId).eq("id", projectId).maybeSingle();
   if (!project?.is_active) throw new Error("Project tidak aktif atau tidak ditemukan.");
-  const { data: scope, error } = await admin.from("user_work_scopes").select("scope_mode,resource_ids")
+  const { data: scope, error } = await admin.from("user_work_scopes").select("scope_mode,resource_ids").eq("tenant_id", actor.tenantId)
     .eq("user_id", userId).eq("dimension", "project").maybeSingle();
   if (error || !scope) throw new Error("Area kerja Project belum diatur oleh Superadmin perusahaan.");
   if (scope.scope_mode === "all") return;
@@ -29,25 +29,25 @@ async function assertProjectAccess(userId: string, projectId: string, isOwner: b
 }
 async function assertWarehouseAccess(userId: string, projectId: string, warehouseId: string, isOwner: boolean, roles: string[]) {
   const admin = createAdminClient();
-  const { data: mapping } = await admin.from("warehouse_projects").select("warehouse_id").eq("warehouse_id", warehouseId).eq("project_id", projectId).maybeSingle();
+  const { data: mapping } = await admin.from("warehouse_projects").select("warehouse_id").eq("tenant_id", actor.tenantId).eq("warehouse_id", warehouseId).eq("project_id", projectId).maybeSingle();
   if (!mapping) throw new Error("Warehouse tidak terhubung dengan Project yang dipilih.");
   if (isOwner || roles.includes("Finance") || roles.includes("Management")) return;
-  const { data: scope, error } = await admin.from("user_work_scopes").select("scope_mode,resource_ids")
+  const { data: scope, error } = await admin.from("user_work_scopes").select("scope_mode,resource_ids").eq("tenant_id", actor.tenantId)
     .eq("user_id", userId).eq("dimension", "warehouse").maybeSingle();
   if (error || !scope) throw new Error("Area kerja Warehouse belum diatur oleh Superadmin perusahaan.");
   if (scope.scope_mode === "all") return;
   if (scope.scope_mode !== "selected" || !scope.resource_ids?.includes(warehouseId)) throw new Error("Warehouse di luar area kerja akun Anda.");
 }
 async function getRequest(id: string) {
-  return createAdminClient().from("purchase_requests").select("id,project_id,warehouse_id,status,price_per_kg,code").eq("id", id).maybeSingle();
+  return createAdminClient().from("purchase_requests").select("id,project_id,warehouse_id,status,price_per_kg,code").eq("tenant_id", actor.tenantId).eq("id", id).maybeSingle();
 }
 async function getPaymentContext(id: string) {
   const admin = createAdminClient();
-  const { data: payment } = await admin.from("purchase_payment_requests").select("id,receipt_id,status,amount").eq("id", id).maybeSingle();
+  const { data: payment } = await admin.from("purchase_payment_requests").select("id,receipt_id,status,amount").eq("tenant_id", actor.tenantId).eq("id", id).maybeSingle();
   if (!payment) return null;
-  const { data: receipt } = await admin.from("purchase_receipts").select("purchase_request_id").eq("id", payment.receipt_id).maybeSingle();
+  const { data: receipt } = await admin.from("purchase_receipts").select("purchase_request_id").eq("tenant_id", actor.tenantId).eq("id", payment.receipt_id).maybeSingle();
   if (!receipt) return null;
-  const { data: request } = await admin.from("purchase_requests").select("id,project_id,warehouse_id,status").eq("id", receipt.purchase_request_id).maybeSingle();
+  const { data: request } = await admin.from("purchase_requests").select("id,project_id,warehouse_id,status").eq("tenant_id", actor.tenantId).eq("id", receipt.purchase_request_id).maybeSingle();
   return request ? { payment, request } : null;
 }
 
@@ -131,8 +131,8 @@ export async function recordPurchaseReceipt(formData: FormData): Promise<Result>
     if (receiptId) {
       const admin = createAdminClient();
       if (uploadedPaths.length) await admin.storage.from(RECEIPT_BUCKET).remove(uploadedPaths);
-      await admin.from("purchase_receipt_documents").delete().eq("receipt_id",receiptId);
-      await admin.from("purchase_receipts").delete().eq("id",receiptId).eq("status","Draft");
+      await admin.from("purchase_receipt_documents").delete().eq("tenant_id", actor.tenantId).eq("receipt_id",receiptId);
+      await admin.from("purchase_receipts").delete().eq("tenant_id", actor.tenantId).eq("id",receiptId).eq("status","Draft");
     }
     return { ok: false, error: error instanceof Error ? error.message : "Penerimaan gagal disimpan." };
   }
