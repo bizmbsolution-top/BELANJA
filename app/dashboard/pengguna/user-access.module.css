@@ -159,3 +159,23 @@
 :global([data-theme="dark"]) .editInstruction { border-color: #344966; background: #192b45; color: #c4d0e0; }
 :global([data-theme="dark"]) .editInstruction strong { color: #9dbaff; }
 @media (max-width: 560px) { .footerActions { margin: 0 -15px -18px; padding: 12px 15px; } .accountActions { justify-content: flex-start; } .editAccessButton { min-height: 36px; } }
+
+
+/* Compact Section-based permission selector */
+.permissionSectionPicker { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 14px 0 12px; }
+.permissionSectionChoice, .permissionSectionActive { display: flex; align-items: center; justify-content: center; min-height: 40px; padding: 8px 10px; border: 1px solid #dbe3ef; border-radius: 9px; background: #fff; color: #53627a; font-size: 12px; font-weight: 700; cursor: pointer; transition: border-color .15s ease, background .15s ease, color .15s ease; }
+.permissionSectionChoice input, .permissionSectionActive input { position: absolute; opacity: 0; pointer-events: none; }
+.permissionSectionActive { border-color: #155eef; background: #edf3ff; color: #155eef; box-shadow: inset 0 0 0 1px #155eef; }
+.permissionSectionContent { min-height: 90px; padding: 2px 12px 10px; border: 1px solid #e5eaf2; border-radius: 11px; background: #fbfcfe; }
+.permissionEmpty { margin: 16px 0 8px; color: #68788f; font-size: 12px; }
+.permissionNote { margin: 8px 0 2px; color: #7b8798; font-size: 11px; line-height: 1.5; }
+:global([data-theme="dark"]) .permissionSectionChoice,
+:global([data-theme="dark"]) .permissionSectionActive { border-color: #43536c; background: #1c2b42; color: #c4d0e0; }
+:global([data-theme="dark"]) .permissionSectionActive { border-color: #6b9bfa; background: #203b63; color: #b7ceff; box-shadow: inset 0 0 0 1px #6b9bfa; }
+:global([data-theme="dark"]) .permissionSectionContent { border-color: #34445c; background: #192b45; }
+:global([data-theme="dark"]) .permissionEmpty,
+:global([data-theme="dark"]) .permissionNote { color: #aab8cc; }
+@media (max-width: 560px) {
+  .permissionSectionPicker { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .permissionSectionChoice, .permissionSectionActive { min-height: 42px; }
+}
