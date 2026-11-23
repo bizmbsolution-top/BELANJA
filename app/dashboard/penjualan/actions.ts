@@ -48,7 +48,7 @@ export async function confirmSalesDispatch(salesOrderId:string):Promise<Result>{
  try{
   const actor=await requireAnyRole(["Sales","Warehouse"]);
   if(!uuid(salesOrderId))return{ok:false,error:"Transaksi penjualan tidak valid."};
-  if(!(await canWrite(actor.userId,actor.tenantRole === "superadmin")))return{ok:false,error:"Permission transaksi belum diberikan oleh Superadmin perusahaan."};
+  if(!(await canWrite(actor.userId,actor.tenantRole === "superadmin",actor.tenantId)))return{ok:false,error:"Permission transaksi belum diberikan oleh Superadmin perusahaan."};
   const admin=createAdminClient();
   const {data:order,error:orderError}=await admin.from("sales_orders").select("id,project_id,status").eq("tenant_id",actor.tenantId).eq("id",salesOrderId).maybeSingle();
   if(orderError||!order)return{ok:false,error:"Transaksi penjualan tidak ditemukan."};
@@ -71,7 +71,7 @@ export async function finalizeSalesOrder(input:{salesOrderId:string;receivedWeig
  try{
   const actor=await requireAnyRole(["Sales"]);
   if(!uuid(input.salesOrderId))return{ok:false,error:"Transaksi penjualan tidak valid."};
-  if(!(await canWrite(actor.userId,actor.tenantRole === "superadmin")))return{ok:false,error:"Permission transaksi belum diberikan oleh Superadmin perusahaan."};
+  if(!(await canWrite(actor.userId,actor.tenantRole === "superadmin",actor.tenantId)))return{ok:false,error:"Permission transaksi belum diberikan oleh Superadmin perusahaan."};
   const weight=Number(input.receivedWeightKg),grade=Number(input.finalGradeValue),price=Number(input.finalPricePerKg);
   if(!Number.isFinite(weight)||weight<=0||!Number.isFinite(grade)||grade<0||!Number.isFinite(price)||price<=0)return{ok:false,error:"Berat, kadar, dan harga final harus valid."};
   if(!input.baNumber.trim()||input.baNumber.trim().length>100||!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(input.baDate)||!input.finalGradeUnit.trim()||input.finalGradeUnit.length>20||input.discrepancyNotes.length>1000)return{ok:false,error:"Lengkapi nomor/tanggal BA dan satuan kadar."};
