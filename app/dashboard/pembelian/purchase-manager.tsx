@@ -1,0 +1,170 @@
+"use client";
+
+import { useMemo, useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
+import { createPurchaseRequest, recordPurchaseReceipt, uploadPurchasePaymentEvidence, payPurchasePayment } from "./actions";
+import styles from "./purchase.module.css";
+
+type Lookup = { id: string; code: string; name: string };
+type RequestRow = { id: string; code: string; request_date: string; project_id: string; supplier_id: string; warehouse_id: string; category_id: string; estimated_weight_kg: number; price_per_kg: number; notes: string | null; status: string; created_at: string };
+type ReceiptRow = { id: string; code: string; purchase_request_id: string; receipt_date: string; value: number; value_unit: string; weight: number; weight_unit: string; notes: string | null; status: string; decision_reason: string | null; completed_at: string | null };
+type PaymentRow = { id: string; code: string; receipt_id: string; amount: number; status: string; requested_at: string; paid_at: string | null; payment_method: string | null };
+type DocRow = { id: string; receipt_id?: string; payment_request_id?: string; evidence_type?: string; file_name: string; signed_url: string | null };
+export type PurchasePageData = { actorRoles: string[]; projects: Lookup[]; suppliers: Lookup[]; categories: Lookup[]; warehouses: Lookup[]; requests: RequestRow[]; receipts: ReceiptRow[]; payments: PaymentRow[]; receiptDocs: DocRow[]; paymentDocs: DocRow[]; warehouseProjects: { warehouse_id: string; project_id: string }[] };
+
+const rupiah = (value: number) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(value);
+const dateLabel = (value: string) => new Date(value + (value.length === 10 ? "T00:00:00" : "")).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" });
+
+export default function PurchaseManager({ data }: { data: PurchasePageData }) {
+  const router = useRouter();
+  const isProcurement = data.actorRoles.includes("Procurement") || data.actorRoles.includes("Superadmin");
+  const isCashier = data.actorRoles.includes("Cashier") || data.actorRoles.includes("Superadmin");
+  const [showRequest, setShowRequest] = useState(false);
+  const [receiptFor, setReceiptFor] = useState<RequestRow | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+  const [selectedProject, setSelectedProject] = useState("");
+  const [paymentBusy, setPaymentBusy] = useState<string | null>(null);
+
+  const warehousesForProject = useMemo(() => data.warehouses.filter(w => data.warehouseProjects.some(m => m.warehouse_id === w.id && m.project_id === selectedProject)), [data.warehouses, data.warehouseProjects, selectedProject]);
+  const pendingPayments = data.payments.filter(p => p.status === "Menunggu Pembayaran").length;
+  const paidPayments = data.payments.filter(p => p.status === "Lunas").length;
+  const acceptedReceipts = data.receipts.filter(r => r.status === "Diterima").length;
+
+  async function handleRequestSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault(); setSaving(true); setError(""); setMessage("");
+    const form = new FormData(event.currentTarget);
+    const result = await createPurchaseRequest({
+      requestDate: String(form.get("requestDate") ?? ""), projectId: String(form.get("projectId") ?? ""),
+      supplierId: String(form.get("supplierId") ?? ""), warehouseId: String(form.get("warehouseId") ?? ""),
+      categoryId: String(form.get("categoryId") ?? ""), estimatedWeightKg: String(form.get("estimatedWeightKg") ?? ""),
+      pricePerKg: String(form.get("pricePerKg") ?? ""), notes: String(form.get("notes") ?? ""),
+    });
+    setSaving(false);
+    if (!result.ok) { setError(result.error); return; }
+    setMessage("Permintaan pembelian berhasil dibuat."); setShowRequest(false); setSelectedProject(""); router.refresh();
+  }
+
+  async function handleReceiptSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault(); if (!receiptFor) return;
+    setSaving(true); setError(""); setMessage("");
+    const form = new FormData(event.currentTarget); form.set("requestId", receiptFor.id);
+    const result = await recordPurchaseReceipt(form);
+    setSaving(false);
+    if (!result.ok) { setError(result.error); return; }
+    setMessage("Penerimaan berhasil disimpan. Jika diterima, pengajuan pembayaran dibuat otomatis.");
+    setReceiptFor(null); router.refresh();
+  }
+
+  async function handlePaymentUpload(paymentId: string, form: HTMLFormElement) {
+    setPaymentBusy(paymentId); setError(""); setMessage("");
+    const result = await uploadPurchasePaymentEvidence(paymentId, new FormData(form));
+    setPaymentBusy(null);
+    if (!result.ok) { setError(result.error); return; }
+    setMessage("Bukti Transfer berhasil diunggah."); router.refresh();
+  }
+
+  async function handlePay(paymentId: string) {
+    setPaymentBusy(paymentId); setError(""); setMessage("");
+    const result = await payPurchasePayment(paymentId);
+    setPaymentBusy(null);
+    if (!result.ok) { setError(result.error); return; }
+    setMessage("Pembayaran berhasil dicatat dan saldo Project diperbarui."); router.refresh();
+  }
+
+  function lookup(list: Lookup[], id: string) { return list.find(item => item.id === id); }
+
+  return (
+    <main className={styles.page}>
+      <header className={styles.header}>
+        <div><p className={styles.eyebrow}>OPERASIONAL</p><h1>Pembelian</h1><p>Permintaan pembelian, pemeriksaan penerimaan, dan pembayaran berdasarkan barang yang diterima.</p></div>
+        {isProcurement && <button className={styles.primary} type="button" onClick={() => { setError(""); setShowRequest(true); }}>+ Buat Permintaan</button>}
+      </header>
+      <section className={styles.metrics}>
+        <article><strong>{data.requests.length}</strong><span>Permintaan Pembelian</span></article>
+        <article><strong>{acceptedReceipts}</strong><span>Penerimaan Diterima</span></article>
+        <article><strong>{pendingPayments}</strong><span>Menunggu Pembayaran</span></article>
+        <article><strong>{paidPayments}</strong><span>Pembayaran Lunas</span></article>
+      </section>
+      {(message || error) && <p className={error ? styles.error : styles.success} role={error ? "alert" : "status"}>{error || message}</p>}
+
+      {showRequest && <section className={styles.formCard}>
+        <div className={styles.formTitle}><div><h2>Permintaan Pembelian Baru</h2><p>Pembayaran diajukan setelah barang diterima dan lolos pemeriksaan.</p></div><button type="button" className={styles.close} onClick={() => setShowRequest(false)}>×</button></div>
+        <form className={styles.form} onSubmit={handleRequestSubmit}>
+          <label>Tanggal Permintaan<input name="requestDate" type="date" defaultValue={new Date().toISOString().slice(0,10)} required /></label>
+          <label>Project<select name="projectId" value={selectedProject} onChange={e => setSelectedProject(e.target.value)} required><option value="">Pilih Project</option>{data.projects.map(p => <option key={p.id} value={p.id}>{p.code} · {p.name}</option>)}</select></label>
+          <label>Supplier<select name="supplierId" required defaultValue=""><option value="">Pilih Supplier</option>{data.suppliers.map(s => <option key={s.id} value={s.id}>{s.code} · {s.name}</option>)}</select></label>
+          <label>Warehouse Tujuan<select name="warehouseId" required defaultValue="" disabled={!selectedProject}><option value="">Pilih Warehouse</option>{warehousesForProject.map(w => <option key={w.id} value={w.id}>{w.code} · {w.name}</option>)}</select></label>
+          <label>Kategori<select name="categoryId" required defaultValue=""><option value="">Pilih Kategori</option>{data.categories.map(c => <option key={c.id} value={c.id}>{c.code} · {c.name}</option>)}</select></label>
+          <label>Estimasi Berat (kg)<input name="estimatedWeightKg" type="number" min="0.001" step="0.001" required placeholder="Contoh: 10000" /></label>
+          <label>Harga Kesepakatan per kg (Rp)<input name="pricePerKg" type="number" min="0.01" step="0.01" required placeholder="Harga per kg" /></label>
+          <label className={styles.wide}>Keterangan<textarea name="notes" rows={3} maxLength={1000} placeholder="Keterangan pembelian (opsional)" /></label>
+          <div className={styles.actions}><button type="button" className={styles.secondary} onClick={() => setShowRequest(false)}>Batal</button><button type="submit" className={styles.primary} disabled={saving}>{saving ? "Menyimpan..." : "Simpan Permintaan"}</button></div>
+        </form>
+      </section>}
+
+      {receiptFor && <section className={styles.formCard}>
+        <div className={styles.formTitle}><div><h2>Catat Penerimaan · {receiptFor.code}</h2><p>{lookup(data.categories, receiptFor.category_id)?.name} · {lookup(data.warehouses, receiptFor.warehouse_id)?.name}</p></div><button type="button" className={styles.close} onClick={() => setReceiptFor(null)}>×</button></div>
+        <form className={styles.form} onSubmit={handleReceiptSubmit}>
+          <label>Tanggal Penerimaan<input name="receiptDate" type="date" defaultValue={new Date().toISOString().slice(0,10)} required /></label>
+          <label>Value<input name="value" type="number" min="0" step="0.0001" required placeholder="Contoh: 72.5" /></label>
+          <label>Satuan Value<input name="valueUnit" defaultValue="%" maxLength={20} required /></label>
+          <label>Berat<input name="weight" type="number" min="0.001" step="0.001" required placeholder="Berat aktual" /></label>
+          <label>Satuan Berat<select name="weightUnit" defaultValue="kg"><option value="kg">kg</option><option value="ton">ton</option></select></label>
+          <label className={styles.wide}>Keterangan<textarea name="notes" rows={2} maxLength={1000} placeholder="Keterangan hasil pemeriksaan" /></label>
+          <label className={styles.wide}>Foto Timbangan <small>Wajib · JPG, PNG, WEBP · maksimal 10 MB per foto</small><input name="weightFiles" type="file" accept="image/jpeg,image/png,image/webp" multiple required /></label>
+          <label className={styles.wide}>Foto Hasil Pengukuran <small>Wajib · JPG, PNG, WEBP · maksimal 10 MB per foto</small><input name="valueFiles" type="file" accept="image/jpeg,image/png,image/webp" multiple required /></label>
+          <label>Keputusan<select name="decision" defaultValue="Diterima"><option value="Diterima">Diterima — memenuhi standar</option><option value="Ditolak">Ditolak — tidak memenuhi standar</option></select></label>
+          <label>Alasan Penolakan<textarea name="reason" rows={2} maxLength={1000} placeholder="Wajib jika ditolak" /></label>
+          <p className={styles.notice}>Penerimaan yang diselesaikan tidak dapat diedit. Jika diterima, stok bertambah dan pengajuan pembayaran dibuat berdasarkan berat aktual.</p>
+          <div className={styles.actions}><button type="button" className={styles.secondary} onClick={() => setReceiptFor(null)}>Batal</button><button type="submit" className={styles.primary} disabled={saving}>{saving ? "Menyimpan..." : "Selesaikan Penerimaan"}</button></div>
+        </form>
+      </section>}
+
+      <section className={styles.section}>
+        <div className={styles.sectionHeading}><div><h2>Daftar Permintaan Pembelian</h2><p>{data.requests.length} permintaan ditampilkan</p></div></div>
+        {data.requests.length === 0 ? <div className={styles.empty}><h3>Belum ada permintaan pembelian</h3><p>Buat permintaan untuk memulai proses pembelian.</p></div> : data.requests.map(request => {
+          const project = lookup(data.projects, request.project_id), supplier = lookup(data.suppliers, request.supplier_id);
+          const warehouse = lookup(data.warehouses, request.warehouse_id), category = lookup(data.categories, request.category_id);
+          const receipts = data.receipts.filter(r => r.purchase_request_id === request.id);
+          const receivedKg = receipts.filter(r => r.status === "Diterima").reduce((sum,r) => sum + Number(r.weight) * (r.weight_unit === "ton" ? 1000 : 1),0);
+          return <article className={styles.requestCard} key={request.id}>
+            <div className={styles.cardTop}><div><span className={styles.code}>{request.code}</span><span className={request.status === "Menunggu Barang" ? styles.pending : styles.neutral}>{request.status}</span><h3>{supplier?.name ?? "Supplier"}</h3><p>{project?.code} · {project?.name} · {warehouse?.name}</p></div>{isProcurement && request.status === "Menunggu Barang" && <button type="button" className={styles.secondary} onClick={() => { setError(""); setReceiptFor(request); }}>+ Catat Penerimaan</button>}</div>
+            <div className={styles.facts}><span><small>Kategori</small><b>{category?.name ?? "—"}</b></span><span><small>Estimasi</small><b>{Number(request.estimated_weight_kg).toLocaleString("id-ID")} kg</b></span><span><small>Sudah diterima</small><b>{receivedKg.toLocaleString("id-ID")} kg</b></span><span><small>Harga/kg</small><b>{rupiah(Number(request.price_per_kg))}</b></span></div>
+            {request.notes && <p className={styles.note}>{request.notes}</p>}
+            {receipts.length > 0 && <div className={styles.receipts}><h4>Riwayat Penerimaan</h4>{receipts.map(receipt => {
+              const docs = data.receiptDocs.filter(d => d.receipt_id === receipt.id), payment = data.payments.find(p => p.receipt_id === receipt.id);
+              return <div className={styles.receiptRow} key={receipt.id}>
+                <div><b>{receipt.code}</b><small>{dateLabel(receipt.receipt_date)} · {Number(receipt.weight).toLocaleString("id-ID")} {receipt.weight_unit} · Value {Number(receipt.value).toLocaleString("id-ID")} {receipt.value_unit}</small><span className={receipt.status === "Diterima" ? styles.good : receipt.status === "Ditolak" ? styles.bad : styles.pending}>{receipt.status}</span></div>
+                <div className={styles.docLinks}>{docs.map(doc => doc.signed_url && <a key={doc.id} href={doc.signed_url} target="_blank" rel="noreferrer">{doc.evidence_type === "weight" ? "Foto Timbangan" : "Foto Pengukuran"}: {doc.file_name}</a>)}</div>
+                {receipt.decision_reason && <small className={styles.note}>Alasan: {receipt.decision_reason}</small>}
+                {payment && <div className={styles.paymentLine}><b>{payment.code} · {rupiah(Number(payment.amount))}</b><span className={payment.status === "Lunas" ? styles.good : styles.pending}>{payment.status}</span></div>}
+              </div>;
+            })}</div>}
+          </article>;
+        })}
+      </section>
+
+      <section className={styles.section}>
+        <div className={styles.sectionHeading}><div><h2>Pengajuan Pembayaran</h2><p>Pembayaran dibuat otomatis dari penerimaan yang lolos pemeriksaan.</p></div></div>
+        {data.payments.length === 0 ? <div className={styles.empty}><p>Belum ada pengajuan pembayaran.</p></div> : data.payments.map(payment => {
+          const receipt = data.receipts.find(r => r.id === payment.receipt_id), request = receipt ? data.requests.find(r => r.id === receipt.purchase_request_id) : null;
+          const project = request ? lookup(data.projects, request.project_id) : null, docs = data.paymentDocs.filter(d => d.payment_request_id === payment.id);
+          return <article className={styles.paymentCard} key={payment.id}>
+            <div className={styles.cardTop}><div><span className={styles.code}>{payment.code}</span><span className={payment.status === "Lunas" ? styles.good : styles.pending}>{payment.status}</span><h3>{request?.code ?? "Permintaan"} · {receipt?.code ?? "Penerimaan"}</h3><p>{project?.code} · {project?.name}</p></div><strong className={styles.amount}>{rupiah(Number(payment.amount))}</strong></div>
+            {docs.map(doc => doc.signed_url && <a className={styles.proof} key={doc.id} href={doc.signed_url} target="_blank" rel="noreferrer">Bukti Transfer: {doc.file_name}</a>)}
+            {isCashier && payment.status === "Menunggu Pembayaran" && <div className={styles.cashierActions}>
+              <form onSubmit={event => { event.preventDefault(); void handlePaymentUpload(payment.id, event.currentTarget); }}>
+                <label>Upload Bukti Transfer (TR)<input name="files" type="file" accept="application/pdf,image/jpeg,image/png" multiple required /></label>
+                <button className={styles.secondary} type="submit" disabled={paymentBusy === payment.id}>{paymentBusy === payment.id ? "Mengunggah..." : "Upload Bukti"}</button>
+              </form>
+              <button className={styles.primary} type="button" onClick={() => void handlePay(payment.id)} disabled={paymentBusy === payment.id || docs.length === 0}>{paymentBusy === payment.id ? "Memproses..." : "Bayar Lunas"}</button>
+            </div>}
+          </article>;
+        })}
+      </section>
+      <p className={styles.footnote}>Stok bertambah hanya setelah penerimaan dinyatakan diterima. Pembayaran wajib lunas 100% dan dilengkapi bukti Transfer.</p>
+    </main>
+  );
+}

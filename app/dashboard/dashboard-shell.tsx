@@ -32,7 +32,7 @@ const groups: MenuGroup[] = [
   {
     title: "OPERASIONAL",
     items: [
-      { label: "Pembelian", href: "/dashboard/pembelian", roles: ["Procurement", "Finance", "Management"] },
+      { label: "Pembelian", href: "/dashboard/pembelian", roles: ["Procurement", "Cashier", "Finance", "Management"] },
       { label: "Pengeluaran", href: "/dashboard/pengeluaran", roles: ["Procurement", "Sales", "Cashier", "Finance", "Management"] },
       { label: "Permintaan Dana Kasir", href: "/dashboard/permintaan-penggunaan-dana", roles: ["Cashier", "Finance", "Management"] },
       { label: "Persediaan", href: "/dashboard/persediaan", roles: ["Warehouse", "Management"] },
