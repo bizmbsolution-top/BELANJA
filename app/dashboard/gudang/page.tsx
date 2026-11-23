@@ -5,7 +5,7 @@ import WarehouseManager, { type Warehouse } from "./warehouse-manager";
 const WAREHOUSE_ROLES = ["Procurement", "Warehouse", "Finance", "Management"] as const;
 
 export default async function WarehousePage() {
-  await requireAnyRole(WAREHOUSE_ROLES);
+  const context = await requireAnyRole(WAREHOUSE_ROLES);
   const admin = createAdminClient();
   const { data, error } = await admin
     .from("warehouses")
