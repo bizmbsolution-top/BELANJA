@@ -57,7 +57,7 @@ const groups: MenuGroup[] = [
     items: [
       { label: "Pengguna & Akses", href: "/dashboard/pengguna" },
       { label: "Role & Permission" },
-      { label: "Riwayat Aktivitas" },
+      { label: "Riwayat Aktivitas", href: "/dashboard/riwayat-aktivitas" },
       { label: "Pengaturan Organisasi" },
     ],
   },
