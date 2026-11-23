@@ -62,6 +62,7 @@ const groups: MenuGroup[] = [
       { label: "Role & Permission" },
       { label: "Riwayat Aktivitas", href: "/dashboard/riwayat-aktivitas" },
       { label: "Pengaturan Organisasi" },
+      { label: "Master Project", href: "/dashboard/project" },
     ],
   },
 ];
