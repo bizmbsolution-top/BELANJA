@@ -14,7 +14,7 @@ const qty=(n:number)=>Number(n).toLocaleString("id-ID",{maximumFractionDigits:3}
 export default function SalesManager({data}:{data:SalesPageData}){
  const router=useRouter();const canCreate=data.actorRoles.includes("Sales")||data.actorRoles.includes("Superadmin");
  const [open,setOpen]=useState(false),[customerId,setCustomerId]=useState(""),[deliveryAddressId,setDeliveryAddressId]=useState(""),[projectId,setProjectId]=useState(""),[warehouseIds,setWarehouseIds]=useState<string[]>([]),[weights,setWeights]=useState<Record<string,string>>({});
- const [busy,setBusy]=useState(false),[error,setError]=useState(""),[message,setMessage]=useState("");
+ const [busy,setBusy]=useState(false),[error,setError]=useState(""),[message,setMessage]=useState(""),[salePriceInput,setSalePriceInput]=useState("");
  const selectedCustomer=data.customers.find(c=>c.id===customerId);
  const warehousesForProject=useMemo(()=>data.warehouses.filter(w=>data.warehouseProjects.some(m=>m.project_id===projectId&&m.warehouse_id===w.id)),[data.warehouses,data.warehouseProjects,projectId]);
  const selectableLots=data.lots.filter(l=>l.project_id===projectId&&warehouseIds.includes(l.warehouse_id));
@@ -25,9 +25,9 @@ export default function SalesManager({data}:{data:SalesPageData}){
  const gradeUnits=[...new Set(selectedLots.map(x=>x.lot.grade_unit))];
  const estimatedGrade=selectedWeight>0&&gradeUnits.length===1?selectedLots.reduce((s,x)=>s+Number(x.lot.grade_value)*x.weight,0)/selectedWeight:null;
  const estimatedGradeUnit=gradeUnits.length===1?gradeUnits[0]:"";
- function reset(){setOpen(false);setCustomerId("");setDeliveryAddressId("");setProjectId("");setWarehouseIds([]);setWeights({});setError("");}
+ function reset(){setOpen(false);setCustomerId("");setDeliveryAddressId("");setProjectId("");setWarehouseIds([]);setWeights({});setSalePriceInput("");setError("");}
  async function submit(e:FormEvent<HTMLFormElement>){e.preventDefault();setBusy(true);setError("");setMessage("");const f=new FormData(e.currentTarget);
-  const r=await createSalesDraft({customerId,projectId,deliveryAddressId,salePricePerKg:String(f.get("salePricePerKg")??""),notes:String(f.get("notes")??""),allocations:selected.map(([lotId,weightKg])=>({lotId,weightKg}))});
+  const r=await createSalesDraft({customerId,projectId,deliveryAddressId,salePricePerKg:salePriceInput.replace(/[^0-9]/g,""),notes:String(f.get("notes")??""),allocations:selected.map(([lotId,weightKg])=>({lotId,weightKg}))});
   setBusy(false);if(!r.ok){setError(r.error);return;}setMessage("Draft Penjualan berhasil dibuat.");reset();router.refresh();
  }
  function toggleWarehouse(id:string,checked:boolean){setWarehouseIds(old=>checked?[...old,id]:old.filter(x=>x!==id));}
@@ -47,7 +47,7 @@ export default function SalesManager({data}:{data:SalesPageData}){
       {weights[l.id]!==undefined&&<label className={styles.weightInput}>Berat (kg)<input type="number" min="0.001" max={l.available_weight_kg} step="0.001" value={weights[l.id]} onChange={e=>setWeights(old=>({...old,[l.id]:e.target.value}))}/></label>}
      </div>)}</div>}
     </div>
-    <label>Harga Jual Awal per kg (Rp)<input name="salePricePerKg" type="number" min="0.01" step="0.01" required placeholder="Harga penawaran per kg"/></label>
+    <label>Harga Jual Awal per kg (Rp)<input name="salePricePerKg" type="text" inputMode="numeric" required value={salePriceInput} onChange={e=>setSalePriceInput(e.target.value.replace(/[^0-9]/g,"").replace(/\\B(?=(\\d{3})+(?!\\d))/g,"."))} placeholder="Contoh: 275.000"/></label>
     
     <label className={styles.wide}>Keterangan<textarea name="notes" rows={2} maxLength={1000} placeholder="Catatan penjualan (opsional)"/></label>
     <div className={styles.summary}><span>Lot dipilih: <b>{selected.length}</b></span><span>Total berat: <b>{qty(selectedWeight)} kg</b></span><span>Estimasi kadar rata-rata: <b>{estimatedGrade===null?"—":`${qty(estimatedGrade)} ${estimatedGradeUnit}`}</b></span><span>Estimasi nilai pembelian: <b>{money(estimatedCost)}</b></span></div>
