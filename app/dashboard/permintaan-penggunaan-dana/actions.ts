@@ -111,7 +111,7 @@ export async function executeFundRequest(input: { requestId: string; amount: str
     const admin = createAdminClient();
     const { data: request } = await admin.from("fund_requests").select("project_id,request_amount,status").eq("tenant_id",actor.tenantId).eq("id", requestId).maybeSingle();
     if (!request || request.status !== "Menunggu Eksekusi") return { ok: false, error: "Permintaan tidak ditemukan atau sudah dieksekusi." };
-    await assertProjectAccess(actor.userId, request.project_id, actor.tenantRole === "superadmin" || actor.roles.includes("Finance"));
+    await assertProjectAccess(actor.userId, request.project_id, actor.tenantRole === "superadmin" || actor.roles.includes("Finance"), actor.tenantId);
     if (amount < Number(request.request_amount)) return { ok: false, error: "Nominal aktual tidak boleh kurang dari nominal yang diminta." };
     const { error } = await admin.rpc("execute_fund_request_with_audit", {
       p_fund_request_id: requestId, p_actor_user_id: actor.userId, p_executed_amount: amount,
