@@ -9,13 +9,13 @@ export default async function WarehousePage() {
   const admin = createAdminClient();
   const { data, error } = await admin
     .from("warehouses")
-    .select("id, code, name, location, description, is_active")
+    .select("id, code, name, location, description, is_active").eq("tenant_id", context.tenantId)
     .order("name", { ascending: true })
     .limit(500);
   if (error) throw new Error("Data gudang gagal dimuat. Silakan muat ulang halaman.");
   const [{ data: projects, error: projectError }, { data: mappings, error: mappingError }] = await Promise.all([
-    admin.from("projects").select("id, code, name").eq("is_active", true).order("name", { ascending: true }),
-    admin.from("warehouse_projects").select("warehouse_id, project_id"),
+    admin.from("projects").select("id, code, name").eq("tenant_id", context.tenantId).eq("is_active", true).order("name", { ascending: true }),
+    admin.from("warehouse_projects").select("warehouse_id, project_id").eq("tenant_id", context.tenantId),
   ]);
   if (projectError || mappingError) throw new Error("Hubungan Project dan Warehouse gagal dimuat.");
   const projectIdsByWarehouse = new Map<string, string[]>();
