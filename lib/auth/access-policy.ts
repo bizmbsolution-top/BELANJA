@@ -205,6 +205,28 @@ export type WorkScope = {
 export type ScopeDimension = keyof WorkScope;
 
 /**
+ * Converts the persisted table columns into the pure policy shape.
+ * Invalid or missing rows return null and therefore deny access.
+ */
+export function normalizeStoredScopeAssignment(
+  scopeMode: unknown,
+  resourceIds: unknown,
+): ScopeAssignment | null {
+  if (!Array.isArray(resourceIds)) return null;
+  if (scopeMode === "all") {
+    return resourceIds.length === 0 ? { mode: "all" } : null;
+  }
+  if (scopeMode === "selected") {
+    if (resourceIds.length === 0) return null;
+    if (!resourceIds.every((id) => typeof id === "string" && id.trim().length > 0)) {
+      return null;
+    }
+    return { mode: "selected", ids: [...new Set(resourceIds as string[])] };
+  }
+  return null;
+}
+
+/**
  * Fail-closed scope check. Missing, malformed, or unknown assignments never
  * widen access. The caller must supply the resource ID from trusted server
  * data, not from a browser-provided authorization claim.
