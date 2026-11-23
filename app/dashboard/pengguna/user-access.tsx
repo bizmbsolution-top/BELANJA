@@ -75,7 +75,7 @@ export default function UserAccess({ initialUsers }: { initialUsers: UserRecord[
   const [saveError, setSaveError] = useState("");
 
   const selectedUser = useMemo(
-    () => users.find((user) => user.id === selectedId) ?? users[0] ?? { id: "", name: "Belum ada pengguna", email: "", roles: [], status: "Nonaktif" as const },
+    () => users.find((user) => user.id === selectedId) ?? users[0] ?? { id: "", name: "Belum ada pengguna", email: "", roles: [], status: "Nonaktif" as const, scopes: { project: "none" as const, department: "none" as const, warehouse: "none" as const }, permissions: { "transaction.post_recognition": "unset" as const, "fund_utilization.post_recognition": "unset" as const, "payment.post": "unset" as const, "payment.allocate": "unset" as const } },
     [users, selectedId],
   );
 
