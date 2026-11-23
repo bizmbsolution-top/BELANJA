@@ -74,7 +74,7 @@ export async function finalizeSalesOrder(input:{salesOrderId:string;receivedWeig
   if(!(await canWrite(actor.userId,actor.isOwner)))return{ok:false,error:"Permission transaksi belum diberikan oleh Owner."};
   const weight=Number(input.receivedWeightKg),grade=Number(input.finalGradeValue),price=Number(input.finalPricePerKg);
   if(!Number.isFinite(weight)||weight<=0||!Number.isFinite(grade)||grade<0||!Number.isFinite(price)||price<=0)return{ok:false,error:"Berat, kadar, dan harga final harus valid."};
-  if(!input.baNumber.trim()||input.baNumber.trim().length>100||!/^\\d{4}-\\d{2}-\\d{2}$/.test(input.baDate)||!input.finalGradeUnit.trim()||input.finalGradeUnit.length>20||input.discrepancyNotes.length>1000)return{ok:false,error:"Lengkapi nomor/tanggal BA dan satuan kadar."};
+  if(!input.baNumber.trim()||input.baNumber.trim().length>100||!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(input.baDate)||!input.finalGradeUnit.trim()||input.finalGradeUnit.length>20||input.discrepancyNotes.length>1000)return{ok:false,error:"Lengkapi nomor/tanggal BA dan satuan kadar."};
   if(!(file instanceof File)||file.size<=0||file.size>MAX_BA_FILE||!["application/pdf","image/jpeg","image/png"].includes(file.type))return{ok:false,error:"Lampiran BA wajib PDF, JPG, atau PNG, maksimal 10 MB."};
   const admin=createAdminClient();
   const {data:order,error:oe}=await admin.from("sales_orders").select("id,project_id,status").eq("id",input.salesOrderId).maybeSingle();
