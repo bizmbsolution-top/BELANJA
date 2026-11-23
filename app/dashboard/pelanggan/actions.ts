@@ -15,7 +15,7 @@ export async function saveCustomer(input: {
 }): Promise<Result> {
   try {
     const actor = await requireAnyRole(["Sales"]);
-    if (!(await canWrite(actor.userId, actor.isOwner))) return { ok: false, error: "Permission transaksi belum diberikan oleh Owner." };
+    if (!(await canWrite(actor.userId, actor.tenantRole === "superadmin"))) return { ok: false, error: "Permission transaksi belum diberikan oleh Superadmin perusahaan." };
     if (!input.name?.trim() || input.name.trim().length < 2) return { ok: false, error: "Nama pelanggan minimal 2 karakter." };
     const { data, error } = await createAdminClient().rpc("save_customer_with_addresses_with_audit", {
       p_customer_id: input.id || null, p_actor_user_id: actor.userId, p_name: input.name,
