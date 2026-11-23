@@ -140,8 +140,8 @@ export async function saveUserAccessProfile(input: {
     if (status !== "Aktif" && status !== "Nonaktif") {
       return { ok: false, error: "Status akun tidak valid." };
     }
-    if (!scopes || dimensions.some((key) => scopes[key] !== "none" && scopes[key] !== "all" && scopes[key] !== "selected")) {
-      return { ok: false, error: "Pengaturan Area Kerja tidak valid." };
+    if (!scopes || dimensions.some((key) => scopes[key] !== "none" && scopes[key] !== "all")) {
+      return { ok: false, error: "Area Kerja Selected belum tersedia. Gunakan Semua atau Tidak Ada." };
     }
     if (!permissions || permissionKeys.some((key) =>
       permissions[key] !== "unset" && permissions[key] !== "allow" && permissions[key] !== "deny"
@@ -150,61 +150,17 @@ export async function saveUserAccessProfile(input: {
     }
 
     const admin = createAdminClient();
-    const now = new Date().toISOString();
-    const { error: profileError } = await admin.from("user_access_profiles").upsert({
-      user_id: userId,
-      roles: [...new Set(roles)],
-      is_active: status === "Aktif",
-      updated_at: now,
-      updated_by: owner.userId,
-    }, { onConflict: "user_id" });
-    if (profileError) return { ok: false, error: "Pengaturan Role dan status gagal disimpan." };
+    const { error } = await admin.rpc("save_user_access_profile_with_audit", {
+      p_actor_user_id: owner.userId,
+      p_target_user_id: userId,
+      p_roles: [...new Set(roles)],
+      p_is_active: status === "Aktif",
+      p_scopes: scopes,
+      p_permissions: permissions,
+    });
 
-    const { data: existingScopes, error: existingScopesError } = await admin
-      .from("user_work_scopes").select("dimension, created_by").eq("user_id", userId);
-    if (existingScopesError) return { ok: false, error: "Data Area Kerja sebelumnya gagal dibaca." };
-    const scopeByDimension = new Map((existingScopes ?? []).map((row) => [row.dimension, row]));
-    const scopeRows = dimensions
-      .filter((dimension) => scopes[dimension] === "all")
-      .map((dimension) => ({
-        user_id: userId,
-        dimension,
-        scope_mode: "all",
-        resource_ids: [],
-        created_by: scopeByDimension.get(dimension)?.created_by ?? owner.userId,
-        updated_at: now,
-        updated_by: owner.userId,
-      }));
-    if (scopeRows.length) {
-      const { error } = await admin.from("user_work_scopes").upsert(scopeRows, { onConflict: "user_id,dimension" });
-      if (error) return { ok: false, error: "Area Kerja gagal disimpan." };
-    }
-    for (const dimension of dimensions.filter((key) => scopes[key] === "none")) {
-      const { error } = await admin.from("user_work_scopes").delete().eq("user_id", userId).eq("dimension", dimension);
-      if (error) return { ok: false, error: "Area Kerja gagal diperbarui." };
-    }
-
-    const { data: existingPermissions, error: existingPermissionsError } = await admin
-      .from("user_permission_overrides").select("permission_key, created_by").eq("user_id", userId);
-    if (existingPermissionsError) return { ok: false, error: "Data Permission sebelumnya gagal dibaca." };
-    const permissionByKey = new Map((existingPermissions ?? []).map((row) => [row.permission_key, row]));
-    const permissionRows = permissionKeys
-      .filter((key) => permissions[key] !== "unset")
-      .map((key) => ({
-        user_id: userId,
-        permission_key: key,
-        effect: permissions[key],
-        created_by: permissionByKey.get(key)?.created_by ?? owner.userId,
-        updated_at: now,
-        updated_by: owner.userId,
-      }));
-    if (permissionRows.length) {
-      const { error } = await admin.from("user_permission_overrides").upsert(permissionRows, { onConflict: "user_id,permission_key" });
-      if (error) return { ok: false, error: "Permission khusus gagal disimpan." };
-    }
-    for (const key of permissionKeys.filter((item) => permissions[item] === "unset")) {
-      const { error } = await admin.from("user_permission_overrides").delete().eq("user_id", userId).eq("permission_key", key);
-      if (error) return { ok: false, error: "Permission khusus gagal diperbarui." };
+    if (error) {
+      return { ok: false, error: "Pengaturan akses dan Audit Log gagal disimpan. Tidak ada perubahan yang diterapkan." };
     }
 
     return { ok: true };
