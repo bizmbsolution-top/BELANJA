@@ -14,7 +14,8 @@ export default function SalesManager({data}:{data:SalesPageData}){
  const router=useRouter();const canCreate=data.actorRoles.includes("Sales")||data.actorRoles.includes("Superadmin");
  const [open,setOpen]=useState(false),[customerId,setCustomerId]=useState(""),[deliveryAddressId,setDeliveryAddressId]=useState(""),[projectId,setProjectId]=useState(""),[warehouseIds,setWarehouseIds]=useState<string[]>([]),[weights,setWeights]=useState<Record<string,string>>({});
  const [busy,setBusy]=useState(false),[error,setError]=useState(""),[message,setMessage]=useState("");
- const selectedCustomer=data.customers.find(c=>c.id===customerId);\n const warehousesForProject=useMemo(()=>data.warehouses.filter(w=>data.warehouseProjects.some(m=>m.project_id===projectId&&m.warehouse_id===w.id)),[data.warehouses,data.warehouseProjects,projectId]);
+ const selectedCustomer=data.customers.find(c=>c.id===customerId);
+ const warehousesForProject=useMemo(()=>data.warehouses.filter(w=>data.warehouseProjects.some(m=>m.project_id===projectId&&m.warehouse_id===w.id)),[data.warehouses,data.warehouseProjects,projectId]);
  const selectableLots=data.lots.filter(l=>l.project_id===projectId&&warehouseIds.includes(l.warehouse_id));
  const selected=Object.entries(weights).filter(([id,v])=>selectableLots.some(l=>l.id===id)&&Number(v)>0);
  const selectedWeight=selected.reduce((s,[,v])=>s+Number(v),0);
