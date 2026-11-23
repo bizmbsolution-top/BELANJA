@@ -39,13 +39,15 @@ const groups: MenuGroup[] = [
       { label: "Penjualan", href: "/dashboard/penjualan", roles: ["Sales", "Warehouse", "Management"] },
       { label: "Penerimaan Penjualan", href: "/dashboard/penerimaan-penjualan", roles: ["Finance"] },
       { label: "Rekap Penjualan", href: "/dashboard/laporan-penjualan", roles: ["Finance", "Management"] },
-      { label: "Laporan Keuangan", href: "/dashboard/laporan-keuangan", roles: ["Finance", "Management"] },
       { label: "Laporan Biaya Penjualan", href: "/dashboard/laporan-biaya-penjualan", roles: ["Cashier", "Finance", "Management"] },
     ],
   },
   {
     title: "KEUANGAN",
-    items: [{ label: "Kas & Pembayaran", roles: ["Cashier", "Finance", "Management"] }],
+    items: [
+      { label: "Laporan Keuangan", href: "/dashboard/laporan-keuangan", roles: ["Finance", "Management"] },
+      { label: "Kas & Pembayaran", roles: ["Cashier", "Finance", "Management"] },
+    ],
   },
   {
     title: "DATA MASTER",
