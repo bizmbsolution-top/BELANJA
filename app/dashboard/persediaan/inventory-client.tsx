@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import styles from "./inventory.module.css";
 
-type WarehouseItem = { id: string; code: string; name: string; location: string | null; projectCode: string; projectName: string; totalKg: number; categories: { name: string; weight: number; averageValue: number; valueUnit: string }[] };
+type WarehouseItem = { id: string; code: string; name: string; location: string | null; projectLabel: string; totalKg: number; categories: { name: string; weight: number; averageValue: number; valueUnit: string }[] };
 type MovementItem = { id: string; type: string; date: string; category: string; weight: number; value: number; valueUnit: string; reference: string; projectCode: string; projectName: string };
 type Props = { warehouses: WarehouseItem[]; movements: Record<string, MovementItem[]>; totalKg: number; movementCount: number; categoryCount: number };
 
@@ -34,7 +34,7 @@ export default function InventoryClient({ warehouses, movements, totalKg, moveme
       <div className={styles.sectionHeading}><div><h2>Daftar Gudang</h2><p>Total/sisa stok tersedia pada setiap Gudang.</p></div></div>
       {warehouses.length === 0 ? <div className={styles.empty}><h3>Belum ada stok</h3><p>Stok akan muncul setelah penerimaan barang dinyatakan diterima.</p></div> :
         <div className={styles.stockList}>{warehouses.map(w => <button type="button" className={styles.warehouseCard} key={w.id} onClick={() => open(w.id)}>
-          <div className={styles.warehouseInfo}><span className={styles.code}>{w.code}</span><h3>{w.name}</h3><p>{w.projectCode} · {w.projectName}</p>{w.location && <small>{w.location}</small>}</div>
+          <div className={styles.warehouseInfo}><span className={styles.code}>{w.code}</span><h3>{w.name}</h3><p>{w.projectLabel}</p>{w.location && <small>{w.location}</small>}</div>
           <div className={styles.warehouseRight}><strong>{qty(w.totalKg)}</strong><span>Sisa stok tersedia</span><span className={styles.viewDetails}>View Details <b>›</b></span></div>
         </button>)}</div>}
     </section>
