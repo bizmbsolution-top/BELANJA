@@ -3,7 +3,6 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import {
   evaluateOwnerAccess,
-  evaluateProfileAccess,
   evaluateRouteAccess,
   normalizeOperationalRoles,
   ROLE_SUPERADMIN,
