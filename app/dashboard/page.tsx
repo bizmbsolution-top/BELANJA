@@ -50,7 +50,7 @@ export default async function DashboardPage() {
       <div className="home-heading">
         <p className="home-eyebrow">SENTRALOGIS · OPERATIONS</p>
         <h1>Management Dashboard</h1>
-        <p>Ringkasan aktivitas operasional BELANJA · {month}/${year}</p>
+        <p>Ringkasan aktivitas operasional BELANJA · {month}/{year}</p>
       </div>
       <section className="welcome-card">
         <div className="welcome-icon">
