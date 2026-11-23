@@ -256,6 +256,41 @@ export async function requireAnyRole(roles: readonly string[]): Promise<AccessCo
 }
 
 /**
+ * Requires a user explicitly registered in the platform_owners table.
+ * This is the platform-level authority and is independent from tenant roles.
+ */
+export async function requirePlatformOwner(): Promise<AccessContext> {
+  const supabase = await createClient();
+  const { data: { user }, error } = await supabase.auth.getUser();
+
+  if (error || !user || !user.email) {
+    throw new AuthorizationError("unauthenticated");
+  }
+
+  const admin = createAdminClient();
+  const { data, error: ownerError } = await admin
+    .from("platform_owners")
+    .select("user_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (ownerError) {
+    throw new AuthorizationError("inactive", "Status Platform Owner tidak dapat diverifikasi.");
+  }
+  if (!data) {
+    throw new AuthorizationError("not-owner");
+  }
+
+  return {
+    userId: user.id,
+    email: user.email,
+    isOwner: true,
+    roles: [],
+    displayRoles: ["Platform Owner"],
+  };
+}
+
+/**
  * Requires the caller to be the Owner.
  *
  * Two independent checks, in this order:
