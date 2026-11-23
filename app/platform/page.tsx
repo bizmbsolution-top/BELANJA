@@ -1,6 +1,7 @@
 import { guardPage, requirePlatformOwner } from "@/lib/auth/authorization";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createTenant, createTenantSuperadmin } from "./actions";
+import { signOut } from "@/app/login/actions";
 import styles from "./platform.module.css";
 
 type HealthRow = {
@@ -59,6 +60,9 @@ export default async function PlatformPage({
         <div className={styles.account}>
           <span className={styles.avatar}>O</span>
           <span><strong>Platform Owner</strong><small>{owner.email}</small></span>
+          <form action={signOut} className={styles.logoutForm}>
+            <button type="submit" className={styles.logoutButton}>Keluar</button>
+          </form>
         </div>
       </header>
 
