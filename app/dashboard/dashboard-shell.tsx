@@ -36,7 +36,7 @@ const groups: MenuGroup[] = [
       { label: "Pengeluaran", href: "/dashboard/pengeluaran", roles: ["Procurement", "Sales", "Cashier", "Finance", "Management"] },
       { label: "Permintaan Dana Kasir", href: "/dashboard/permintaan-penggunaan-dana", roles: ["Cashier", "Finance", "Management"] },
       { label: "Persediaan", href: "/dashboard/persediaan", roles: ["Warehouse", "Management", "Finance", "Cashier", "Sales", "Procurement"] },
-      { label: "Penjualan", href: "/dashboard/penjualan", roles: ["Sales", "Management"] },
+      { label: "Penjualan", href: "/dashboard/penjualan", roles: ["Sales", "Warehouse", "Management"] },
     ],
   },
   {
@@ -47,6 +47,7 @@ const groups: MenuGroup[] = [
     title: "DATA MASTER",
     items: [
       { label: "Supplier", href: "/dashboard/supplier", roles: ["Procurement", "Finance", "Management"] },
+      { label: "Pelanggan", href: "/dashboard/pelanggan", roles: ["Sales", "Management"] },
       { label: "Kategori Pembelian", href: "/dashboard/kategori", roles: ["Procurement", "Finance", "Management"] },
       { label: "Proyek & Departemen", roles: ["Management"] },
       { label: "Gudang / Warehouse", href: "/dashboard/gudang", roles: ["Procurement", "Warehouse", "Finance", "Management"] },
