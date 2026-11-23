@@ -10,44 +10,44 @@ const MAX_FILE = 10 * 1024 * 1024;
 const uuid = (value: string) => /^[0-9a-f-]{36}$/i.test(value);
 type Result = { ok: true; id?: string } | { ok: false; error: string };
 
-async function hasPermission(userId: string, key: string, isOwner: boolean) {
+async function hasPermission(userId: string, key: string, isOwner: boolean, tenantId: string | null) {
   if (isOwner) return true;
-  const { data, error } = await createAdminClient().from("user_permission_overrides").select("effect").eq("tenant_id", actor.tenantId)
+  const { data, error } = await createAdminClient().from("user_permission_overrides").select("effect").eq("tenant_id", tenantId)
     .eq("user_id", userId).eq("permission_key", key).maybeSingle();
   return !error && data?.effect === "allow";
 }
-async function assertProjectAccess(userId: string, projectId: string, isOwner: boolean, roles: string[]) {
+async function assertProjectAccess(userId: string, projectId: string, isOwner: boolean, roles: string[], tenantId: string | null) {
   if (isOwner || roles.includes("Finance") || roles.includes("Management")) return;
   const admin = createAdminClient();
-  const { data: project } = await admin.from("projects").select("id,is_active").eq("tenant_id", actor.tenantId).eq("id", projectId).maybeSingle();
+  const { data: project } = await admin.from("projects").select("id,is_active").eq("tenant_id", tenantId).eq("id", projectId).maybeSingle();
   if (!project?.is_active) throw new Error("Project tidak aktif atau tidak ditemukan.");
-  const { data: scope, error } = await admin.from("user_work_scopes").select("scope_mode,resource_ids").eq("tenant_id", actor.tenantId)
+  const { data: scope, error } = await admin.from("user_work_scopes").select("scope_mode,resource_ids").eq("tenant_id", tenantId)
     .eq("user_id", userId).eq("dimension", "project").maybeSingle();
   if (error || !scope) throw new Error("Area kerja Project belum diatur oleh Superadmin perusahaan.");
   if (scope.scope_mode === "all") return;
   if (scope.scope_mode !== "selected" || !scope.resource_ids?.includes(projectId)) throw new Error("Project di luar area kerja akun Anda.");
 }
-async function assertWarehouseAccess(userId: string, projectId: string, warehouseId: string, isOwner: boolean, roles: string[]) {
+async function assertWarehouseAccess(userId: string, projectId: string, warehouseId: string, isOwner: boolean, roles: string[], tenantId: string | null) {
   const admin = createAdminClient();
-  const { data: mapping } = await admin.from("warehouse_projects").select("warehouse_id").eq("tenant_id", actor.tenantId).eq("warehouse_id", warehouseId).eq("project_id", projectId).maybeSingle();
+  const { data: mapping } = await admin.from("warehouse_projects").select("warehouse_id").eq("tenant_id", tenantId).eq("warehouse_id", warehouseId).eq("project_id", projectId).maybeSingle();
   if (!mapping) throw new Error("Warehouse tidak terhubung dengan Project yang dipilih.");
   if (isOwner || roles.includes("Finance") || roles.includes("Management")) return;
-  const { data: scope, error } = await admin.from("user_work_scopes").select("scope_mode,resource_ids").eq("tenant_id", actor.tenantId)
+  const { data: scope, error } = await admin.from("user_work_scopes").select("scope_mode,resource_ids").eq("tenant_id", tenantId)
     .eq("user_id", userId).eq("dimension", "warehouse").maybeSingle();
   if (error || !scope) throw new Error("Area kerja Warehouse belum diatur oleh Superadmin perusahaan.");
   if (scope.scope_mode === "all") return;
   if (scope.scope_mode !== "selected" || !scope.resource_ids?.includes(warehouseId)) throw new Error("Warehouse di luar area kerja akun Anda.");
 }
-async function getRequest(id: string) {
-  return createAdminClient().from("purchase_requests").select("id,project_id,warehouse_id,status,price_per_kg,code").eq("tenant_id", actor.tenantId).eq("id", id).maybeSingle();
+async function getRequest(id: string, tenantId: string | null) {
+  return createAdminClient().from("purchase_requests").select("id,project_id,warehouse_id,status,price_per_kg,code").eq("tenant_id", tenantId).eq("id", id).maybeSingle();
 }
-async function getPaymentContext(id: string) {
+async function getPaymentContext(id: string, tenantId: string | null) {
   const admin = createAdminClient();
-  const { data: payment } = await admin.from("purchase_payment_requests").select("id,receipt_id,status,amount").eq("tenant_id", actor.tenantId).eq("id", id).maybeSingle();
+  const { data: payment } = await admin.from("purchase_payment_requests").select("id,receipt_id,status,amount").eq("tenant_id", tenantId).eq("id", id).maybeSingle();
   if (!payment) return null;
-  const { data: receipt } = await admin.from("purchase_receipts").select("purchase_request_id").eq("tenant_id", actor.tenantId).eq("id", payment.receipt_id).maybeSingle();
+  const { data: receipt } = await admin.from("purchase_receipts").select("purchase_request_id").eq("tenant_id", tenantId).eq("id", payment.receipt_id).maybeSingle();
   if (!receipt) return null;
-  const { data: request } = await admin.from("purchase_requests").select("id,project_id,warehouse_id,status").eq("tenant_id", actor.tenantId).eq("id", receipt.purchase_request_id).maybeSingle();
+  const { data: request } = await admin.from("purchase_requests").select("id,project_id,warehouse_id,status").eq("tenant_id", tenantId).eq("id", receipt.purchase_request_id).maybeSingle();
   return request ? { payment, request } : null;
 }
 
@@ -57,13 +57,14 @@ export async function createPurchaseRequest(input: {
 }): Promise<Result> {
   try {
     const actor = await requireAnyRole(["Procurement"]);
-    if (!(await hasPermission(actor.userId, "transaction.post_recognition", actor.tenantRole === "superadmin"))) return { ok: false, error: "Permission transaksi belum diberikan oleh Superadmin perusahaan." };
+    tenantId = actor.tenantId;
+    if (!(await hasPermission(actor.userId, "transaction.post_recognition", actor.tenantRole === "superadmin", actor.tenantId))) return { ok: false, error: "Permission transaksi belum diberikan oleh Superadmin perusahaan." };
     if (!/^\d{4}-\d{2}-\d{2}$/.test(input?.requestDate ?? "") || !uuid(input?.projectId ?? "") ||
       !uuid(input?.supplierId ?? "") || !uuid(input?.warehouseId ?? "") || !uuid(input?.categoryId ?? "")) return { ok: false, error: "Lengkapi tanggal, Project, Supplier, Warehouse, dan Kategori." };
     const weight = Number(input.estimatedWeightKg), price = Number(input.pricePerKg), notes = (input.notes ?? "").trim();
     if (!Number.isFinite(weight) || weight <= 0 || !Number.isFinite(price) || price <= 0 || notes.length > 1000) return { ok: false, error: "Estimasi berat, harga per kg, atau keterangan tidak valid." };
-    await assertProjectAccess(actor.userId, input.projectId, actor.tenantRole === "superadmin", actor.roles);
-    await assertWarehouseAccess(actor.userId, input.projectId, input.warehouseId, actor.tenantRole === "superadmin", actor.roles);
+    await assertProjectAccess(actor.userId, input.projectId, actor.tenantRole === "superadmin", actor.roles, actor.tenantId);
+    await assertWarehouseAccess(actor.userId, input.projectId, input.warehouseId, actor.tenantRole === "superadmin", actor.roles, actor.tenantId);
     const { data, error } = await createAdminClient().rpc("create_purchase_request_with_audit", {
       p_actor_user_id: actor.userId, p_request_date: input.requestDate, p_project_id: input.projectId,
       p_supplier_id: input.supplierId, p_warehouse_id: input.warehouseId, p_category_id: input.categoryId,
@@ -76,15 +77,16 @@ export async function createPurchaseRequest(input: {
 
 export async function recordPurchaseReceipt(formData: FormData): Promise<Result> {
   let receiptId: string | null = null;
+  let tenantId: string | null = null;
   const uploadedPaths: string[] = [];
   try {
     const actor = await requireAnyRole(["Procurement"]);
-    if (!(await hasPermission(actor.userId, "transaction.post_recognition", actor.tenantRole === "superadmin"))) return { ok: false, error: "Permission transaksi belum diberikan oleh Superadmin perusahaan." };
+    if (!(await hasPermission(actor.userId, "transaction.post_recognition", actor.tenantRole === "superadmin", actor.tenantId))) return { ok: false, error: "Permission transaksi belum diberikan oleh Superadmin perusahaan." };
     const requestId = String(formData.get("requestId") ?? "");
     if (!uuid(requestId)) return { ok: false, error: "Permintaan pembelian tidak valid." };
-    const { data: request } = await getRequest(requestId);
+    const { data: request } = await getRequest(requestId, actor.tenantId);
     if (!request || request.status !== "Menunggu Barang") return { ok: false, error: "Permintaan tidak tersedia untuk penerimaan." };
-    await assertProjectAccess(actor.userId, request.project_id, actor.tenantRole === "superadmin", actor.roles);
+    await assertProjectAccess(actor.userId, request.project_id, actor.tenantRole === "superadmin", actor.roles, actor.tenantId);
     await assertWarehouseAccess(actor.userId, request.project_id, request.warehouse_id, actor.tenantRole === "superadmin", actor.roles);
     const receiptDate = String(formData.get("receiptDate") ?? ""), value = Number(formData.get("value"));
     const valueUnit = String(formData.get("valueUnit") ?? "%").trim(), weight = Number(formData.get("weight"));
@@ -111,7 +113,7 @@ export async function recordPurchaseReceipt(formData: FormData): Promise<Result>
     for (const [evidenceType, group] of [["weight",weightFiles],["value",valueFiles]] as const) {
       for (const file of group) {
         const safeName = file.name.normalize("NFKD").replace(/[^a-zA-Z0-9._-]+/g,"_").slice(-100) || "evidence";
-        const path = receiptId + "/" + crypto.randomUUID() + "_" + safeName;
+        const path = actor.tenantId + "/" + receiptId + "/" + crypto.randomUUID() + "_" + safeName;
         const { error: uploadError } = await admin.storage.from(RECEIPT_BUCKET).upload(path,file,{contentType:file.type,upsert:false});
         if (uploadError) throw new Error("Foto " + file.name + " gagal diunggah.");
         uploadedPaths.push(path);
@@ -131,8 +133,8 @@ export async function recordPurchaseReceipt(formData: FormData): Promise<Result>
     if (receiptId) {
       const admin = createAdminClient();
       if (uploadedPaths.length) await admin.storage.from(RECEIPT_BUCKET).remove(uploadedPaths);
-      await admin.from("purchase_receipt_documents").delete().eq("tenant_id", actor.tenantId).eq("receipt_id",receiptId);
-      await admin.from("purchase_receipts").delete().eq("tenant_id", actor.tenantId).eq("id",receiptId).eq("status","Draft");
+      await admin.from("purchase_receipt_documents").delete().eq("tenant_id", tenantId).eq("receipt_id",receiptId);
+      await admin.from("purchase_receipts").delete().eq("tenant_id", tenantId).eq("id",receiptId).eq("status","Draft");
     }
     return { ok: false, error: error instanceof Error ? error.message : "Penerimaan gagal disimpan." };
   }
@@ -141,18 +143,18 @@ export async function recordPurchaseReceipt(formData: FormData): Promise<Result>
 export async function uploadPurchasePaymentEvidence(paymentRequestId: string, formData: FormData): Promise<Result> {
   try {
     const actor = await requireAnyRole(["Cashier"]);
-    if (!(await hasPermission(actor.userId,"payment.post",actor.tenantRole === "superadmin"))) return { ok:false,error:"Permission pembayaran belum diberikan oleh Superadmin perusahaan." };
+    if (!(await hasPermission(actor.userId,"payment.post",actor.tenantRole === "superadmin",actor.tenantId))) return { ok:false,error:"Permission pembayaran belum diberikan oleh Superadmin perusahaan." };
     if (!uuid(paymentRequestId)) return { ok:false,error:"Pengajuan pembayaran tidak valid." };
-    const context = await getPaymentContext(paymentRequestId);
+    const context = await getPaymentContext(paymentRequestId, actor.tenantId);
     if (!context || context.payment.status!=="Menunggu Pembayaran") return { ok:false,error:"Pengajuan tidak tersedia untuk pembayaran." };
-    await assertProjectAccess(actor.userId,context.request.project_id,actor.tenantRole === "superadmin",actor.roles);
+    await assertProjectAccess(actor.userId,context.request.project_id,actor.tenantRole === "superadmin",actor.roles,actor.tenantId);
     const files=formData.getAll("files").filter((v):v is File=>v instanceof File&&v.size>0);
     if(!files.length||files.length>15||files.reduce((sum,f)=>sum+f.size,0)>20*1024*1024) return {ok:false,error:"Pilih 1–15 file dengan total maksimal 20 MB."};
     const admin=createAdminClient();
     for(const file of files){
       if(file.size>MAX_FILE||!["application/pdf","image/jpeg","image/png"].includes(file.type)) return {ok:false,error:"Bukti Transfer harus PDF, JPG, atau PNG dan maksimal 10 MB per file."};
       const safeName=file.name.normalize("NFKD").replace(/[^a-zA-Z0-9._-]+/g,"_").slice(-100)||"bukti-transfer";
-      const path=paymentRequestId+"/"+crypto.randomUUID()+"_"+safeName;
+      const path=actor.tenantId+"/"+paymentRequestId+"/"+crypto.randomUUID()+"_"+safeName;
       const {error:uploadError}=await admin.storage.from(PAYMENT_BUCKET).upload(path,file,{contentType:file.type,upsert:false});
       if(uploadError) return {ok:false,error:"Bukti Transfer gagal diunggah."};
       const {error:recordError}=await admin.rpc("register_purchase_payment_document_with_audit",{
@@ -168,11 +170,11 @@ export async function uploadPurchasePaymentEvidence(paymentRequestId: string, fo
 export async function payPurchasePayment(paymentRequestId: string): Promise<Result> {
   try {
     const actor=await requireAnyRole(["Cashier"]);
-    if(!(await hasPermission(actor.userId,"payment.post",actor.tenantRole === "superadmin"))) return {ok:false,error:"Permission pembayaran belum diberikan oleh Superadmin perusahaan."};
+    if(!(await hasPermission(actor.userId,"payment.post",actor.tenantRole === "superadmin",actor.tenantId))) return {ok:false,error:"Permission pembayaran belum diberikan oleh Superadmin perusahaan."};
     if(!uuid(paymentRequestId)) return {ok:false,error:"Pengajuan pembayaran tidak valid."};
     const context=await getPaymentContext(paymentRequestId);
     if(!context||context.payment.status!=="Menunggu Pembayaran") return {ok:false,error:"Pengajuan sudah diproses atau tidak ditemukan."};
-    await assertProjectAccess(actor.userId,context.request.project_id,actor.tenantRole === "superadmin",actor.roles);
+    await assertProjectAccess(actor.userId,context.request.project_id,actor.tenantRole === "superadmin",actor.roles,actor.tenantId);
     const {error}=await createAdminClient().rpc("pay_purchase_payment_with_audit",{p_payment_request_id:paymentRequestId,p_actor_user_id:actor.userId});
     if(error) return {ok:false,error:error.message.toLowerCase().includes("insufficient")?"Saldo Kasir Project tidak mencukupi. Pembayaran diblokir; tidak ada pembayaran parsial.":"Pembayaran gagal. Pastikan bukti Transfer sudah diunggah."};
     revalidatePath("/dashboard/pembelian"); revalidatePath("/dashboard/permintaan-penggunaan-dana"); return {ok:true};
