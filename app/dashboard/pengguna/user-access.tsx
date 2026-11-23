@@ -364,7 +364,7 @@ export default function UserAccess({ initialUsers, initialProjects }: { initialU
             <h3>Area Kerja</h3>
             <p className={styles.helper}>
               Atur batas data yang dapat dibuka pengguna. Scope yang tidak dipilih berarti tidak ada akses.
-              Project dapat ditetapkan satu per satu dari Master Project yang aktif.
+              Project dapat ditetapkan satu per satu dari Master Project yang aktif. Untuk pengguna dengan Role Cashier, Project terpilih juga menjadi lokasi tugas Kasir dan dasar saldo Kasir per Project.
             </p>
             <div className={styles.scopeGrid}>
               {scopeDimensions.map((dimension) => (
