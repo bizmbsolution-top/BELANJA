@@ -5,11 +5,11 @@ import SupplierManager, { type Supplier } from "./supplier-manager";
 const SUPPLIER_ROLES = ["Procurement", "Finance", "Management"] as const;
 
 export default async function SupplierPage() {
-  await requireAnyRole(SUPPLIER_ROLES);
+  const context = await requireAnyRole(SUPPLIER_ROLES);
   const admin = createAdminClient();
   const { data, error } = await admin
     .from("suppliers")
-    .select("id, code, name, contact_person, phone, email, address, notes, is_active")
+    .select("id, code, name, contact_person, phone, email, address, notes, is_active").eq("tenant_id", context.tenantId)
     .order("name", { ascending: true })
     .limit(500);
 
