@@ -1,6 +1,6 @@
 # Belanja — Implementasi Audit Log
 
-Status: **Skema dan integrasi awal diterapkan pada Supabase serta branch preview**
+Status: **Skema dan integrasi awal diterapkan; tampilan aktivitas organisasi dan pribadi tersedia pada branch preview**
 Target: branch `ui-user-access-preview` · Supabase project `zguzjoqmghmmviyixecz`
 
 ## 1. Cakupan
@@ -45,12 +45,18 @@ Supabase Auth Admin API untuk pembuatan akun, perubahan email, dan reset passwor
 
 ## 5. Tampilan
 
-Halaman Owner: `/dashboard/riwayat-aktivitas`.
-- Menampilkan 200 aktivitas terbaru.
-- Menampilkan waktu WIB, pelaku, pengguna terkait, dan jenis aktivitas.
+Halaman organisasi Owner: `/dashboard/riwayat-aktivitas`.
+- Hanya Owner yang dapat melihat seluruh aktivitas organisasi.
+- Menampilkan 200 aktivitas terbaru, waktu WIB, pelaku, pengguna terkait, dan jenis aktivitas.
 - Detail sebelum/sesudah ditampilkan sebagai ringkasan, bukan JSON mentah.
-- Menu hanya tampil pada navigasi Owner.
-- Filter belum termasuk tahap awal ini.
+
+Halaman pribadi seluruh pengguna aktif: `/dashboard/aktivitas-saya`.
+- Menu Aktivitas Saya tersedia untuk semua pengguna aktif, termasuk Owner.
+- Query dibatasi di server berdasarkan ID akun yang sedang login: `actor_user_id` atau `target_user_id`.
+- Pengguna dapat melihat tindakan yang ia lakukan serta perubahan yang berkaitan dengan akunnya; tidak dapat melihat aktivitas pengguna lain.
+- Menampilkan maksimal 200 catatan terbaru.
+
+**Batas cakupan saat ini:** audit event yang sudah terhubung baru administrasi akun dan perubahan Supplier. Aktivitas transaksi Pembelian, Penjualan, Pengeluaran, Kas/Pembayaran, dan Persediaan belum dicatat karena modul/aksi transaksinya belum diimplementasikan. Navigasi, klik, dan aktivitas baca tidak dicatat.
 
 ## 6. Migration
 
