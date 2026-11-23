@@ -29,7 +29,7 @@ export async function recordSalesSettlement(input:{salesOrderId:string;paymentMe
   if(up)return{ok:false,error:"Invoice breakdown gagal diunggah."};uploaded=path;
   const {data,error}=await db.rpc("record_sales_order_settlement",{
    p_sales_order_id:order.id,p_actor_user_id:actor.userId,p_payment_method:input.paymentMethod,
-   p_received_at:new Date(input.receivedAt).toISOString(),p_payment_reference:input.paymentReference.trim()||null,
+   p_received_at:new Date(input.receivedAt+"+07:00").toISOString(),p_payment_reference:input.paymentReference.trim()||null,
    p_notes:input.notes.trim()||null,p_deductions:normalized
   });
   if(error||!data)throw new Error(error?.message??"Settlement gagal disimpan.");settlementCreated=true;
