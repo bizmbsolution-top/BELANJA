@@ -36,7 +36,7 @@ export default function SettlementManager({orders,components,settlements,deducti
      </div>
      {included.length===0?<p style={muted}>Belum ada potongan ditambahkan. Net pembayaran sama dengan nilai invoice.</p>:applicable.filter(isIncluded).map(c=><div key={c.id} style={deductionRow}>
       <div style={{minWidth:150,flex:1}}><b>{c.name}</b><small style={muted}>Acuan master: {c.calculation_method==="percent"?c.default_value+"%":money(Number(c.default_value))}</small></div>
-      <label style={{display:"grid",gap:4,fontSize:11,color:"#64748b",flex:2,minWidth:180}}>Nominal Potongan (Rp)<input type="number" min="0" step="1" value={amountFor(c)} onChange={e=>setAmounts(v=>({...v,[c.id]:e.target.value}))} style={control}/></label>
+      <label style={{display:"grid",gap:6,fontSize:12,color:"#475569",fontWeight:700,flex:2,minWidth:240}}>Nominal Potongan (Rp)<input type="number" min="0" step="1" value={amountFor(c)} onChange={e=>setAmounts(v=>({...v,[c.id]:e.target.value}))} style={{...control,minHeight:52,fontSize:18,fontWeight:800,padding:"12px 14px",letterSpacing:".02em"}}/></label>
       <button type="button" style={secondary} onClick={()=>setIncluded(v=>v.filter(id=>id!==c.id))}>Hapus</button>
      </div>)}
     </div>
