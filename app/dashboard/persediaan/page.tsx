@@ -6,9 +6,15 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 type Movement = {
-  id: string; movement_type: string; receipt_id: string; project_id: string;
+  id: string; movement_type: string; receipt_id: string | null; lot_id: string | null; project_id: string;
   warehouse_id: string; category_id: string; weight_kg: number; value: number;
   value_unit: string; created_at: string;
+};
+type Lot = {
+  id: string; code: string; source_receipt_id: string; purchase_request_id: string;
+  supplier_id: string; inbound_date: string; project_id: string; warehouse_id: string;
+  category_id: string; initial_weight_kg: number; grade_value: number; grade_unit: string;
+  purchase_price_per_kg: number; total_purchase_cost: number;
 };
 
 export default async function PersediaanPage() {
@@ -32,18 +38,27 @@ export default async function PersediaanPage() {
     }
   }
 
-  const [{ data: movements, error }, { data: allWarehouses }, { data: projects }, { data: categories }] = await Promise.all([
-    admin.from("inventory_movements").select("id,movement_type,receipt_id,project_id,warehouse_id,category_id,weight_kg,value,value_unit,created_at").order("created_at", { ascending: false }).limit(5000),
+  const [{ data: movements, error }, { data: allWarehouses }, { data: projects }, { data: categories },
+    { data: rawLots, error: lotError }, { data: suppliers }] = await Promise.all([
+    admin.from("inventory_movements").select("id,movement_type,receipt_id,lot_id,project_id,warehouse_id,category_id,weight_kg,value,value_unit,created_at").order("created_at", { ascending: false }).limit(5000),
     admin.from("warehouses").select("id,code,name,location").order("name"),
     admin.from("projects").select("id,code,name").order("name"),
     admin.from("purchase_categories").select("id,name").order("name"),
+    admin.from("inventory_lots").select("id,code,source_receipt_id,purchase_request_id,supplier_id,inbound_date,project_id,warehouse_id,category_id,initial_weight_kg,grade_value,grade_unit,purchase_price_per_kg,total_purchase_cost").order("inbound_date", { ascending: false }).limit(5000),
+    admin.from("suppliers").select("id,name").order("name"),
   ]);
   if (error) throw new Error("Data pergerakan persediaan gagal dimuat.");
+  if (lotError) throw new Error("Data Lot persediaan gagal dimuat.");
+
   const visible = ((movements ?? []) as Movement[]).filter(m =>
     (warehouseIds === null || warehouseIds.includes(m.warehouse_id)) &&
     (projectIds === null || projectIds.includes(m.project_id))
   );
-  const receiptIds = [...new Set(visible.map(m => m.receipt_id).filter(Boolean))];
+  const visibleLots = ((rawLots ?? []) as Lot[]).filter(l =>
+    (warehouseIds === null || warehouseIds.includes(l.warehouse_id)) &&
+    (projectIds === null || projectIds.includes(l.project_id))
+  );
+  const receiptIds = [...new Set(visible.map(m => m.receipt_id).filter((id): id is string => Boolean(id)))];
   const { data: receipts } = receiptIds.length
     ? await admin.from("purchase_receipts").select("id,code").in("id", receiptIds)
     : { data: [] };
@@ -51,8 +66,11 @@ export default async function PersediaanPage() {
   const projectMap = new Map((projects ?? []).map(p => [p.id, p]));
   const categoryMap = new Map((categories ?? []).map(c => [c.id, c]));
   const warehouseMap = new Map((allWarehouses ?? []).map(w => [w.id, w]));
+  const supplierMap = new Map((suppliers ?? []).map(s => [s.id, s.name]));
+  const lotMap = new Map(visibleLots.map(l => [l.id, l]));
 
   const balances = new Map<string, { warehouse_id:string; project_id:string; category_id:string; value_unit:string; weight:number; valueWeight:number }>();
+  const lotBalances = new Map<string, number>();
   for (const m of visible) {
     const key = [m.warehouse_id,m.project_id,m.category_id,m.value_unit].join("|");
     const row = balances.get(key) ?? { warehouse_id:m.warehouse_id,project_id:m.project_id,category_id:m.category_id,value_unit:m.value_unit,weight:0,valueWeight:0 };
@@ -60,6 +78,7 @@ export default async function PersediaanPage() {
     const kg = Number(m.weight_kg);
     row.weight += sign*kg; row.valueWeight += sign*kg*Number(m.value);
     balances.set(key,row);
+    if (m.lot_id) lotBalances.set(m.lot_id, (lotBalances.get(m.lot_id) ?? 0) + sign*kg);
   }
   const warehouseGroups = new Map<string, typeof balances extends Map<string,infer V> ? V[] : never>();
   for (const row of balances.values()) {
@@ -83,17 +102,34 @@ export default async function PersediaanPage() {
     };
   }).sort((a,b)=>a.name.localeCompare(b.name));
 
-  const movementGroups: Record<string, {id:string;type:string;date:string;category:string;weight:number;value:number;valueUnit:string;reference:string;projectCode:string;projectName:string}[]> = {};
+  const lotGroups: Record<string, {id:string;code:string;inboundDate:string;category:string;supplier:string;initialWeight:number;availableWeight:number;gradeValue:number;gradeUnit:string;purchasePricePerKg:number;totalPurchaseCost:number}[]> = {};
+  for (const lot of visibleLots) {
+    const availableWeight = Math.max(0, lotBalances.get(lot.id) ?? 0);
+    if (availableWeight <= 0.0001) continue;
+    (lotGroups[lot.warehouse_id] ??= []).push({
+      id:lot.id,code:lot.code,inboundDate:lot.inbound_date,
+      category:categoryMap.get(lot.category_id)?.name ?? "Barang",
+      supplier:supplierMap.get(lot.supplier_id) ?? "Supplier",
+      initialWeight:Number(lot.initial_weight_kg),availableWeight,
+      gradeValue:Number(lot.grade_value),gradeUnit:lot.grade_unit,
+      purchasePricePerKg:Number(lot.purchase_price_per_kg),totalPurchaseCost:Number(lot.total_purchase_cost)
+    });
+  }
+  for (const rows of Object.values(lotGroups)) rows.sort((a,b)=>b.inboundDate.localeCompare(a.inboundDate)||a.code.localeCompare(b.code));
+
+  const movementGroups: Record<string, {id:string;type:string;date:string;category:string;weight:number;value:number;valueUnit:string;reference:string;lotCode:string;projectCode:string;projectName:string}[]> = {};
   for (const m of visible) {
     const p=projectMap.get(m.project_id);
+    const lotCode=m.lot_id ? lotMap.get(m.lot_id)?.code ?? "" : "";
+    const receiptCode=m.receipt_id ? receiptMap.get(m.receipt_id) ?? "" : "";
     (movementGroups[m.warehouse_id] ??= []).push({
       id:m.id,type:m.movement_type,date:m.created_at,category:categoryMap.get(m.category_id)?.name ?? "Barang",
       weight:Number(m.weight_kg),value:Number(m.value),valueUnit:m.value_unit,
-      reference:receiptMap.get(m.receipt_id) ? `Penerimaan ${receiptMap.get(m.receipt_id)}` : "",
-      projectCode:p?.code ?? "",projectName:p?.name ?? ""
+      reference:[receiptCode ? `Penerimaan ${receiptCode}` : "",lotCode].filter(Boolean).join(" · "),
+      lotCode,projectCode:p?.code ?? "",projectName:p?.name ?? ""
     });
   }
   const totalKg=warehouses.reduce((s,w)=>s+w.totalKg,0);
   const categoryCount=new Set(warehouses.flatMap(w=>w.categories.map(c=>c.name))).size;
-  return <InventoryClient warehouses={warehouses} movements={movementGroups} totalKg={totalKg} movementCount={visible.length} categoryCount={categoryCount}/>;
+  return <InventoryClient warehouses={warehouses} lots={lotGroups} movements={movementGroups} totalKg={totalKg} movementCount={visible.length} categoryCount={categoryCount}/>;
 }
