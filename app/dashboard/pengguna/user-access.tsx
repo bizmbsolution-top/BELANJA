@@ -15,6 +15,7 @@ type UserRecord = {
   status: "Aktif" | "Nonaktif";
   scopes: { project: "none" | "all" | "selected"; department: "none" | "all" | "selected"; warehouse: "none" | "all" | "selected" };
   projectIds: string[];
+  warehouseIds: string[];
   permissions: {
     "transaction.post_recognition": "unset" | "allow" | "deny";
     "fund_utilization.post_recognition": "unset" | "allow" | "deny";
@@ -140,12 +141,23 @@ export default function UserAccess({ initialUsers, initialProjects, initialWareh
     setUsers((current) => current.map((user) => {
       if (user.id !== selectedId) return user;
       const projectIds = user.projectIds.includes(projectId) ? user.projectIds.filter((id) => id !== projectId) : [...user.projectIds, projectId];
-      const allowedWarehouseIds = initialWarehouses.filter(warehouse => warehouse.projectIds.some(id => projectIds.includes(id))).map(warehouse => warehouse.id);\n      const warehouseIds = user.warehouseIds.filter(id => allowedWarehouseIds.includes(id));\n      return { ...user, projectIds, warehouseIds, scopes: { ...user.scopes, project: projectIds.length ? "selected" : user.scopes.project, ...(warehouseIds.length ? {} : { warehouse: "none" as const }) } };
+      const allowedWarehouseIds = initialWarehouses.filter(warehouse => warehouse.projectIds.some(id => projectIds.includes(id))).map(warehouse => warehouse.id);
+      const warehouseIds = user.warehouseIds.filter(id => allowedWarehouseIds.includes(id));
+      return { ...user, projectIds, warehouseIds, scopes: { ...user.scopes, project: projectIds.length ? "selected" : user.scopes.project, ...(warehouseIds.length ? {} : { warehouse: "none" as const }) } };
     }));
     setSaved(false);
   }
 
-  function toggleWarehouse(warehouseId: string) {\n    setUsers(current => current.map(user => {\n      if (user.id !== selectedId) return user;\n      const warehouseIds = user.warehouseIds.includes(warehouseId) ? user.warehouseIds.filter(id => id !== warehouseId) : [...user.warehouseIds, warehouseId];\n      return { ...user, warehouseIds, scopes: { ...user.scopes, warehouse: warehouseIds.length ? "selected" : "none" } };\n    }));\n    setSaved(false);\n  }\n\n  function updatePermission(permission: keyof UserRecord["permissions"], value: "unset" | "allow" | "deny") {
+  function toggleWarehouse(warehouseId: string) {
+    setUsers(current => current.map(user => {
+      if (user.id !== selectedId) return user;
+      const warehouseIds = user.warehouseIds.includes(warehouseId) ? user.warehouseIds.filter(id => id !== warehouseId) : [...user.warehouseIds, warehouseId];
+      return { ...user, warehouseIds, scopes: { ...user.scopes, warehouse: warehouseIds.length ? "selected" : "none" } };
+    }));
+    setSaved(false);
+  }
+
+  function updatePermission(permission: keyof UserRecord["permissions"], value: "unset" | "allow" | "deny") {
     setUsers((current) => current.map((user) =>
       user.id === selectedId ? { ...user, permissions: { ...user.permissions, [permission]: value } } : user
     ));
@@ -265,7 +277,9 @@ export default function UserAccess({ initialUsers, initialProjects, initialWareh
       status: selectedUser.status,
       scopes: selectedUser.scopes,
       permissions: selectedUser.permissions,
-      projectIds: selectedUser.projectIds,\n      warehouseIds: selectedUser.warehouseIds,
+      projectIds: selectedUser.projectIds,
+      warehouseIds: selectedUser.warehouseIds,
+      warehouseIds: selectedUser.warehouseIds,
     });
     setSaveBusy(false);
     if (!result.ok) {
@@ -402,7 +416,17 @@ export default function UserAccess({ initialUsers, initialProjects, initialWareh
                       )) : <p className={styles.allHint}>Belum ada Project aktif. Tambahkan melalui Master Project.</p>}
                     </div>
                   )}
-                  {dimension.id === "warehouse" && selectedUser.scopes.warehouse === "selected" && (\n                    <div className={styles.optionList}>\n                      {initialWarehouses.filter(w => selectedUser.scopes.project === "all" || w.projectIds.some(id => selectedUser.projectIds.includes(id))).map(warehouse => (\n                        <label className={styles.option} key={warehouse.id}>\n                          <input type="checkbox" checked={selectedUser.warehouseIds.includes(warehouse.id)} onChange={() => toggleWarehouse(warehouse.id)} />\n                          <span>{warehouse.code} · {warehouse.name}</span>\n                        </label>\n                      ))}\n                    </div>\n                  )}\n                  <p className={styles.allHint}>{dimension.id === "project" ? "Hanya Project yang dipilih yang dapat diakses pengguna." : dimension.id === "warehouse" ? "Daftar Warehouse mengikuti Project yang dipilih." : "Pilihan Selected Department akan diaktifkan setelah master data tersedia."}</p>
+                  {dimension.id === "warehouse" && selectedUser.scopes.warehouse === "selected" && (
+                    <div className={styles.optionList}>
+                      {initialWarehouses.filter(w => selectedUser.scopes.project === "all" || w.projectIds.some(id => selectedUser.projectIds.includes(id))).map(warehouse => (
+                        <label className={styles.option} key={warehouse.id}>
+                          <input type="checkbox" checked={selectedUser.warehouseIds.includes(warehouse.id)} onChange={() => toggleWarehouse(warehouse.id)} />
+                          <span>{warehouse.code} · {warehouse.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                  <p className={styles.allHint}>{dimension.id === "project" ? "Hanya Project yang dipilih yang dapat diakses pengguna." : dimension.id === "warehouse" ? "Daftar Warehouse mengikuti Project yang dipilih." : "Pilihan Selected Department akan diaktifkan setelah master data tersedia."}</p>
                 </div>
               ))}
             </div>
