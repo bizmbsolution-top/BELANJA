@@ -28,6 +28,7 @@ type MenuGroup = {
 
 const groups: MenuGroup[] = [
   { title: "UTAMA", items: [{ label: "Dashboard", href: "/dashboard" }] },
+  { title: "AKTIVITAS", items: [{ label: "Aktivitas Saya", href: "/dashboard/aktivitas-saya" }] },
   {
     title: "OPERASIONAL",
     items: [
