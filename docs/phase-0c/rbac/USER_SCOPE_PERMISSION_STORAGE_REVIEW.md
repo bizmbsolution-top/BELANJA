@@ -145,17 +145,20 @@ Catatan:
 - Verifikasi pascamigration: kedua tabel memiliki RLS aktif, tidak memiliki policy, tidak memberi hak SELECT kepada `anon`/`authenticated`, dan memberi hak DML kepada `service_role`.
 - Advisor masih menampilkan temuan INFO `RLS Enabled No Policy` pada tabel baru (sesuai desain tertutup ini) serta satu temuan lama pada `user_access_profiles`. Advisor juga melaporkan fungsi `public.rls_auto_enable()` sebagai SECURITY DEFINER yang dapat dipanggil `anon` dan `authenticated`; temuan ini sudah ada di luar migration ini dan perlu ditinjau terpisah.
 
-## 5. Integrasi aplikasi yang diperlukan setelah migration disetujui
+## 5. Status integrasi aplikasi
 
-1. Server actions Owner untuk membaca, menyimpan, dan menghapus pilihan Scope.
-2. Server actions Owner untuk mengatur `allow/deny` per permission.
-3. UI Owner dengan pilihan All / Selected dan daftar resource yang benar-benar tersedia dari tabel master.
-4. Adapter data database ke `evaluateScopeAccess()` dan `evaluatePermissionAccess()` di `lib/auth/access-policy.ts`.
-5. Pemeriksaan Scope pada query/operasi data server-side. Menyembunyikan menu saja tidak cukup.
-6. Pemeriksaan Permission tepat di server action/API yang melakukan posting atau alokasi.
-7. Audit perubahan: siapa, kapan, pengguna target, dimensi/permission, nilai sebelum dan sesudah.
-8. Uji negatif: pengguna tanpa scope, scope kosong, permission tidak diberikan, explicit deny, dan akses langsung ke API.
+Sudah dikerjakan pada branch preview:
+- Server actions Owner membaca dan menyimpan Scope serta Permission melalui admin client server-side.
+- UI Owner menyimpan Scope `All` / tanpa akses per dimensi.
+- UI Owner mengatur Permission individual `allow` / `deny` / belum diatur.
+- Adapter `normalizeStoredScopeAssignment()` mengubah bentuk row database menjadi bentuk yang dipakai policy, dan menolak data malformed.
+- Pilihan Scope `Selected` ditampilkan nonaktif sampai tabel master tersedia; row Selected yang sudah ada tidak akan dihapus saat form disimpan.
 
+Belum dikerjakan:
+- Pemeriksaan Scope pada query/operasi data server-side. Menyembunyikan menu saja tidak cukup.
+- Pemeriksaan Permission tepat di server action/API yang melakukan posting atau alokasi.
+- Audit riwayat perubahan sebelum/sesudah; kolom created/updated saat ini hanya menyimpan metadata terakhir, bukan histori lengkap.
+- Uji negatif end-to-end untuk pengguna tanpa Scope, explicit deny, dan akses langsung ke API.
 ## 6. Hal yang belum termasuk
 
 - Belum membuat atau mengubah tabel master Project, Department, Warehouse.
