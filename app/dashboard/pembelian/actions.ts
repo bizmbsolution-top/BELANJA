@@ -57,7 +57,6 @@ export async function createPurchaseRequest(input: {
 }): Promise<Result> {
   try {
     const actor = await requireAnyRole(["Procurement"]);
-    tenantId = actor.tenantId;
     if (!(await hasPermission(actor.userId, "transaction.post_recognition", actor.tenantRole === "superadmin", actor.tenantId))) return { ok: false, error: "Permission transaksi belum diberikan oleh Superadmin perusahaan." };
     if (!/^\d{4}-\d{2}-\d{2}$/.test(input?.requestDate ?? "") || !uuid(input?.projectId ?? "") ||
       !uuid(input?.supplierId ?? "") || !uuid(input?.warehouseId ?? "") || !uuid(input?.categoryId ?? "")) return { ok: false, error: "Lengkapi tanggal, Project, Supplier, Warehouse, dan Kategori." };
@@ -81,6 +80,7 @@ export async function recordPurchaseReceipt(formData: FormData): Promise<Result>
   const uploadedPaths: string[] = [];
   try {
     const actor = await requireAnyRole(["Procurement"]);
+    tenantId = actor.tenantId;
     if (!(await hasPermission(actor.userId, "transaction.post_recognition", actor.tenantRole === "superadmin", actor.tenantId))) return { ok: false, error: "Permission transaksi belum diberikan oleh Superadmin perusahaan." };
     const requestId = String(formData.get("requestId") ?? "");
     if (!uuid(requestId)) return { ok: false, error: "Permintaan pembelian tidak valid." };
