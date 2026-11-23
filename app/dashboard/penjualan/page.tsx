@@ -13,7 +13,7 @@ export default async function PenjualanPage(){
   admin.from("projects").select("id,code,name").eq("tenant_id", actor.tenantId).eq("is_active",true).order("name"),
   admin.from("warehouses").select("id,code,name").eq("tenant_id", actor.tenantId).eq("is_active",true).order("name"),
   admin.from("warehouse_projects").select("project_id,warehouse_id").eq("tenant_id", actor.tenantId),
-  admin.from("customers").select("id,code,name,billing_address,customer_warehouse_addresses(id,label,address,is_active).eq("tenant_id", actor.tenantId)").eq("is_active",true).order("name")
+  admin.from("customers").select("id,code,name,billing_address,customer_warehouse_addresses(id,label,address,is_active)").eq("is_active",true).eq("tenant_id", actor.tenantId).eq("is_active",true).order("name")
  ]);
  const scopedProjects=(projects??[]).filter(p=>projectIds===null||projectIds.includes(p.id));
  const scopedWarehouses=(warehouses??[]).filter(w=>(warehouseIds===null||warehouseIds.includes(w.id))&&(mappings??[]).some(m=>m.warehouse_id===w.id&&scopedProjects.some(p=>p.id===m.project_id)));
