@@ -36,7 +36,6 @@ export default function FundRequestManager({ projects, initialRequests, balances
   const [note, setNote] = useState("");
   const [filter, setFilter] = useState("Semua");
   const [query, setQuery] = useState("");
-  const activeProject = projects.find(p => p.id === projectId);
   const filtered = useMemo(() => initialRequests.filter(r => {
     const q = query.trim().toLowerCase();
     return (filter === "Semua" || r.status === filter) &&
