@@ -5,7 +5,6 @@ import {
   evaluateOwnerAccess,
   evaluateProfileAccess,
   evaluateRouteAccess,
-  isOwnerEmail,
   normalizeOperationalRoles,
   ROLE_SUPERADMIN,
   type DenialReason,
@@ -52,6 +51,8 @@ export type AccessContext = {
   roles: OperationalRole[];
   /** Synthetic display role for the Owner; never a stored value. */
   displayRoles: string[];
+  /** Active tenant resolved from server-side membership; null for Platform Owner. */
+  tenantId: string | null;
 };
 
 type ProfileRow = { is_active: boolean; roles: unknown };
@@ -165,24 +166,42 @@ export async function getAccessContext(): Promise<AccessContext> {
     throw new AuthorizationError("unauthenticated");
   }
 
-  const email = user.email;
-  const isOwner = isOwnerEmail(email);
+  const admin = createAdminClient();
+  const { data: ownerRow, error: ownerError } = await admin
+    .from("platform_owners")
+    .select("user_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
 
-  if (isOwner) {
-    // Single profile lookup, shared rule with the middleware.
+  if (ownerError) {
+    throw new AuthorizationError("inactive", "Status Platform Owner tidak dapat diverifikasi.");
+  }
+
+  if (ownerRow) {
     await verifyOwnerActive(user.id);
-
     return {
       userId: user.id,
-      email,
+      email: user.email,
       isOwner: true,
       roles: [],
-      displayRoles: [ROLE_SUPERADMIN],
+      displayRoles: ["Platform Owner"],
+      tenantId: null,
     };
   }
 
-  const lookup = await loadProfile(user.id);
+  const membershipResult = await admin
+    .from("tenant_memberships")
+    .select("tenant_id, tenant_role, is_active, tenants!inner(status)")
+    .eq("user_id", user.id)
+    .eq("is_active", true)
+    .eq("tenants.status", "active")
+    .maybeSingle();
 
+  if (membershipResult.error || !membershipResult.data) {
+    throw new AuthorizationError("inactive", "Akun belum terhubung ke perusahaan aktif.");
+  }
+
+  const lookup = await loadProfile(user.id);
   if (lookup.status === "error") {
     throw new AuthorizationError("inactive", "Data akses pengguna tidak dapat dimuat.");
   }
@@ -197,7 +216,14 @@ export async function getAccessContext(): Promise<AccessContext> {
 
   const roles = normalizeOperationalRoles((lookup as { profile: ProfileRow }).profile.roles);
 
-  return { userId: user.id, email, isOwner: false, roles, displayRoles: roles };
+  return {
+    userId: user.id,
+    email: user.email,
+    isOwner: false,
+    roles,
+    displayRoles: roles,
+    tenantId: membershipResult.data.tenant_id,
+  };
 }
 
 /**
@@ -215,14 +241,24 @@ export async function requireAuthenticatedUser(): Promise<AccessContext> {
     throw new AuthorizationError("unauthenticated");
   }
 
-  const isOwner = isOwnerEmail(user.email);
+  const admin = createAdminClient();
+  const { data: ownerRow, error: ownerError } = await admin
+    .from("platform_owners")
+    .select("user_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (ownerError) {
+    throw new AuthorizationError("inactive", "Status akses tidak dapat diverifikasi.");
+  }
 
   return {
     userId: user.id,
     email: user.email,
-    isOwner,
+    isOwner: Boolean(ownerRow),
     roles: [],
-    displayRoles: isOwner ? [ROLE_SUPERADMIN] : [],
+    displayRoles: ownerRow ? ["Platform Owner"] : [],
+    tenantId: null,
   };
 }
 
@@ -292,6 +328,7 @@ export async function requirePlatformOwner(): Promise<AccessContext> {
     isOwner: true,
     roles: [],
     displayRoles: ["Platform Owner"],
+    tenantId: null,
   };
 }
 
