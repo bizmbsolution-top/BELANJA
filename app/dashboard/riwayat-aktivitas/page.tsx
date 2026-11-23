@@ -40,6 +40,9 @@ const actionLabels: Record<string, string> = {
   "expense.cancelled": "Pengeluaran dibatalkan",
   "expense_document.uploaded": "Dokumen billing diunggah",
   "expense_document.deleted": "Dokumen billing dihapus",
+  "fund_request.created": "Permintaan dana kasir diajukan",
+  "fund_request.executed": "Dana kasir diserahkan oleh Finance",
+  "fund_request_document.uploaded": "Bukti penyerahan dana diunggah",
 };
 
 function formatDate(value: string) {
@@ -71,10 +74,15 @@ function snapshotLines(snapshot: Snapshot): string[] {
   if (snapshot.expense_date && typeof snapshot.expense_date === "string") lines.push(`Tanggal pengeluaran: ${snapshot.expense_date}`);
   if (snapshot.category && typeof snapshot.category === "string") lines.push(`Kategori: ${snapshot.category}`);
   if (snapshot.amount !== undefined) lines.push(`Nominal: Rp ${Number(snapshot.amount).toLocaleString("id-ID")}`);
+  if (snapshot.request_amount !== undefined) lines.push(`Nominal diminta: Rp ${Number(snapshot.request_amount).toLocaleString("id-ID")}`);
+  if (snapshot.executed_amount !== undefined) lines.push(`Nominal diserahkan: Rp ${Number(snapshot.executed_amount).toLocaleString("id-ID")}`);
+  if (snapshot.project_name && typeof snapshot.project_name === "string") lines.push(`Project: ${snapshot.project_name}`);
+  if (snapshot.purpose && typeof snapshot.purpose === "string") lines.push(`Tujuan dana: ${snapshot.purpose}`);
   if (snapshot.payment_method && typeof snapshot.payment_method === "string") lines.push(`Pembayaran: ${snapshot.payment_method}`);
   if (snapshot.reason && typeof snapshot.reason === "string") lines.push(`Alasan: ${snapshot.reason}`);
   if (snapshot.expense_code && typeof snapshot.expense_code === "string") lines.push(`Transaksi: ${snapshot.expense_code}`);
   if (snapshot.file_name && typeof snapshot.file_name === "string") lines.push(`Dokumen: ${snapshot.file_name}`);
+  if (snapshot.payment_method && typeof snapshot.payment_method === "string") lines.push(`Metode penyerahan: ${snapshot.payment_method}`);
 
   const scopes = snapshot.scopes;
   if (scopes && typeof scopes === "object" && !Array.isArray(scopes)) {
@@ -147,7 +155,7 @@ export default async function ActivityHistoryPage() {
                 </div>
                 <div className={styles.people}>
                   <div><small>DILAKUKAN OLEH</small><strong>{row.actor_user_id ? emailById.get(row.actor_user_id) ?? row.actor_user_id : "Akun dihapus"}</strong></div>
-                  <div><small>{row.entity_type === "supplier" ? "DATA SUPPLIER" : row.entity_type === "purchase_category" ? "KATEGORI PEMBELIAN" : row.entity_type === "warehouse" ? "GUDANG" : row.entity_type === "project" ? "PROJECT" : row.entity_type === "expense_category" ? "KATEGORI EXPENSES" : row.entity_type === "uom" ? "UOM / SATUAN" : row.entity_type === "expense" ? "PENGELUARAN" : row.entity_type === "expense_document" ? "DOKUMEN BILLING" : row.entity_type === "user_access" ? "PENGATURAN AKSES" : "PENGGUNA TERKAIT"}</small><strong>{row.entity_type === "supplier" || row.entity_type === "purchase_category" || row.entity_type === "warehouse" || row.entity_type === "project" || row.entity_type === "expense_category" || row.entity_type === "uom" ? String(row.after_data?.name ?? row.before_data?.name ?? row.entity_id ?? "Data master") : row.entity_type === "expense" ? String(row.after_data?.code ?? row.before_data?.code ?? row.entity_id ?? "Pengeluaran") : row.entity_type === "expense_document" ? String(row.before_data?.file_name ?? row.after_data?.file_name ?? row.entity_id ?? "Dokumen billing") : row.target_user_id ? emailById.get(row.target_user_id) ?? row.target_user_id : "Tidak tersedia"}</strong></div>
+                  <div><small>{row.entity_type === "supplier" ? "DATA SUPPLIER" : row.entity_type === "purchase_category" ? "KATEGORI PEMBELIAN" : row.entity_type === "warehouse" ? "GUDANG" : row.entity_type === "project" ? "PROJECT" : row.entity_type === "expense_category" ? "KATEGORI EXPENSES" : row.entity_type === "uom" ? "UOM / SATUAN" : row.entity_type === "expense" ? "PENGELUARAN" : row.entity_type === "expense_document" ? "DOKUMEN BILLING" : row.entity_type === "fund_request" ? "PERMINTAAN DANA KASIR" : row.entity_type === "fund_request_document" ? "BUKTI PENYERAHAN DANA" : row.entity_type === "user_access" ? "PENGATURAN AKSES" : "PENGGUNA TERKAIT"}</small><strong>{row.entity_type === "supplier" || row.entity_type === "purchase_category" || row.entity_type === "warehouse" || row.entity_type === "project" || row.entity_type === "expense_category" || row.entity_type === "uom" ? String(row.after_data?.name ?? row.before_data?.name ?? row.entity_id ?? "Data master") : row.entity_type === "expense" ? String(row.after_data?.code ?? row.before_data?.code ?? row.entity_id ?? "Pengeluaran") : row.entity_type === "expense_document" || row.entity_type === "fund_request_document" ? String(row.before_data?.file_name ?? row.after_data?.file_name ?? row.entity_id ?? "Dokumen") : row.entity_type === "fund_request" ? String(row.after_data?.code ?? row.entity_id ?? "Permintaan dana") : row.target_user_id ? emailById.get(row.target_user_id) ?? row.target_user_id : "Tidak tersedia"}</strong></div>
                 </div>
                 {(beforeLines.length > 0 || afterLines.length > 0) && (
                   <details className={styles.details}>
