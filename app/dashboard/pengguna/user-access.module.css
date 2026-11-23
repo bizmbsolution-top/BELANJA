@@ -53,7 +53,7 @@
 .permissionItem { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 0; border-bottom: 1px solid #f0f2f6; color: #344563; font-size: 12px; }
 .permissionItem:last-child { border-bottom: 0; }
 .permissionControl { display: inline-flex; align-items: center; gap: 8px; color: #62718a; font-size: 11px; white-space: nowrap; }
-.footerActions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 14px; padding-top: 20px; }
+.footerActions { position: sticky; bottom: 0; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 14px; margin: 0 -24px -24px; padding: 14px 24px; border-top: 1px solid #e5eaf2; border-radius: 0 0 16px 16px; background: rgba(255,255,255,.97); backdrop-filter: blur(10px); }
 .savedMessage { margin: 0; color: #18794e; font-size: 12px; }
 .saveButton { padding: 12px 17px; border: 0; border-radius: 9px; background: #155eef; color: #fff; font-size: 13px; font-weight: 700; cursor: pointer; }
 .saveButton:hover { background: #0f4dcc; }
@@ -147,3 +147,15 @@
 .deferredList { display: grid; gap: 8px; margin-top: 4px; }
 .deferredItem { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border: 1px dashed #52627a; border-radius: 9px; background: #1b2b42; color: #c4d0e0; font-size: 12px; }
 .deferredBadge { flex: 0 0 auto; padding: 3px 8px; border-radius: 6px; background: #2a3b54; color: #a9b6c8; font-size: 10px; font-weight: 700; letter-spacing: .04em; }
+
+
+/* Clear entry point for editing user access */
+.editAccessButton { padding: 8px 12px; border: 1px solid #155eef; border-radius: 8px; background: #155eef; color: #fff; font-size: 11px; font-weight: 800; cursor: pointer; white-space: nowrap; }
+.editAccessButton:hover { background: #0f4dcc; }
+.editInstruction { margin: 9px 0 12px; padding: 12px 14px; border: 1px solid #cbdcff; border-radius: 10px; background: #f4f7ff; color: #36578e; font-size: 12px; line-height: 1.6; }
+.editInstruction strong { color: #155eef; }
+:global([data-theme="dark"]) .footerActions { border-color: #34445c; background: rgba(20,34,56,.97); }
+:global([data-theme="dark"]) .editAccessButton { border-color: #477bd8; background: #2864ce; color: #fff; }
+:global([data-theme="dark"]) .editInstruction { border-color: #344966; background: #192b45; color: #c4d0e0; }
+:global([data-theme="dark"]) .editInstruction strong { color: #9dbaff; }
+@media (max-width: 560px) { .footerActions { margin: 0 -15px -18px; padding: 12px 15px; } .accountActions { justify-content: flex-start; } .editAccessButton { min-height: 36px; } }
