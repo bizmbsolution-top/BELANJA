@@ -116,6 +116,53 @@ export async function payExpense(input: { expenseId: string; paymentMethod: stri
   } catch (error) { return { ok: false, error: error instanceof Error ? error.message : "Akses pembayaran ditolak." }; }
 }
 
+
+export async function uploadExpensePaymentEvidence(expenseId: string, formData: FormData): Promise<Result> {
+  try {
+    const actor = await requireAnyRole(["Cashier"]);
+    if (!(await hasPermission(actor.userId, "payment.post", actor.isOwner))) return { ok:false,error:"Permission pembayaran voucher belum diberikan oleh Owner." };
+    if (!uuid(expenseId)) return { ok:false,error:"Voucher tidak valid." };
+    const admin=createAdminClient();
+    const {data:expense}=await getExpense(expenseId);
+    if(!expense||expense.status!=="Menunggu Pembayaran") return {ok:false,error:"Bukti hanya dapat ditambahkan sebelum pembayaran."};
+    await assertProjectAccess(actor.userId,expense.project_id,actor.isOwner,actor.roles);
+    const files=formData.getAll("files").filter((v):v is File=>v instanceof File&&v.size>0);
+    if(!files.length||files.length>15||files.reduce((n,f)=>n+f.size,0)>20*1024*1024) return {ok:false,error:"Pilih 1–15 file dengan total maksimal 20 MB."};
+    for(const file of files){
+      if(file.size>MAX_SIZE) return {ok:false,error:`File ${file.name} melebihi 10 MB.`};
+      if(!["application/pdf","image/jpeg","image/png"].includes(file.type)) return {ok:false,error:`Format ${file.name} tidak didukung. Gunakan PDF, JPG, atau PNG.`};
+    }
+    for(const file of files){
+      const safeName=file.name.normalize("NFKD").replace(/[^a-zA-Z0-9._-]+/g,"_").slice(-120)||"bukti-transfer";
+      const path=`${expenseId}/${crypto.randomUUID()}_${safeName}`;
+      const {error:uploadError}=await admin.storage.from("expense-payment-evidence").upload(path,file,{contentType:file.type,upsert:false});
+      if(uploadError) return {ok:false,error:`File ${file.name} gagal diunggah.`};
+      const {error:recordError}=await admin.rpc("register_expense_payment_document_with_audit",{
+        p_expense_id:expenseId,p_actor_user_id:actor.userId,p_storage_path:path,p_file_name:file.name.slice(0,255),p_mime_type:file.type,p_file_size:file.size
+      });
+      if(recordError){await admin.storage.from("expense-payment-evidence").remove([path]);return {ok:false,error:`Pencatatan bukti ${file.name} gagal.`};}
+    }
+    revalidatePath("/dashboard/pengeluaran");
+    return {ok:true};
+  }catch(error){return {ok:false,error:error instanceof Error?error.message:"Akses unggah bukti transfer gagal."};}
+}
+
+export async function openExpensePaymentEvidence(documentId: string): Promise<Result> {
+  try {
+    const actor=await requireAnyRole(["Procurement","Sales","Cashier","Finance","Management"]);
+    if(!uuid(documentId)) return {ok:false,error:"Dokumen tidak valid."};
+    const admin=createAdminClient();
+    const {data:doc}=await admin.from("expense_payment_documents").select("storage_path,expense_id").eq("id",documentId).maybeSingle();
+    if(!doc) return {ok:false,error:"Bukti pembayaran tidak ditemukan."};
+    const {data:expense}=await getExpense(doc.expense_id);
+    if(!expense) return {ok:false,error:"Voucher tidak ditemukan."};
+    await assertProjectAccess(actor.userId,expense.project_id,actor.isOwner,actor.roles);
+    const {data,error}=await admin.storage.from("expense-payment-evidence").createSignedUrl(doc.storage_path,60);
+    if(error||!data?.signedUrl) return {ok:false,error:"Bukti pembayaran gagal dibuka."};
+    return {ok:true,url:data.signedUrl};
+  }catch(error){return {ok:false,error:error instanceof Error?error.message:"Akses bukti pembayaran ditolak."};}
+}
+
 export async function cancelExpense(expenseId: string, reason: string): Promise<Result> {
   try {
     const actor = await requireAnyRole(["Procurement", "Sales", "Cashier", "Finance"]);
