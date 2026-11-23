@@ -163,7 +163,6 @@ export async function saveUserAccessProfile(input: {
     const scopes = input?.scopes;
     const permissions = input?.permissions;
     const projectIds = Array.isArray(input?.projectIds) ? [...new Set(input.projectIds)] : [];
-    const dimensions = ["project", "department", "warehouse"] as const;
     const permissionKeys = [
       "transaction.post_recognition",
       "fund_utilization.post_recognition",
