@@ -13,7 +13,7 @@ export async function saveSalesExpenseMaster(input:{id?:string;name:string;categ
   if(input.expenseType==="company_payable"&&!uuid(input.categoryId))return{ok:false,error:"Kategori Expenses wajib dipilih untuk biaya yang dibayar perusahaan."};
   const {error}=await createAdminClient().rpc("save_sales_expense_master_with_audit",{p_master_id:input.id||null,p_actor_user_id:actor.userId,p_name:input.name.trim(),p_expense_category_id:input.categoryId||null,p_expense_type:input.expenseType,p_calculation_method:input.method,p_calculation_basis:input.basis,p_rate:rate,p_recipient_name:input.recipient.trim()||null,p_description:input.description.trim()||null,p_is_active:input.active});
   if(error)return{ok:false,error:error.message.includes("sudah digunakan")?error.message:"Master Biaya Penjualan gagal disimpan."};
-  revalidatePath("/dashboard/biaya-penjualan");return{ok:true};
+  revalidatePath("/dashboard/kategori-expenses");revalidatePath("/dashboard/biaya-penjualan");return{ok:true};
  }catch(e){return{ok:false,error:e instanceof Error?e.message:"Akses Manajemen diperlukan."};}
 }
 export async function generateSalesExpenseVouchers(salesOrderId:string):Promise<Result>{
@@ -22,7 +22,7 @@ export async function generateSalesExpenseVouchers(salesOrderId:string):Promise<
   if(!uuid(salesOrderId))return{ok:false,error:"Transaksi penjualan tidak valid."};
   const {data,error}=await createAdminClient().rpc("create_sales_expense_vouchers_from_ba",{p_sales_order_id:salesOrderId,p_actor_user_id:actor.userId});
   if(error)return{ok:false,error:error.message.includes("sudah pernah")?error.message:"Biaya BA gagal dihitung. Pastikan BA sudah final dan Master Biaya aktif."};
-  revalidatePath("/dashboard/biaya-penjualan");revalidatePath("/dashboard/pengeluaran");revalidatePath("/dashboard/laporan-penjualan");
+  revalidatePath("/dashboard/kategori-expenses");revalidatePath("/dashboard/biaya-penjualan");revalidatePath("/dashboard/pengeluaran");revalidatePath("/dashboard/laporan-penjualan");
   return{ok:true,items:Number(data?.items_created??0),vouchers:Number(data?.vouchers_created??0)};
  }catch(e){return{ok:false,error:e instanceof Error?e.message:"Akses Manajemen diperlukan."};}
 }
