@@ -159,7 +159,19 @@ Belum dikerjakan:
 - Pemeriksaan Permission tepat di server action/API yang melakukan posting atau alokasi.
 - Audit riwayat perubahan sebelum/sesudah; kolom created/updated saat ini hanya menyimpan metadata terakhir, bukan histori lengkap.
 - Uji negatif end-to-end untuk pengguna tanpa Scope, explicit deny, dan akses langsung ke API.
-## 6. Hal yang belum termasuk
+## 6. Katalog Role operasional
+
+Katalog Role pada aplikasi mencakup:
+- Procurement — fungsi pembelian dari supplier.
+- Sales — fungsi penjualan kepada pelanggan.
+- Cashier — fungsi kasir dan pencatatan kas sesuai kewenangan.
+- Finance — fungsi keuangan dan pembayaran.
+- Warehouse — fungsi pergudangan.
+- Management — akses pemantauan dan laporan manajemen.
+
+Role Procurement dan Sales hanya menambah pilihan identitas/fungsi pengguna pada tahap ini. Modul transaksi pembelian dan penjualan belum termasuk. Permission sensitif untuk posting transaksi, posting fund utilization, posting payment, dan alokasi payment tetap individual-only; penambahan Role tidak otomatis memberikan hak tersebut.
+
+## 7. Hal yang belum termasuk
 
 - Belum membuat atau mengubah tabel master Project, Department, Warehouse.
 - Belum membuat Role-Permission matrix umum.
@@ -167,7 +179,7 @@ Belum dikerjakan:
 - Belum mengubah data pengguna yang sudah ada.
 - Belum mengubah branch `main` atau deployment production.
 
-## 7. Persetujuan Owner
+## 8. Persetujuan Owner
 
 Disetujui pada 23 November 2026:
 
