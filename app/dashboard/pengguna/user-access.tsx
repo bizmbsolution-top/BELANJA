@@ -106,6 +106,15 @@ export default function UserAccess({ initialUsers }: { initialUsers: UserRecord[
     [users, selectedId],
   );
 
+  // Permission sections are limited to the operational Roles selected for this user.
+  const visiblePermissionSections = useMemo(
+    () => permissionSections.filter((section) => selectedUser.roles.includes(section.id)),
+    [selectedUser.roles],
+  );
+  const currentPermissionSection = visiblePermissionSections.some((section) => section.id === activePermissionSection)
+    ? activePermissionSection
+    : visiblePermissionSections[0]?.id ?? null;
+
   function chooseUser(id: string) {
     setSelectedId(id);
     setSaved(false);
@@ -384,8 +393,10 @@ export default function UserAccess({ initialUsers }: { initialUsers: UserRecord[
               Pilih Section untuk melihat Permission yang relevan. Pengaturan tetap berlaku per pengguna,
               bukan otomatis diwariskan dari Role. Belum diatur berarti hak tidak diberikan.
             </p>
+            {visiblePermissionSections.length > 0 ? (
+            <>
             <div className={styles.permissionSectionPicker} role="radiogroup" aria-label="Pilih Section Permission">
-              {permissionSections.map((section) => (
+              {visiblePermissionSections.map((section) => (
                 <label className={activePermissionSection === section.id ? styles.permissionSectionActive : styles.permissionSectionChoice} key={section.id}>
                   <input
                     type="radio"
@@ -398,7 +409,7 @@ export default function UserAccess({ initialUsers }: { initialUsers: UserRecord[
                 </label>
               ))}
             </div>
-            {permissionSections.filter((section) => section.id === activePermissionSection).map((section) => (
+            {visiblePermissionSections.filter((section) => section.id === currentPermissionSection).map((section) => (
               <div className={styles.permissionSectionContent} key={section.id}>
                 {section.permissions.length > 0 ? (
                   <div className={styles.permissionList}>
@@ -427,6 +438,10 @@ export default function UserAccess({ initialUsers }: { initialUsers: UserRecord[
                 <p className={styles.permissionNote}>{section.note}</p>
               </div>
             ))}
+            </>
+            ) : (
+              <p className={styles.permissionEmpty}>Pilih minimal satu Role pada bagian Role &amp; Akses Pengguna untuk menampilkan Permission yang sesuai.</p>
+            )}
           </section>
           <section className={styles.section}>
             <h3>Status akun</h3>
