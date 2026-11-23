@@ -86,7 +86,7 @@ export async function createTenantSuperadmin(formData: FormData) {
   }
 
   const { error: profileError } = await admin.from("user_access_profiles").insert({
-    user_id: created.user.id, roles: [], is_active: true,
+    tenant_id: tenantId, user_id: created.user.id, roles: [], is_active: true,
     created_by: owner.userId, updated_by: owner.userId,
   });
   if (profileError) {
