@@ -16,8 +16,8 @@
 .form{display:grid;grid-template-columns:1fr;gap:14px;margin-top:18px}
 .fieldWide{display:grid;gap:6px;color:var(--ink,#172b4d);font-size:12px;font-weight:700}
 .fieldWide b{color:#d92d20}
-.fieldWide input,.fieldWide textarea,.search{width:100%;min-height:40px;padding:10px 11px;border:1px solid #cbd5e1;border-radius:8px;background:var(--surface,#fff);color:var(--ink,#172b4d);font:inherit;font-size:13px;font-weight:400;outline:none}
-.fieldWide input:focus,.fieldWide textarea:focus,.search:focus{border-color:#155eef;box-shadow:0 0 0 3px rgba(21,94,239,.12)}
+.fieldWide input,.fieldWide textarea,.fieldWide select,.search{width:100%;min-height:40px;padding:10px 11px;border:1px solid #cbd5e1;border-radius:8px;background:var(--surface,#fff);color:var(--ink,#172b4d);font:inherit;font-size:13px;font-weight:400;outline:none}
+.fieldWide input:focus,.fieldWide textarea:focus,.fieldWide select:focus,.search:focus{border-color:#155eef;box-shadow:0 0 0 3px rgba(21,94,239,.12)}
 .fieldWide textarea{resize:vertical;line-height:1.5}
 .activeToggle{display:flex;align-items:center;gap:9px;color:var(--ink,#172b4d);font-size:12px}.activeToggle input{accent-color:#155eef}
 .formActions{display:flex;justify-content:flex-end;gap:9px;padding-top:5px}
@@ -28,16 +28,16 @@
 .categoryList{display:grid}.categoryItem{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:15px 0;border-top:1px solid var(--line,#e5eaf2)}
 .categoryMain{min-width:0}.categoryTitle{display:flex;align-items:center;gap:9px}.code{color:#62718a;font-size:10px;font-weight:800;letter-spacing:.06em}
 .active,.inactive{padding:3px 8px;border-radius:99px;background:#eaf8f0;color:#18794e;font-size:10px;font-weight:800}.inactive{background:#f0f2f5;color:#687385}
-.categoryMain h3{margin:7px 0 4px;font-size:15px}.categoryMain p{margin:0;color:var(--muted,#62718a);font-size:12px;overflow-wrap:anywhere}
+.categoryMain h3{margin:7px 0 4px;font-size:15px}.categoryMain p{margin:0;color:var(--muted,#62718a);font-size:12px;overflow-wrap:anywhere}.categoryMain small{display:inline-block;margin-top:7px;color:#155eef;font-size:11px;font-weight:800}
 .editButton{flex:0 0 auto;padding:8px 12px;border:1px solid #cbdcff;border-radius:8px;background:#f4f7ff;color:#155eef;font-size:11px;font-weight:800;cursor:pointer}
 .empty{padding:35px 15px;text-align:center}.empty h3{margin:0;font-size:16px}.empty p{margin:8px 0 15px;color:var(--muted,#62718a);font-size:12px}
 .footnote{margin:13px 2px 0;color:var(--muted,#62718a);font-size:11px;line-height:1.6}
 :global([data-theme="dark"]) .page{color:#e5edf8}
 :global([data-theme="dark"]) .eyebrow{color:#8eb6ff}
-:global([data-theme="dark"]) .header p:last-child,:global([data-theme="dark"]) .summary span,:global([data-theme="dark"]) .formHeading p,:global([data-theme="dark"]) .listHeading p,:global([data-theme="dark"]) .categoryMain p,:global([data-theme="dark"]) .footnote{color:#aab8cc}
+:global([data-theme="dark"]) .header p:last-child,:global([data-theme="dark"]) .summary span,:global([data-theme="dark"]) .formHeading p,:global([data-theme="dark"]) .listHeading p,:global([data-theme="dark"]) .categoryMain p,:global([data-theme="dark"]) .categoryMain small,:global([data-theme="dark"]) .footnote{color:#aab8cc}
 :global([data-theme="dark"]) .summary>div,:global([data-theme="dark"]) .formCard,:global([data-theme="dark"]) .listCard{border-color:#293b56;background:#142238;box-shadow:none}
 :global([data-theme="dark"]) .fieldWide,:global([data-theme="dark"]) .activeToggle,:global([data-theme="dark"]) .categoryMain h3{color:#e5edf8}
-:global([data-theme="dark"]) .fieldWide input,:global([data-theme="dark"]) .fieldWide textarea,:global([data-theme="dark"]) .search{border-color:#43536c;background:#1c2b42;color:#e5edf8}
+:global([data-theme="dark"]) .fieldWide input,:global([data-theme="dark"]) .fieldWide textarea,:global([data-theme="dark"]) .fieldWide select,:global([data-theme="dark"]) .search{border-color:#43536c;background:#1c2b42;color:#e5edf8}
 :global([data-theme="dark"]) .categoryItem{border-color:#34445c}
 :global([data-theme="dark"]) .editButton{border-color:#42669a;background:#1d3555;color:#a9c6ff}
 :global([data-theme="dark"]) .secondaryButton{border-color:#43536c;color:#e5edf8}
