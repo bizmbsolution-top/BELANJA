@@ -156,7 +156,7 @@ export async function openExpensePaymentEvidence(documentId: string): Promise<Re
     if(!doc) return {ok:false,error:"Bukti pembayaran tidak ditemukan."};
     const {data:expense}=await getExpense(doc.expense_id, actor.tenantId);
     if(!expense) return {ok:false,error:"Voucher tidak ditemukan."};
-    await assertProjectAccess(actor.userId,expense.project_id,actor.tenantRole === "superadmin",actor.roles);
+    await assertProjectAccess(actor.userId,expense.project_id,actor.tenantRole === "superadmin",actor.roles,actor.tenantId);
     const {data,error}=await admin.storage.from("expense-payment-evidence").createSignedUrl(doc.storage_path,60);
     if(error||!data?.signedUrl) return {ok:false,error:"Bukti pembayaran gagal dibuka."};
     return {ok:true,url:data.signedUrl};
@@ -218,7 +218,7 @@ export async function openExpenseDocument(documentId: string): Promise<Result> {
     if (!doc) return { ok:false,error:"Dokumen tidak ditemukan." };
     const { data: expense } = await getExpense(doc.expense_id, actor.tenantId);
     if (!expense) return { ok:false,error:"Voucher tidak ditemukan." };
-    await assertProjectAccess(actor.userId,expense.project_id,actor.tenantRole === "superadmin",actor.roles);
+    await assertProjectAccess(actor.userId,expense.project_id,actor.tenantRole === "superadmin",actor.roles,actor.tenantId);
     const { data,error } = await admin.storage.from(BUCKET).createSignedUrl(doc.storage_path,60);
     if (error || !data?.signedUrl) return { ok:false,error:"Dokumen gagal dibuka." };
     return { ok:true,url:data.signedUrl };
@@ -235,7 +235,7 @@ export async function deleteExpenseDocument(documentId: string): Promise<Result>
     if (lookupError || !doc) return { ok:false,error:"Dokumen tidak ditemukan." };
     const { data: expense } = await getExpense(doc.expense_id, actor.tenantId);
     if (!expense || expense.status!=="Draft") return { ok:false,error:"Dokumen hanya dapat dihapus selama voucher masih Draft." };
-    await assertProjectAccess(actor.userId,expense.project_id,actor.tenantRole === "superadmin",actor.roles);
+    await assertProjectAccess(actor.userId,expense.project_id,actor.tenantRole === "superadmin",actor.roles,actor.tenantId);
     const { error } = await admin.rpc("delete_expense_document_with_audit",{p_document_id:documentId,p_actor_user_id:actor.userId});
     if (error) return { ok:false,error:"Catatan dokumen gagal dihapus. File belum dihapus dari penyimpanan." };
     const { error: storageError } = await admin.storage.from(BUCKET).remove([doc.storage_path]);
