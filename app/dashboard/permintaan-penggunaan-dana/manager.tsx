@@ -48,12 +48,6 @@ export default function FundRequestManager({ projects, requestProjects, initialR
     if (!result.ok) { setError(result.error); return; }
     setMessage("Permintaan dana berhasil diajukan ke Finance."); setShowForm(false); setAmount(""); setPurpose(""); router.refresh();
   }
-  async function uploadEvidence(id: string, e: FormEvent<HTMLFormElement>) {
-    e.preventDefault(); const form = e.currentTarget; setBusy(id); setError(""); setMessage("");
-    const result = await uploadFundRequestDocuments(id, new FormData(form)); setBusy("");
-    if (!result.ok) { setError(result.error); return; }
-    setMessage("Bukti transfer / penyerahan dana berhasil diunggah."); form.reset(); router.refresh();
-  }
   async function openEvidence(id: string) {
     const tab = window.open("about:blank", "_blank"); setBusy(id);
     const result = await openFundRequestDocument(id); setBusy("");
@@ -61,11 +55,20 @@ export default function FundRequestManager({ projects, requestProjects, initialR
     if (tab) tab.location.href = result.url; else window.location.href = result.url;
   }
   async function submitExecution(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault(); setBusy(executeId); setError(""); setMessage("");
+    e.preventDefault();
+    const form = e.currentTarget;
+    setBusy(executeId); setError(""); setMessage("");
+    const evidence = new FormData(form);
+    const selectedFiles = evidence.getAll("files").filter((v): v is File => v instanceof File && v.size > 0);
+    if (selectedFiles.length) {
+      const upload = await uploadFundRequestDocuments(executeId, evidence);
+      if (!upload.ok) { setBusy(""); setError(upload.error); return; }
+    }
     const result = await executeFundRequest({ requestId: executeId, amount: actualAmount.replace(/\./g, ""), paymentMethod: method, note });
     setBusy("");
-    if (!result.ok) { setError(result.error); return; }
-    setMessage("Dana berhasil dieksekusi dan ditambahkan ke Saldo Kasir Project."); setExecuteId(""); setActualAmount(""); setNote(""); router.refresh();
+    if (!result.ok) { setError(result.error); router.refresh(); return; }
+    setMessage("Dana berhasil dieksekusi. Status berubah menjadi Telah Dieksekusi dan saldo Project bertambah.");
+    setExecuteId(""); setActualAmount(""); setNote(""); router.refresh();
   }
   return <main className={styles.page}>
     <header className={styles.header}><div><p className={styles.eyebrow}>KAS & OPERASIONAL</p><h1>Permintaan Dana Kasir</h1><p>Kasir mengajukan dana berdasarkan Project. Finance mencatat penyerahan dan menambah saldo Project.</p></div>
@@ -83,24 +86,23 @@ export default function FundRequestManager({ projects, requestProjects, initialR
         <div className={styles.wide}><button className={styles.primary} disabled={busy === "new" || !requestProjects.length}>{busy === "new" ? "Mengirim..." : "Kirim Permintaan ke Finance"}</button></div>
       </form>
     </section>}
-    <section className={styles.panel}><div className={styles.listHead}><div><h2>Riwayat Permintaan Dana</h2><p>{filtered.length} permintaan ditampilkan · maksimal 300 terbaru</p></div><div className={styles.filters}><input placeholder="Cari kode, Project, keperluan..." value={query} onChange={e => setQuery(e.target.value)} /><select value={filter} onChange={e => setFilter(e.target.value)}><option>Semua</option><option>Menunggu Eksekusi</option><option>Selesai</option></select></div></div>
+    <section className={styles.panel}><div className={styles.listHead}><div><h2>Riwayat Permintaan Dana</h2><p>{filtered.length} permintaan ditampilkan · maksimal 300 terbaru</p></div><div className={styles.filters}><input placeholder="Cari kode, Project, keperluan..." value={query} onChange={e => setQuery(e.target.value)} /><select value={filter} onChange={e => setFilter(e.target.value)}><option value="Semua">Semua</option><option value="Menunggu Eksekusi">Menunggu Eksekusi</option><option value="Selesai">Telah Dieksekusi</option></select></div></div>
       {!filtered.length ? <div className={styles.empty}><h3>Belum ada permintaan dana</h3><p>Permintaan yang diajukan Kasir akan tampil di sini.</p></div> :
       <div className={styles.list}>{filtered.map(r => <article className={styles.item} key={r.id}>
-        <div className={styles.itemTop}><div><strong className={styles.code}>{r.code}</strong><span className={r.status === "Selesai" ? styles.done : styles.pending}>{r.status}</span></div><time>{dateTime(r.requested_at)}</time></div>
+        <div className={styles.itemTop}><div><strong className={styles.code}>{r.code}</strong><span className={r.status === "Selesai" ? styles.done : styles.pending}>{r.status === "Selesai" ? "Telah Dieksekusi" : "Menunggu Eksekusi"}</span></div><time>{dateTime(r.requested_at)}</time></div>
         <div className={styles.details}><div><small>PROJECT</small><strong>{r.projects?.code} · {r.projects?.name}</strong></div><div><small>NOMINAL DIMINTA</small><strong>{money(Number(r.request_amount))}</strong></div></div>
         <p className={styles.purpose}>{r.purpose}</p>
         {r.status === "Selesai" && <div className={styles.executed}><div><small>DANA DISERAHKAN</small><strong>{money(Number(r.executed_amount))}</strong></div><div><small>METODE</small><strong>{r.payment_method}</strong></div><div><small>WAKTU EKSEKUSI</small><strong>{r.executed_at ? dateTime(r.executed_at) : "—"}</strong></div></div>}
         {r.execution_note && <p className={styles.note}>Catatan Finance: {r.execution_note}</p>}
-        <div className={styles.evidence}><div className={styles.evidenceHead}><strong>Bukti Transfer / Penyerahan ({r.fund_request_documents?.length ?? 0})</strong>
-          {r.status === "Menunggu Eksekusi" && (canRequest || canExecute) && <form onSubmit={e => uploadEvidence(r.id,e)}><label className={styles.fileButton}>+ Upload Bukti<input type="file" name="files" accept="application/pdf,image/jpeg,image/png" multiple onChange={e => { if (e.target.files?.length) e.currentTarget.form?.requestSubmit(); }} /></label></form>}
-        </div>
+        <div className={styles.evidence}><div className={styles.evidenceHead}><strong>Bukti Transfer / Penyerahan ({r.fund_request_documents?.length ?? 0})</strong></div>
         {!!r.fund_request_documents?.length && <div className={styles.docs}>{r.fund_request_documents.map(d => <div className={styles.doc} key={d.id}><span>{d.mime_type === "application/pdf" ? "PDF" : "IMG"}</span><div><strong>{d.file_name}</strong><small>{size(d.file_size)}</small></div><button type="button" disabled={busy === d.id} onClick={() => openEvidence(d.id)}>Lihat</button></div>)}</div>}
         </div>
         {canExecute && r.status === "Menunggu Eksekusi" && <div className={styles.executeArea}>{executeId === r.id ? <form className={styles.executeForm} onSubmit={submitExecution}>
-          <h3>Eksekusi Penyerahan Dana</h3><p>Nominal aktual tidak boleh kurang dari {money(Number(r.request_amount))}. Unggah bukti transfer atau penyerahan pada bagian bukti di atas sebelum konfirmasi.</p>
+          <h3>Eksekusi Penyerahan Dana</h3><p>Nominal aktual tidak boleh kurang dari {money(Number(r.request_amount))}. Finance dapat melampirkan bukti transfer atau penyerahan uang pada formulir ini.</p>
           <label>Nominal Aktual Diserahkan (Rp) *<input required inputMode="numeric" value={actualAmount} onChange={e => setActualAmount(amountInput(e.target.value))} placeholder="0" /></label>
           <label>Metode Penyerahan *<select value={method} onChange={e => setMethod(e.target.value)}><option>Transfer</option><option>Tunai</option></select></label>
-          <label>Catatan (opsional)<textarea rows={2} maxLength={500} value={note} onChange={e => setNote(e.target.value)} placeholder="Referensi transfer atau catatan penyerahan" /></label>
+          <label className={styles.wide}>Bukti Transfer / Penyerahan (PDF, JPG, PNG)<input type="file" name="files" accept="application/pdf,image/jpeg,image/png" multiple /></label>
+          <label className={styles.wide}>Catatan (opsional)<textarea rows={2} maxLength={500} value={note} onChange={e => setNote(e.target.value)} placeholder="Referensi transfer atau catatan penyerahan" /></label>
           <div className={styles.actions}><button className={styles.primary} disabled={busy === r.id}>{busy === r.id ? "Memproses..." : "Konfirmasi Dana Diserahkan"}</button><button type="button" className={styles.secondary} onClick={() => setExecuteId("")}>Batal</button></div>
         </form> : <div className={styles.actions}><button className={styles.primary} type="button" onClick={() => {setExecuteId(r.id);setActualAmount(String(r.request_amount));setError("");}}>Eksekusi / Serahkan Dana</button></div>}</div>}
       </article>)}</div>}
