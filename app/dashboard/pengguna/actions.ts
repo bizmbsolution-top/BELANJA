@@ -23,6 +23,7 @@ type ManagedUser = {
   scopes: ScopeSettings;
   permissions: PermissionSettings;
   projectIds: string[];
+  warehouseIds: string[];
 };
 
 const DEFAULT_SCOPES: ScopeSettings = { project: "none", department: "none", warehouse: "none" };
@@ -106,7 +107,9 @@ export async function getManagedUsers(): Promise<ManagedUser[]> {
 
     const profileById = new Map((profileResult.data ?? []).map((profile) => [profile.user_id, profile]));
     const scopesById = new Map<string, ScopeSettings>();
-    const projectIdsById = new Map<string, string[]>();\n    const warehouseIdsById = new Map<string, string[]>();
+    const projectIdsById = new Map<string, string[]>();
+    const warehouseIdsById = new Map<string, string[]>();
+    const warehouseIdsById = new Map<string, string[]>();
     for (const row of scopeResult.data ?? []) {
       if (!["project", "department", "warehouse"].includes(row.dimension)) continue;
       const current = scopesById.get(row.user_id) ?? { ...DEFAULT_SCOPES };
@@ -115,6 +118,9 @@ export async function getManagedUsers(): Promise<ManagedUser[]> {
       scopesById.set(row.user_id, current);
       if (row.dimension === "project" && row.scope_mode === "selected") {
         projectIdsById.set(row.user_id, (row.resource_ids ?? []).filter((id: string) => /^[0-9a-f-]{36}$/i.test(id)));
+      }
+      if (row.dimension === "warehouse" && row.scope_mode === "selected") {
+        warehouseIdsById.set(row.user_id, (row.resource_ids ?? []).filter((id: string) => /^[0-9a-f-]{36}$/i.test(id)));
       }
     }
     const permissionsById = new Map<string, PermissionSettings>();
@@ -135,7 +141,9 @@ export async function getManagedUsers(): Promise<ManagedUser[]> {
         roles: user.email?.toLowerCase() === ownerEmail ? ["Superadmin"] : (profile?.roles ?? []),
         status: profile?.is_active === true ? "Aktif" : "Nonaktif",
         scopes: scopesById.get(user.id) ?? { ...DEFAULT_SCOPES },
-        projectIds: projectIdsById.get(user.id) ?? [],\n        warehouseIds: warehouseIdsById.get(user.id) ?? [],
+        projectIds: projectIdsById.get(user.id) ?? [],
+        warehouseIds: warehouseIdsById.get(user.id) ?? [],
+        warehouseIds: warehouseIdsById.get(user.id) ?? [],
         permissions: permissionsById.get(user.id) ?? { ...DEFAULT_PERMISSIONS },
       });
     }
@@ -154,6 +162,7 @@ export async function saveUserAccessProfile(input: {
   scopes: ScopeSettings;
   permissions: PermissionSettings;
   projectIds: string[];
+  warehouseIds: string[];
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
     const owner = await requireOwner();
@@ -162,7 +171,9 @@ export async function saveUserAccessProfile(input: {
     const status = input?.status;
     const scopes = input?.scopes;
     const permissions = input?.permissions;
-    const projectIds = Array.isArray(input?.projectIds) ? [...new Set(input.projectIds)] : [];\n    const warehouseIds = Array.isArray(input?.warehouseIds) ? [...new Set(input.warehouseIds)] : [];
+    const projectIds = Array.isArray(input?.projectIds) ? [...new Set(input.projectIds)] : [];
+    const warehouseIds = Array.isArray(input?.warehouseIds) ? [...new Set(input.warehouseIds)] : [];
+    const warehouseIds = Array.isArray(input?.warehouseIds) ? [...new Set(input.warehouseIds)] : [];
     const permissionKeys = [
       "transaction.post_recognition",
       "fund_utilization.post_recognition",
@@ -182,7 +193,11 @@ export async function saveUserAccessProfile(input: {
       return { ok: false, error: "Pengaturan Area Kerja tidak valid." };
     }
     if (scopes.project === "selected" && projectIds.length === 0) return { ok: false, error: "Pilih minimal satu Project untuk Area Kerja Selected." };
-    if (scopes.project !== "selected" && projectIds.length > 0) return { ok: false, error: "Daftar Project Selected tidak sesuai dengan mode Area Kerja." };\n    if (scopes.warehouse === "selected" && warehouseIds.length === 0) return { ok: false, error: "Pilih minimal satu Warehouse." };\n    if (scopes.warehouse !== "selected" && warehouseIds.length > 0) return { ok: false, error: "Daftar Warehouse Selected tidak sesuai dengan mode Area Kerja." };
+    if (scopes.project !== "selected" && projectIds.length > 0) return { ok: false, error: "Daftar Project Selected tidak sesuai dengan mode Area Kerja." };
+    if (scopes.warehouse === "selected" && warehouseIds.length === 0) return { ok: false, error: "Pilih minimal satu Warehouse." };
+    if (scopes.warehouse !== "selected" && warehouseIds.length > 0) return { ok: false, error: "Daftar Warehouse Selected tidak sesuai dengan mode Area Kerja." };
+    if (scopes.warehouse === "selected" && warehouseIds.length === 0) return { ok: false, error: "Pilih minimal satu Warehouse." };
+    if (scopes.warehouse !== "selected" && warehouseIds.length > 0) return { ok: false, error: "Daftar Warehouse Selected tidak sesuai dengan mode Area Kerja." };
     if (!permissions || permissionKeys.some((key) =>
       permissions[key] !== "unset" && permissions[key] !== "allow" && permissions[key] !== "deny"
     )) {
@@ -197,7 +212,9 @@ export async function saveUserAccessProfile(input: {
       p_is_active: status === "Aktif",
       p_scopes: scopes,
       p_permissions: permissions,
-      p_project_ids: projectIds,\n      p_warehouse_ids: warehouseIds,
+      p_project_ids: projectIds,
+      p_warehouse_ids: warehouseIds,
+      p_warehouse_ids: warehouseIds,
     });
 
     if (error) {
@@ -331,6 +348,7 @@ export async function createManagedUser(input: {
         status: "Aktif",
         scopes: { ...DEFAULT_SCOPES },
         projectIds: [],
+        warehouseIds: [],
         permissions: { ...DEFAULT_PERMISSIONS },
       },
     };
