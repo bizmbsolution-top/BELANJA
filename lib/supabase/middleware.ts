@@ -24,6 +24,31 @@ type ProfileLookup =
   | { status: "absent" }
   | { status: "error" };
 
+async function hasActiveTenantSuperadminMembership(userId: string): Promise<boolean> {
+  try {
+    const admin = createAdminClient();
+    const { data: membership, error: membershipError } = await admin
+      .from("tenant_memberships")
+      .select("tenant_id, tenant_role")
+      .eq("user_id", userId)
+      .eq("tenant_role", "superadmin")
+      .eq("is_active", true)
+      .maybeSingle();
+
+    if (membershipError || !membership) return false;
+
+    const { data: tenant, error: tenantError } = await admin
+      .from("tenants")
+      .select("status")
+      .eq("id", membership.tenant_id)
+      .maybeSingle();
+
+    return !tenantError && tenant?.status === "active";
+  } catch {
+    return false;
+  }
+}
+
 async function loadProfile(userId: string): Promise<ProfileLookup> {
   let admin;
   try {
@@ -117,18 +142,26 @@ export async function updateSession(request: NextRequest) {
       }
     } else {
       const lookup = await loadProfile(user.id);
+      const isActiveTenantSuperadmin =
+        lookup.status === "found" &&
+        lookup.profile.is_active &&
+        await hasActiveTenantSuperadminMembership(user.id);
 
-      const decision = evaluateRouteAccess({
-        isOwner: false,
-        profile:
-          lookup.status === "found"
-            ? lookup.profile
-            : { is_active: false, roles: [] },
-        requireActiveRole: true,
-      });
+      // Tenant Superadmin is a tenant-level administrative role, not an
+      // operational role stored in user_access_profiles.roles.
+      if (!isActiveTenantSuperadmin) {
+        const decision = evaluateRouteAccess({
+          isOwner: false,
+          profile:
+            lookup.status === "found"
+              ? lookup.profile
+              : { is_active: false, roles: [] },
+          requireActiveRole: true,
+        });
 
-      if (!decision.allowed) {
-        return redirectTo(request, "/akses-ditolak", decision.reason);
+        if (!decision.allowed) {
+          return redirectTo(request, "/akses-ditolak", decision.reason);
+        }
       }
     }
   }
