@@ -4,9 +4,9 @@ import { requireAnyRole } from "@/lib/auth/authorization";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 type Result = { ok: true; id?: string } | { ok: false; error: string };
-async function canWrite(userId: string, isOwner: boolean) {
+async function canWrite(userId: string, isOwner: boolean, tenantId: string | null) {
   if (isOwner) return true;
-  const { data, error } = await createAdminClient().from("user_permission_overrides").select("effect")
+  const { data, error } = await createAdminClient().from("user_permission_overrides").select("effect").eq("tenant_id", tenantId)
     .eq("user_id", userId).eq("permission_key", "transaction.post_recognition").maybeSingle();
   return !error && data?.effect === "allow";
 }
@@ -15,7 +15,7 @@ export async function saveCustomer(input: {
 }): Promise<Result> {
   try {
     const actor = await requireAnyRole(["Sales"]);
-    if (!(await canWrite(actor.userId, actor.tenantRole === "superadmin"))) return { ok: false, error: "Permission transaksi belum diberikan oleh Superadmin perusahaan." };
+    if (!(await canWrite(actor.userId, actor.tenantRole === "superadmin", actor.tenantId))) return { ok: false, error: "Permission transaksi belum diberikan oleh Superadmin perusahaan." };
     if (!input.name?.trim() || input.name.trim().length < 2) return { ok: false, error: "Nama pelanggan minimal 2 karakter." };
     const { data, error } = await createAdminClient().rpc("save_customer_with_addresses_with_audit", {
       p_customer_id: input.id || null, p_actor_user_id: actor.userId, p_name: input.name,
