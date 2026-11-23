@@ -31,9 +31,8 @@ export default async function PenjualanPage(){
  const {data:orders}=await orderQuery;
  const orderIds=(orders??[]).map(o=>o.id);
  const {data:allocations}=orderIds.length?await admin.from("sales_order_lot_allocations").select("*").in("sales_order_id",orderIds):{data:[]};
- const allocWarehouseIds=[...new Set((allocations??[]).map(a=>a.source_warehouse_id))];
  const visibleOrderIds=new Set((orders??[]).filter(o=>(allocations??[]).filter(a=>a.sales_order_id===o.id).every(a=>warehouseIds===null||warehouseIds.includes(a.source_warehouse_id))).map(o=>o.id));
  const visibleOrders=(orders??[]).filter(o=>visibleOrderIds.has(o.id));
- const data:SalesPageData={actorRoles:actor.isOwner?["Superadmin"]:actor.roles,projects:scopedProjects,warehouses:scopedWarehouses,warehouseProjects:mappings??[],customers:(customers??[]).map((c:any)=>({...c,warehouse_addresses:(c.customer_warehouse_addresses??[]).filter((a:any)=>a.is_active)})),lots:available.map(l=>({...l,category_name:(categories??[]).find(c=>c.id===l.category_id)?.name??"—",supplier_name:(suppliers??[]).find(s=>s.id===l.supplier_id)?.name??"—"})),orders:visibleOrders,allocations:(allocations??[]).filter(a=>visibleOrderIds.has(a.sales_order_id)),categories:categories??[],suppliers:suppliers??[]};
+ const data:SalesPageData={actorRoles:actor.isOwner?["Superadmin"]:actor.roles,projects:scopedProjects,warehouses:scopedWarehouses,warehouseProjects:mappings??[],customers:(customers??[]).map(c=>({...c,warehouse_addresses:(c.customer_warehouse_addresses??[]).filter(a=>a.is_active)})),lots:available.map(l=>({...l,category_name:(categories??[]).find(c=>c.id===l.category_id)?.name??"—",supplier_name:(suppliers??[]).find(s=>s.id===l.supplier_id)?.name??"—"})),orders:visibleOrders,allocations:(allocations??[]).filter(a=>visibleOrderIds.has(a.sales_order_id)),categories:categories??[],suppliers:suppliers??[]};
  return <SalesManager data={data}/>;
 }
