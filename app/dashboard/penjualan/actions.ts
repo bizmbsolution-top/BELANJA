@@ -68,8 +68,10 @@ const BA_BUCKET="sales-buyer-ba-evidence";
 const MAX_BA_FILE=10*1024*1024;
 export async function finalizeSalesOrder(input:{salesOrderId:string;receivedWeightKg:string;finalGradeValue:string;finalGradeUnit:string;finalPricePerKg:string;baNumber:string;baDate:string;discrepancyNotes:string},file:File):Promise<Result>{
  let uploadedPath:string|null=null;
+ let cleanupTenantId:string|null=null;
  try{
   const actor=await requireAnyRole(["Sales"]);
+  cleanupTenantId=actor.tenantId;
   if(!uuid(input.salesOrderId))return{ok:false,error:"Transaksi penjualan tidak valid."};
   if(!(await canWrite(actor.userId,actor.tenantRole === "superadmin",actor.tenantId)))return{ok:false,error:"Permission transaksi belum diberikan oleh Superadmin perusahaan."};
   const weight=Number(input.receivedWeightKg),grade=Number(input.finalGradeValue),price=Number(input.finalPricePerKg);
@@ -98,7 +100,7 @@ export async function finalizeSalesOrder(input:{salesOrderId:string;receivedWeig
   revalidatePath("/dashboard/penjualan");revalidatePath("/dashboard/persediaan");
   return{ok:true,id:data as string};
  }catch(error){
-  if(uploadedPath){const admin=createAdminClient();await admin.from("sales_order_documents").delete().eq("tenant_id",actor.tenantId).eq("storage_path",uploadedPath);await admin.storage.from(BA_BUCKET).remove([uploadedPath]);}
+  if(uploadedPath){const admin=createAdminClient();await admin.from("sales_order_documents").delete().eq("tenant_id",cleanupTenantId).eq("storage_path",uploadedPath);await admin.storage.from(BA_BUCKET).remove([uploadedPath]);}
   return{ok:false,error:error instanceof Error?error.message:"Finalisasi penjualan gagal."};
  }
 }
