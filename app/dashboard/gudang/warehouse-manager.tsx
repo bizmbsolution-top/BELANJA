@@ -36,12 +36,12 @@ export default function WarehouseManager({ initialWarehouses, initialProjects, c
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setSaving(true); setErrorMessage(""); setMessage("");
     const result = editingId ? await updateWarehouse(editingId, form) : await createWarehouse(form);
-    setSaving(false);
-    if (!result.ok) { setErrorMessage(result.error); setSaving(false); return; }
+    if (!result.ok) { setSaving(false); setErrorMessage(result.error); return; }
     if (editingId && canManageAssignments) {
       const assignment = await setWarehouseProjects({ warehouseId: editingId, projectIds: selectedProjectIds });
       if (!assignment.ok) { setErrorMessage(assignment.error); setSaving(false); return; }
     }
+    setSaving(false);
     setMessage(editingId ? "Perubahan gudang dan hubungan Project berhasil disimpan." : "Gudang baru berhasil ditambahkan. Atur Project melalui tombol Ubah.");
     setFormOpen(false); setEditingId(null); setForm(EMPTY); router.refresh();
   }
@@ -64,7 +64,7 @@ export default function WarehouseManager({ initialWarehouses, initialProjects, c
       </section>}
       <section className={styles.listCard}><div className={styles.listHeading}><div><h2>Daftar Gudang</h2><p>{filtered.length} data ditampilkan</p></div><input className={styles.search} value={query} onChange={e=>setQuery(e.target.value)} placeholder="Cari kode, nama, lokasi..." aria-label="Cari gudang"/></div>
         {filtered.length===0 ? <div className={styles.empty}><h3>{initialWarehouses.length===0?"Belum ada gudang":"Gudang tidak ditemukan"}</h3><p>{initialWarehouses.length===0?"Tambahkan gudang untuk menentukan tujuan penerimaan pembelian.":"Coba kata kunci pencarian yang lain."}</p>{initialWarehouses.length===0&&<button className={styles.primaryButton} type="button" onClick={startNew}>+ Tambah Gudang</button>}</div> :
-        <div className={styles.itemList}>{filtered.map(item=><article className={styles.item} key={item.id}><div className={styles.main}><div className={styles.itemTitle}><span className={styles.code}>{item.code}</span><span className={item.is_active?styles.active:styles.inactive}>{item.is_active?"Aktif":"Nonaktif"}</span></div><h3>{item.name}</h3><p>{item.location||"Lokasi belum diisi"}</p>{item.description&&<small>{item.description}</small>}<small>Project: {item.projectIds.length ? initialProjects.filter(p=>item.projectIds.includes(p.id)).map(p=>p.code).join(", ") : "Belum diatur"}</small><small>Project: {item.projectIds.length ? initialProjects.filter(p=>item.projectIds.includes(p.id)).map(p=>p.code).join(", ") : "Belum diatur"}</small></div><button className={styles.editButton} type="button" onClick={()=>startEdit(item)}>Ubah</button></article>)}</div>}
+        <div className={styles.itemList}>{filtered.map(item=><article className={styles.item} key={item.id}><div className={styles.main}><div className={styles.itemTitle}><span className={styles.code}>{item.code}</span><span className={item.is_active?styles.active:styles.inactive}>{item.is_active?"Aktif":"Nonaktif"}</span></div><h3>{item.name}</h3><p>{item.location||"Lokasi belum diisi"}</p>{item.description&&<small>{item.description}</small>}<small>Project: {item.projectIds.length ? initialProjects.filter(p=>item.projectIds.includes(p.id)).map(p=>p.code).join(", ") : "Belum diatur"}</small></div><button className={styles.editButton} type="button" onClick={()=>startEdit(item)}>Ubah</button></article>)}</div>}
       </section>
       <p className={styles.footnote}>Gudang dikelola bersama untuk organisasi. Gudang yang sudah pernah digunakan tidak dihapus permanen; nonaktifkan agar tidak dipilih pada transaksi pembelian baru.</p>
     </main>
