@@ -50,6 +50,7 @@ export async function uploadExpenseDocuments(expenseId: string, formData: FormDa
     const files = formData.getAll("files").filter((value): value is File => value instanceof File && value.size > 0);
     if (!files.length) return { ok: false, error: "Pilih minimal satu file." };
     if (files.length > 15) return { ok: false, error: "Maksimal 15 file dalam satu kali unggah." };
+    if (files.reduce((total, file) => total + file.size, 0) > 20 * 1024 * 1024) return { ok: false, error: "Total ukuran file dalam satu kali unggah maksimal 20 MB." };
     const admin = createAdminClient();
     const { data: expense } = await admin.from("expenses").select("id,status").eq("id", expenseId).maybeSingle();
     if (!expense || expense.status !== "Aktif") return { ok: false, error: "Dokumen hanya dapat ditambahkan pada transaksi aktif." };
