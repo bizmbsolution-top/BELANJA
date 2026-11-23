@@ -356,7 +356,8 @@ export async function createManagedUser(input: {
     );
 
     if (!auditLogged) {
-      await admin.from("user_access_profiles").delete().eq("user_id", data.user.id);
+      await admin.from("tenant_memberships").delete().eq("tenant_id", owner.tenantId).eq("user_id", data.user.id);
+      await admin.from("user_access_profiles").delete().eq("tenant_id", owner.tenantId).eq("user_id", data.user.id);
       await admin.auth.admin.deleteUser(data.user.id);
       return { ok: false, error: "Akun dibatalkan karena Audit Log gagal disimpan. Silakan coba lagi." };
     }
