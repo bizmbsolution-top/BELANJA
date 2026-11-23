@@ -15,11 +15,11 @@ async function assertScope(userId:string,projectId:string,warehouseIds:string[],
  if(we||!ws)throw new Error("Area kerja Warehouse belum diatur oleh Owner.");
  if(ws.scope_mode!=="all"&&(ws.scope_mode!=="selected"||warehouseIds.some(id=>!ws.resource_ids?.includes(id))))throw new Error("Salah satu Warehouse di luar area kerja akun Anda.");
 }
-export async function createSalesDraft(input:{customerId:string;projectId:string;destination:string;salePricePerKg:string;notes:string;allocations:{lotId:string;weightKg:string}[]}):Promise<Result>{
+export async function createSalesDraft(input:{customerId:string;projectId:string;deliveryAddressId:string;salePricePerKg:string;notes:string;allocations:{lotId:string;weightKg:string}[]}):Promise<Result>{
  try{
   const actor=await requireAnyRole(["Sales"]);
   if(!(await canWrite(actor.userId,actor.isOwner)))return{ok:false,error:"Permission transaksi belum diberikan oleh Owner."};
-  if(!uuid(input.customerId)||!uuid(input.projectId)||!input.destination?.trim()||input.destination.trim().length<2)return{ok:false,error:"Lengkapi Pelanggan, Project, dan Tujuan Pengiriman."};
+  if(!uuid(input.customerId)||!uuid(input.projectId)||!uuid(input.deliveryAddressId))return{ok:false,error:"Pilih Pelanggan, Project, dan Alamat Gudang tujuan pengiriman."};
   const price=Number(input.salePricePerKg);if(!Number.isFinite(price)||price<=0)return{ok:false,error:"Harga jual per kg harus lebih besar dari nol."};
   if(!Array.isArray(input.allocations)||!input.allocations.length||input.allocations.length>100)return{ok:false,error:"Pilih minimal satu Lot."};
   const allocations=input.allocations.map(a=>({lotId:a.lotId,weightKg:Number(a.weightKg)}));
@@ -31,9 +31,12 @@ export async function createSalesDraft(input:{customerId:string;projectId:string
   const warehouseIds=[...new Set(lots.map(l=>l.warehouse_id))];
   if(lots.some(l=>l.project_id!==input.projectId))return{ok:false,error:"Semua Lot harus berasal dari Project yang sama."};
   await assertScope(actor.userId,input.projectId,warehouseIds,actor.isOwner,actor.roles);
+  const {data:deliveryAddress,error:addressError}=await admin.from("customer_warehouse_addresses").select("id,customer_id,label,address").eq("id",input.deliveryAddressId).eq("customer_id",input.customerId).eq("is_active",true).maybeSingle();
+  if(addressError||!deliveryAddress)return{ok:false,error:"Alamat Gudang tidak ditemukan pada Master Pelanggan yang dipilih."};
+  const destinationSnapshot=`${deliveryAddress.label} — ${deliveryAddress.address}`;
   const {data,error:rpcError}=await admin.rpc("create_sales_draft_with_audit",{
    p_actor_user_id:actor.userId,p_customer_id:input.customerId,p_project_id:input.projectId,
-   p_destination:input.destination.trim(),p_sale_price_per_kg:price,p_notes:input.notes?.trim()||null,
+   p_destination:destinationSnapshot,p_sale_price_per_kg:price,p_notes:input.notes?.trim()||null,
    p_allocations:allocations.map(a=>({lot_id:a.lotId,weight_kg:a.weightKg}))
   });
   if(rpcError||!data)return{ok:false,error:rpcError?.message?.includes("available Lot stock")?"Berat melebihi stok Lot yang tersedia. Muat ulang data Persediaan.":rpcError?.message??"Draft Penjualan gagal disimpan."};
