@@ -186,7 +186,7 @@ export async function saveUserAccessProfile(input: {
     if (status !== "Aktif" && status !== "Nonaktif") {
       return { ok: false, error: "Status akun tidak valid." };
     }
-    if (!scopes || !["none", "all", "selected"].includes(scopes.project) || ["department", "warehouse"].some((key) => scopes[key as "department" | "warehouse"] !== "none" && scopes[key as "department" | "warehouse"] !== "all")) {
+    if (!scopes || !["none", "all", "selected"].includes(scopes.project) || !["none", "all"].includes(scopes.department) || !["none", "all", "selected"].includes(scopes.warehouse)) {
       return { ok: false, error: "Pengaturan Area Kerja tidak valid." };
     }
     if (scopes.project === "selected" && projectIds.length === 0) return { ok: false, error: "Pilih minimal satu Project untuk Area Kerja Selected." };
