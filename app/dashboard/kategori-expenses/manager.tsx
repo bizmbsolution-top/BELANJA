@@ -88,6 +88,6 @@ export default function ExpenseCategoryManager({initialItems}:{initialItems:Expe
     <button className={styles.editButton} type="button" onClick={()=>edit(x)}>Ubah</button>
    </article>)}</div>}
   </section>
-  <p className={styles.footnote}>Master akun ini digunakan bersama oleh voucher Expenses dan Master Biaya Penjualan. Akun Fleksibel dapat dipakai untuk kebutuhan Project maupun umum; penetapan konteks aktual pada voucher akan disempurnakan pada tahap berikutnya. Akun yang sudah digunakan tidak dihapus permanen, cukup nonaktifkan untuk transaksi baru.</p>
+  <p className={styles.footnote}>Master ini menjadi pusat akun untuk voucher Expenses dan aturan tarif biaya BA Penjualan. Tarif dan hasil perhitungan BA disimpan sebagai snapshot sehingga perubahan akun tidak mengubah transaksi lama. Akun yang sudah digunakan tidak dihapus permanen, cukup nonaktifkan untuk transaksi baru.</p>
  </main>;
 }
