@@ -32,22 +32,22 @@ const permissionSections = [
     id: "Procurement",
     label: "Procurement",
     permissions: [{ id: "transaction.post_recognition", label: "Posting Transaction (pembelian/penjualan)" }],
-    note: "Posting Transaction masih merupakan satu permission bersama untuk proses transaksi Procurement dan Sales. Hak voucher Expenses ditambahkan saat alur voucher diaktifkan.",
+    note: "Posting Transaction masih merupakan satu permission bersama untuk proses transaksi Procurement dan Sales. Permission ini juga mengizinkan staf Procurement membuat, mengubah, dan submit voucher Expenses.",
   },
   {
     id: "Sales",
     label: "Sales",
     permissions: [{ id: "transaction.post_recognition", label: "Posting Transaction" }],
-    note: "Hak membuat dan submit voucher Expenses akan ditambahkan bersama alur voucher agar langsung diterapkan pada prosesnya.",
+    note: "Permission ini juga mengizinkan staf Sales membuat, mengubah, dan submit voucher Expenses.",
   },
   {
     id: "Cashier",
     label: "Cashier",
     permissions: [
       { id: "fund_utilization.post_recognition", label: "Posting Fund Utilization" },
-      { id: "payment.post", label: "Posting Payment" },
+      { id: "payment.post", label: "Posting Payment / Bayar Voucher Expenses" },
     ],
-    note: "Hak antrean dan pembayaran voucher Expenses akan ditambahkan bersama implementasi Cashier Model.",
+    note: "Permission Posting Payment juga mengizinkan Kasir membayar voucher Expenses dari saldo Project.",
   },
   {
     id: "Finance",
