@@ -231,7 +231,7 @@ export async function deleteExpenseDocument(documentId: string): Promise<Result>
     if (!(await canCreate(actor))) return { ok:false,error:"Permission membuat voucher Expenses belum diberikan oleh Superadmin perusahaan." };
     if (!uuid(documentId)) return { ok:false,error:"Dokumen tidak valid." };
     const admin = createAdminClient();
-    const { data: doc,error: lookupError } = await admin.from("expense_documents").select("storage_path,expense_id").eq("id",documentId).maybeSingle();
+    const { data: doc,error: lookupError } = await admin.from("expense_documents").select("storage_path,expense_id").eq("tenant_id",actor.tenantId).eq("id",documentId).maybeSingle();
     if (lookupError || !doc) return { ok:false,error:"Dokumen tidak ditemukan." };
     const { data: expense } = await getExpense(doc.expense_id, actor.tenantId);
     if (!expense || expense.status!=="Draft") return { ok:false,error:"Dokumen hanya dapat dihapus selama voucher masih Draft." };
