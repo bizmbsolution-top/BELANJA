@@ -109,7 +109,6 @@ export async function getManagedUsers(): Promise<ManagedUser[]> {
     const scopesById = new Map<string, ScopeSettings>();
     const projectIdsById = new Map<string, string[]>();
     const warehouseIdsById = new Map<string, string[]>();
-    const warehouseIdsById = new Map<string, string[]>();
     for (const row of scopeResult.data ?? []) {
       if (!["project", "department", "warehouse"].includes(row.dimension)) continue;
       const current = scopesById.get(row.user_id) ?? { ...DEFAULT_SCOPES };
@@ -173,7 +172,6 @@ export async function saveUserAccessProfile(input: {
     const permissions = input?.permissions;
     const projectIds = Array.isArray(input?.projectIds) ? [...new Set(input.projectIds)] : [];
     const warehouseIds = Array.isArray(input?.warehouseIds) ? [...new Set(input.warehouseIds)] : [];
-    const warehouseIds = Array.isArray(input?.warehouseIds) ? [...new Set(input.warehouseIds)] : [];
     const permissionKeys = [
       "transaction.post_recognition",
       "fund_utilization.post_recognition",
@@ -196,8 +194,6 @@ export async function saveUserAccessProfile(input: {
     if (scopes.project !== "selected" && projectIds.length > 0) return { ok: false, error: "Daftar Project Selected tidak sesuai dengan mode Area Kerja." };
     if (scopes.warehouse === "selected" && warehouseIds.length === 0) return { ok: false, error: "Pilih minimal satu Warehouse." };
     if (scopes.warehouse !== "selected" && warehouseIds.length > 0) return { ok: false, error: "Daftar Warehouse Selected tidak sesuai dengan mode Area Kerja." };
-    if (scopes.warehouse === "selected" && warehouseIds.length === 0) return { ok: false, error: "Pilih minimal satu Warehouse." };
-    if (scopes.warehouse !== "selected" && warehouseIds.length > 0) return { ok: false, error: "Daftar Warehouse Selected tidak sesuai dengan mode Area Kerja." };
     if (!permissions || permissionKeys.some((key) =>
       permissions[key] !== "unset" && permissions[key] !== "allow" && permissions[key] !== "deny"
     )) {
@@ -213,7 +209,6 @@ export async function saveUserAccessProfile(input: {
       p_scopes: scopes,
       p_permissions: permissions,
       p_project_ids: projectIds,
-      p_warehouse_ids: warehouseIds,
       p_warehouse_ids: warehouseIds,
     });
 
