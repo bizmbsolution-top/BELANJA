@@ -30,8 +30,8 @@ const permissionSections = [
   {
     id: "Procurement",
     label: "Procurement",
-    permissions: [{ id: "transaction.post_recognition", label: "Posting Transaction" }],
-    note: "Hak membuat dan submit voucher Expenses akan ditambahkan bersama alur voucher agar langsung diterapkan pada prosesnya.",
+    permissions: [{ id: "transaction.post_recognition", label: "Posting Transaction (pembelian/penjualan)" }],
+    note: "Posting Transaction masih merupakan satu permission bersama untuk proses transaksi Procurement dan Sales. Hak voucher Expenses ditambahkan saat alur voucher diaktifkan.",
   },
   {
     id: "Sales",
