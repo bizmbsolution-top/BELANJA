@@ -12,7 +12,7 @@ export default async function FundRequestPage() {
   const [{ data: projects, error: projectError }, scopeResult] = await Promise.all([
     admin.from("projects").select("id,code,name").eq("tenant_id", actor.tenantId).eq("is_active", true).order("name"),
     needsCashierScope
-      ? admin.from("user_work_scopes").select("scope_mode,resource_ids").eq("tenant_id", actor.tenantId).eq("user_id", actor.userId).eq("dimension", "project").maybeSingle()
+      ? admin.from("tenant_user_work_scopes").select("scope_mode,resource_ids").eq("tenant_id", actor.tenantId).eq("user_id", actor.userId).eq("dimension", "project").maybeSingle()
       : Promise.resolve({ data: null, error: null }),
   ]);
   if (projectError || scopeResult.error) throw new Error("Data Project gagal dimuat.");
