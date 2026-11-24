@@ -98,7 +98,10 @@ export async function updateSupplier(
     const values = cleanInput(input);
     if (typeof values === "string") return { ok: false, error: values };
 
+    if (!actor.tenantId) return { ok: false, error: "Tenant aktif tidak ditemukan." };
     const admin = createAdminClient();
+    const { data: existing, error: lookupError } = await admin.from("suppliers").select("id").eq("tenant_id", actor.tenantId).eq("id", supplierId).maybeSingle();
+    if (lookupError || !existing) return { ok: false, error: "Supplier tidak ditemukan pada perusahaan aktif." };
     const { error } = await admin.rpc("update_supplier_with_audit", {
       p_supplier_id: supplierId,
       p_actor_user_id: actor.userId,
