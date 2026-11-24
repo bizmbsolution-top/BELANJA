@@ -97,7 +97,7 @@ end $$;
 
 -- Access-control tables are managed only by a Superadmin of the same active tenant.
 -- Regular members may read tenant access records but cannot alter another user's access.
-do $
+do $tenant_policy$
 declare
   t text;
 begin
@@ -159,7 +159,7 @@ begin
       t || '_tenant_superadmin_delete', t, t
     );
   end loop;
-end $;
+end $tenant_policy$;
 
 -- Audit history is append-only for tenant users.
 drop policy if exists audit_logs_tenant_member_update on public.audit_logs;
