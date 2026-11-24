@@ -70,8 +70,8 @@ export default function PurchaseManager({ data }: { data: PurchasePageData }) {
     setMessage("Permintaan pembelian berhasil dibuat."); setShowRequest(false); setSelectedProject(""); router.refresh();
   }
 
-  async function handleSupplierSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); setSupplierSaving(true); setSupplierFormError("");
+  async function handleSupplierSubmit() {
+    setSupplierSaving(true); setSupplierFormError("");
     const result = await createSupplier(supplierForm);
     setSupplierSaving(false);
     if (!result.ok) { setSupplierFormError(result.error); return; }
@@ -137,7 +137,7 @@ export default function PurchaseManager({ data }: { data: PurchasePageData }) {
             {supplierDropdownOpen && <div className={styles.supplierDropdown} id="purchase-supplier-options">
               {filteredSuppliers.length > 0 ? filteredSuppliers.map(s => <button type="button" className={styles.supplierOption} key={s.id} onClick={() => { setSupplierId(s.id); setSupplierSearch(s.code + " · " + s.name); setSupplierDropdownOpen(false); }}>{s.code} · {s.name}</button>) : <div className={styles.supplierNoResults}><span>Supplier tidak ditemukan.</span><button type="button" className={styles.supplierAdd} onClick={() => { setSupplierFormError(""); setSupplierForm({ ...supplierForm, name: supplierSearch.trim() }); setSupplierFormOpen(true); }}>＋ Add New Supplier</button></div>}
             </div>}
-            {supplierFormOpen && <div className={styles.supplierQuickForm}>
+            {supplierFormOpen && <div className={styles.supplierQuickForm} onKeyDown={e => { if (e.key === "Enter") e.preventDefault(); }}>
               <div className={styles.formTitle}><div><h2>Master Supplier · Tambah Baru</h2><p>Kode supplier dibuat otomatis saat disimpan.</p></div><button type="button" className={styles.close} onClick={() => setSupplierFormOpen(false)}>×</button></div>
               <div className={styles.supplierQuickGrid}>
                 <label>Nama Supplier *<input value={supplierForm.name} onChange={e => setSupplierForm({ ...supplierForm, name: e.target.value })} maxLength={160} required /></label>
@@ -148,7 +148,7 @@ export default function PurchaseManager({ data }: { data: PurchasePageData }) {
                 <label className={styles.supplierQuickWide}>Catatan<textarea rows={2} value={supplierForm.notes} onChange={e => setSupplierForm({ ...supplierForm, notes: e.target.value })} maxLength={1000} /></label>
               </div>
               {supplierFormError && <p className={styles.error} role="alert">{supplierFormError}</p>}
-              <div className={styles.actions}><button type="button" className={styles.secondary} onClick={() => setSupplierFormOpen(false)}>Batal</button><button type="button" className={styles.primary} disabled={supplierSaving || !supplierForm.name.trim()} onClick={e => { const form = e.currentTarget.closest("form"); if (form) void handleSupplierSubmit({ preventDefault: () => {}, currentTarget: form } as unknown as FormEvent<HTMLFormElement>); }}>{supplierSaving ? "Menyimpan..." : "Simpan Supplier"}</button></div>
+              <div className={styles.actions}><button type="button" className={styles.secondary} onClick={() => setSupplierFormOpen(false)}>Batal</button><button type="button" className={styles.primary} disabled={supplierSaving || !supplierForm.name.trim()} onClick={() => void handleSupplierSubmit()}>{supplierSaving ? "Menyimpan..." : "Simpan Supplier"}</button></div>
             </div>}
           </div>
           <label>Warehouse Tujuan<select name="warehouseId" required defaultValue="" disabled={!selectedProject}><option value="">Pilih Warehouse</option>{warehousesForProject.map(w => <option key={w.id} value={w.id}>{w.code} · {w.name}</option>)}</select></label>
