@@ -44,6 +44,7 @@ export async function signIn(formData: FormData) {
   const cookieStore = await cookies();
   if (owner) {
     cookieStore.delete("belanja_active_tenant");
+    cookieStore.delete("belanja_active_role");
     redirect("/platform");
   }
 
@@ -82,6 +83,7 @@ export async function signIn(formData: FormData) {
   }
 
   const tenantId = defaultMembership.tenant_id;
+  cookieStore.delete("belanja_active_role");
   cookieStore.delete("belanja_active_role");
   cookieStore.set("belanja_active_tenant", tenantId, {
     httpOnly: true,
