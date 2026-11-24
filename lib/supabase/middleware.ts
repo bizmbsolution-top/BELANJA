@@ -5,7 +5,6 @@ import { resolvePublicKey, resolveSupabaseUrl } from "@/lib/supabase/env";
 import {
   evaluateOwnerAccess,
   evaluateRouteAccess,
-  isOwnerEmail,
   type DenialReason,
 } from "@/lib/auth/access-policy";
 const DASHBOARD_PREFIX = "/dashboard";
@@ -125,7 +124,15 @@ export async function updateSession(request: NextRequest) {
   }
 
   if (isDashboard && user) {
-    const isOwner = isOwnerEmail(user.email);
+    const admin = createAdminClient();
+    const { data: ownerRow, error: ownerError } = await admin
+      .from("platform_owners")
+      .select("user_id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (ownerError) return redirectTo(request, "/akses-ditolak", "inactive");
+    const isOwner = Boolean(ownerRow);
 
     if (isOwner) {
       // Owner authority requires a verified active profile (owner decision B).
@@ -147,7 +154,6 @@ export async function updateSession(request: NextRequest) {
       const tenantId = request.cookies.get("belanja_active_tenant")?.value;
       if (!tenantId) return redirectTo(request, "/login", "inactive");
 
-      const admin = createAdminClient();
       const { data: membership, error: membershipError } = await admin
         .from("tenant_memberships")
         .select("tenant_role, tenants!inner(status)")
@@ -182,7 +188,14 @@ export async function updateSession(request: NextRequest) {
   }
 
   if (pathname === "/login" && user) {
-    if (isOwnerEmail(user.email)) return redirectTo(request, "/platform");
+    const admin = createAdminClient();
+    const { data: ownerRow, error: ownerError } = await admin
+      .from("platform_owners")
+      .select("user_id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (ownerError) return redirectTo(request, "/akses-ditolak", "inactive");
+    if (ownerRow) return redirectTo(request, "/platform");
     if (request.cookies.get("belanja_active_tenant")?.value) {
       return redirectTo(request, "/dashboard");
     }
