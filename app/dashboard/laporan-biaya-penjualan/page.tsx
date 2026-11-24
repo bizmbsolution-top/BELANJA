@@ -11,9 +11,9 @@ export default async function SalesExpenseReportPage() {
   const broadAccess = actor.tenantRole === "superadmin" || actor.roles.some(role => role === "Finance" || role === "Management");
   const [{ data: allProjects, error: projectError }, { data: overrides, error: permissionError }, scopeResult] = await Promise.all([
     admin.from("projects").select("id,code,name").eq("tenant_id", actor.tenantId).eq("is_active", true).order("name"),
-    admin.from("user_permission_overrides").select("permission_key,effect").eq("tenant_id", actor.tenantId).eq("user_id", actor.userId),
+    admin.from("tenant_user_permission_overrides").select("permission_key,effect").eq("tenant_id", actor.tenantId).eq("user_id", actor.userId),
     broadAccess ? Promise.resolve({ data: null, error: null }) :
-      admin.from("user_work_scopes").select("scope_mode,resource_ids").eq("tenant_id", actor.tenantId).eq("user_id", actor.userId).eq("dimension", "project").maybeSingle(),
+      admin.from("tenant_user_work_scopes").select("scope_mode,resource_ids").eq("tenant_id", actor.tenantId).eq("user_id", actor.userId).eq("dimension", "project").maybeSingle(),
   ]);
   if (projectError || permissionError || scopeResult.error) throw new Error("Area kerja laporan biaya penjualan gagal dimuat.");
   const scope = scopeResult.data as { scope_mode?: string; resource_ids?: string[] } | null;
