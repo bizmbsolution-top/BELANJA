@@ -3,7 +3,7 @@ import { revalidatePath } from "next/cache";
 import { requireAnyRole } from "@/lib/auth/authorization";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-type Result = { ok: true; id?: string } | { ok: false; error: string };
+type Result = { ok: true; id?: string; addressId?: string } | { ok: false; error: string };
 export async function saveCustomer(input: {
   id?: string; name: string; phone: string; email: string; billingAddress: string; notes: string; active: boolean; warehouseAddresses: {id?:string;label:string;address:string}[];
 }): Promise<Result> {
@@ -21,7 +21,13 @@ export async function saveCustomer(input: {
       p_is_active: input.active, p_warehouse_addresses: input.warehouseAddresses,
     });
     if (error || !data) return { ok: false, error: error?.message ?? "Pelanggan gagal disimpan." };
+    const customerId = data as string;
+    const { data: firstAddress } = input.warehouseAddresses.length
+      ? await createAdminClient().from("customer_warehouse_addresses").select("id")
+          .eq("tenant_id", actor.tenantId).eq("customer_id", customerId).eq("is_active", true)
+          .order("created_at", { ascending: true }).limit(1).maybeSingle()
+      : { data: null };
     revalidatePath("/dashboard/pelanggan"); revalidatePath("/dashboard/penjualan");
-    return { ok: true, id: data as string };
+    return { ok: true, id: customerId, addressId: firstAddress?.id };
   } catch (error) { return { ok: false, error: error instanceof Error ? error.message : "Pelanggan gagal disimpan." }; }
 }
