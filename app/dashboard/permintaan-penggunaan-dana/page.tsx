@@ -8,7 +8,7 @@ export const revalidate = 0;
 export default async function FundRequestPage() {
   const actor = await guardPage(() => requireAnyRole(["Cashier", "Finance", "Management"]));
   const admin = createAdminClient();
-  const needsCashierScope = !actor.isOwner && actor.roles.includes("Cashier");
+  const needsCashierScope = actor.tenantRole !== "superadmin" && actor.roles.includes("Cashier");
   const [{ data: projects, error: projectError }, scopeResult] = await Promise.all([
     admin.from("projects").select("id,code,name").eq("tenant_id", actor.tenantId).eq("is_active", true).order("name"),
     needsCashierScope
@@ -18,13 +18,13 @@ export default async function FundRequestPage() {
   if (projectError || scopeResult.error) throw new Error("Data Project gagal dimuat.");
   const allProjects = (projects ?? []) as ProjectOption[];
   let requestProjects: ProjectOption[] = [];
-  if (actor.isOwner) requestProjects = allProjects;
+  if (actor.tenantRole === "superadmin") requestProjects = allProjects;
   else if (needsCashierScope) {
     const scope = scopeResult.data as { scope_mode?: string; resource_ids?: string[] } | null;
     requestProjects = scope?.scope_mode === "all" ? allProjects
       : allProjects.filter(p => scope?.scope_mode === "selected" && scope.resource_ids?.includes(p.id));
   }
-  const canSeeAllProjects = actor.isOwner || actor.roles.some(r => r === "Finance" || r === "Management");
+  const canSeeAllProjects = actor.tenantRole === "superadmin" || actor.roles.some(r => r === "Finance" || r === "Management");
   const visibleProjects = canSeeAllProjects ? allProjects : requestProjects;
   const visibleIds = visibleProjects.map(p => p.id);
   const [{ data: requests, error: requestError }, { data: ledger, error: ledgerError }] = await Promise.all([
@@ -39,6 +39,6 @@ export default async function FundRequestPage() {
   for (const entry of ledger ?? []) balances[entry.project_id] = (balances[entry.project_id] ?? 0) + Number(entry.amount);
   return <FundRequestManager projects={visibleProjects} requestProjects={requestProjects}
     initialRequests={(requests ?? []) as unknown as FundRequest[]} balances={balances}
-    canRequest={actor.isOwner || (actor.roles.includes("Cashier") && requestProjects.length > 0)}
-    canExecute={actor.isOwner || actor.roles.includes("Finance")} />;
+    canRequest={actor.tenantRole === "superadmin" || (actor.roles.includes("Cashier") && requestProjects.length > 0)}
+    canExecute={actor.tenantRole === "superadmin" || actor.roles.includes("Finance")} />;
 }
