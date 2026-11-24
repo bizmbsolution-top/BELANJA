@@ -55,15 +55,14 @@ async function writeAuditEvent(
   admin: ReturnType<typeof createAdminClient>,
   actorUserId: string,
   targetUserId: string,
+  tenantId: string,
   action: AuditAction,
   entityType: "user_access" | "auth_user",
   beforeData?: Record<string, unknown>,
   afterData?: Record<string, unknown>,
 ): Promise<boolean> {
-  const { data: membership } = await admin.from("tenant_memberships")
-    .select("tenant_id").eq("user_id", actorUserId).eq("is_active", true).maybeSingle();
   const { error } = await admin.from("audit_logs").insert({
-    tenant_id: membership?.tenant_id ?? null,
+    tenant_id: tenantId,
     actor_user_id: actorUserId,
     target_user_id: targetUserId,
     action,
@@ -100,9 +99,9 @@ export async function getManagedUsers(): Promise<ManagedUser[]> {
     const ids = tenantUsers.map((user) => user.id);
     const [profileResult, scopeResult, permissionResult] = ids.length
       ? await Promise.all([
-          admin.from("user_access_profiles").select("user_id, roles, is_active").in("user_id", ids),
-          admin.from("user_work_scopes").select("user_id, dimension, scope_mode, resource_ids").in("user_id", ids),
-          admin.from("user_permission_overrides").select("user_id, permission_key, effect").in("user_id", ids),
+          admin.from("tenant_user_access_profiles").select("user_id, roles, is_active").eq("tenant_id", owner.tenantId).in("user_id", ids),
+          admin.from("tenant_user_work_scopes").select("user_id, dimension, scope_mode, resource_ids").eq("tenant_id", owner.tenantId).in("user_id", ids),
+          admin.from("tenant_user_permission_overrides").select("user_id, permission_key, effect").eq("tenant_id", owner.tenantId).in("user_id", ids),
         ])
       : [
           { data: [], error: null },
@@ -211,8 +210,9 @@ export async function saveUserAccessProfile(input: {
     const { data: targetMembership, error: membershipError } = await admin.from("tenant_memberships")
       .select("id").eq("tenant_id", owner.tenantId).eq("user_id", userId).maybeSingle();
     if (membershipError || !targetMembership) return { ok: false, error: "Pengguna tidak terdaftar pada perusahaan ini." };
-    const { error } = await admin.rpc("save_user_access_profile_with_audit", {
+    const { error } = await admin.rpc("save_tenant_user_access_profile_with_audit", {
       p_actor_user_id: owner.userId,
+      p_tenant_id: owner.tenantId,
       p_target_user_id: userId,
       p_roles: [...new Set(roles)],
       p_is_active: status === "Aktif",
@@ -252,7 +252,7 @@ export async function resetUserPassword(input: {
       .select("id").eq("tenant_id", owner.tenantId).eq("user_id", targetUserId).maybeSingle();
     if (!targetMembership) return { ok: false, error: "Pengguna tidak terdaftar pada perusahaan ini." };
     const requestLogged = await writeAuditEvent(
-      admin, owner.userId, targetUserId, "user.password_reset_requested", "auth_user",
+      admin, owner.userId, targetUserId, owner.tenantId!, "user.password_reset_requested", "auth_user",
     );
     if (!requestLogged) {
       return { ok: false, error: "Permintaan reset tidak dijalankan karena Audit Log gagal disimpan." };
@@ -264,13 +264,13 @@ export async function resetUserPassword(input: {
 
     if (error) {
       await writeAuditEvent(
-        admin, owner.userId, targetUserId, "user.password_reset_failed", "auth_user",
+        admin, owner.userId, targetUserId, owner.tenantId!, "user.password_reset_failed", "auth_user",
       );
       return { ok: false, error: "Password gagal diperbarui. Periksa akun pengguna dan coba lagi." };
     }
 
     const resultLogged = await writeAuditEvent(
-      admin, owner.userId, targetUserId, "user.password_reset", "auth_user",
+      admin, owner.userId, targetUserId, owner.tenantId!, "user.password_reset", "auth_user",
     );
     return resultLogged
       ? { ok: true }
@@ -318,19 +318,6 @@ export async function createManagedUser(input: {
       };
     }
 
-    const { error: profileError } = await admin.from("user_access_profiles").insert({
-      user_id: data.user.id,
-      roles: [],
-      is_active: true,
-      created_by: owner.userId,
-      updated_by: owner.userId,
-    });
-
-    if (profileError) {
-      await admin.auth.admin.deleteUser(data.user.id);
-      return { ok: false, error: "Akun gagal disiapkan. Silakan coba lagi." };
-    }
-
     const { error: membershipError } = await admin.from("tenant_memberships").insert({
       tenant_id: owner.tenantId,
       user_id: data.user.id,
@@ -339,16 +326,30 @@ export async function createManagedUser(input: {
       created_by: owner.userId,
     });
     if (membershipError) {
-      await admin.from("tenant_memberships").delete().eq("tenant_id", owner.tenantId).eq("user_id", data.user.id);
-      await admin.from("user_access_profiles").delete().eq("user_id", data.user.id);
       await admin.auth.admin.deleteUser(data.user.id);
       return { ok: false, error: "Keanggotaan perusahaan gagal dibuat. Akun dibatalkan." };
+    }
+
+    const { error: profileError } = await admin.from("tenant_user_access_profiles").insert({
+      tenant_id: owner.tenantId,
+      user_id: data.user.id,
+      roles: [],
+      is_active: true,
+      created_by: owner.userId,
+      updated_by: owner.userId,
+    });
+
+    if (profileError) {
+      await admin.from("tenant_memberships").delete().eq("tenant_id", owner.tenantId).eq("user_id", data.user.id);
+      await admin.auth.admin.deleteUser(data.user.id);
+      return { ok: false, error: "Profil akses perusahaan gagal dibuat. Akun dibatalkan." };
     }
 
     const auditLogged = await writeAuditEvent(
       admin,
       owner.userId,
       data.user.id,
+      owner.tenantId!,
       "user.created",
       "auth_user",
       undefined,
@@ -357,7 +358,7 @@ export async function createManagedUser(input: {
 
     if (!auditLogged) {
       await admin.from("tenant_memberships").delete().eq("tenant_id", owner.tenantId).eq("user_id", data.user.id);
-      await admin.from("user_access_profiles").delete().eq("tenant_id", owner.tenantId).eq("user_id", data.user.id);
+      await admin.from("tenant_user_access_profiles").delete().eq("tenant_id", owner.tenantId).eq("user_id", data.user.id);
       await admin.auth.admin.deleteUser(data.user.id);
       return { ok: false, error: "Akun dibatalkan karena Audit Log gagal disimpan. Silakan coba lagi." };
     }
@@ -414,6 +415,7 @@ export async function updateManagedUserEmail(input: {
       admin,
       owner.userId,
       userId,
+      owner.tenantId!,
       "user.email_update_requested",
       "auth_user",
       { email: oldEmail },
@@ -433,6 +435,7 @@ export async function updateManagedUserEmail(input: {
         admin,
         owner.userId,
         userId,
+        owner.tenantId!,
         "user.email_update_failed",
         "auth_user",
         { email: oldEmail },
@@ -452,6 +455,7 @@ export async function updateManagedUserEmail(input: {
       admin,
       owner.userId,
       userId,
+      owner.tenantId!,
       "user.email_updated",
       "auth_user",
       { email: oldEmail },
