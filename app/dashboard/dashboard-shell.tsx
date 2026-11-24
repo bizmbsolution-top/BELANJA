@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { signOut, switchTenant } from "@/app/login/actions";
+import { signOut, switchTenant, switchRole } from "@/app/login/actions";
 import styles from "./dashboard-shell.module.css";
 
 type Props = {
@@ -14,6 +14,8 @@ type Props = {
   isSuperadmin: boolean;
   activeTenantId: string;
   availableTenants: { id: string; name: string }[];
+  availableRoles: string[];
+  activeRole: string | null;
 };
 
 type MenuItem = {
@@ -95,7 +97,7 @@ function Brand() {
   );
 }
 
-export default function DashboardShell({ children, email, roles, isSuperadmin, activeTenantId, availableTenants }: Props) {
+export default function DashboardShell({ children, email, roles, isSuperadmin, activeTenantId, availableTenants, availableRoles, activeRole }: Props) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState<string[]>([]);
@@ -146,6 +148,15 @@ export default function DashboardShell({ children, email, roles, isSuperadmin, a
         )}
         {availableTenants.length === 1 && (
           <p className={styles.currentTenant}>{availableTenants[0].name}</p>
+        )}
+        {availableRoles.length > 1 && !isSuperadmin && (
+          <form action={switchRole} className={styles.tenantSwitchForm}>
+            <label htmlFor="role-switch">Mode kerja aktif</label>
+            <select id="role-switch" name="role" defaultValue={activeRole ?? availableRoles[0]}>
+              {availableRoles.map((role) => <option key={role} value={role}>{role === "Procurement" ? "Pembelian" : role === "Sales" ? "Penjualan" : role === "Cashier" ? "Kasir" : role === "Warehouse" ? "Gudang" : role}</option>)}
+            </select>
+            <button type="submit">Ganti Mode Kerja</button>
+          </form>
         )}
       </div>
       <div className={styles.navScroll}>
