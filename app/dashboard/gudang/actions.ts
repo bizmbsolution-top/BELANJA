@@ -24,9 +24,10 @@ export async function createWarehouse(input: WarehouseInput): Promise<ActionResu
     const actor = await requireAnyRole(WAREHOUSE_ROLES);
     const values = cleanInput(input);
     if (typeof values === "string") return { ok: false, error: values };
+    if (!actor.tenantId) return { ok: false, error: "Tenant aktif tidak ditemukan." };
     const admin = createAdminClient();
     const { error } = await admin.rpc("create_warehouse_with_audit", {
-      p_actor_user_id: actor.userId, p_name: values.name,
+      p_actor_user_id: actor.userId, p_tenant_id: actor.tenantId, p_name: values.name,
       p_location: values.location, p_description: values.description,
     });
     if (error?.code === "23505") return { ok: false, error: "Nama gudang tersebut sudah digunakan." };
