@@ -4,14 +4,14 @@ import { requireAnyRole } from "@/lib/auth/authorization";
 import { createAdminClient } from "@/lib/supabase/admin";
 type Result={ok:true;id?:string}|{ok:false;error:string};
 const uuid=(v:string)=>/^[0-9a-f-]{36}$/i.test(v);
-async function canWrite(userId:string,isOwner:boolean,tenantId:string|null){if(isOwner)return true;const {data,error}=await createAdminClient().from("user_permission_overrides").select("effect").eq("tenant_id",tenantId).eq("user_id",userId).eq("permission_key","transaction.post_recognition").maybeSingle();return !error&&data?.effect==="allow";}
+async function canWrite(userId:string,isOwner:boolean,tenantId:string|null){if(isOwner)return true;const {data,error}=await createAdminClient().from("tenant_user_permission_overrides").select("effect").eq("tenant_id",tenantId).eq("user_id",userId).eq("permission_key","transaction.post_recognition").maybeSingle();return !error&&data?.effect==="allow";}
 async function assertScope(userId:string,projectId:string,warehouseIds:string[],isOwner:boolean,roles:string[],tenantId:string|null){
  if(isOwner||roles.includes("Management"))return;
  const admin=createAdminClient();
- const {data:ps,error:pe}=await admin.from("user_work_scopes").select("scope_mode,resource_ids").eq("tenant_id",tenantId).eq("user_id",userId).eq("dimension","project").maybeSingle();
+ const {data:ps,error:pe}=await admin.from("tenant_user_work_scopes").select("scope_mode,resource_ids").eq("tenant_id",tenantId).eq("user_id",userId).eq("dimension","project").maybeSingle();
  if(pe||!ps)throw new Error("Area kerja Project belum diatur oleh Superadmin perusahaan.");
  if(ps.scope_mode!=="all"&&(ps.scope_mode!=="selected"||!ps.resource_ids?.includes(projectId)))throw new Error("Project di luar area kerja akun Anda.");
- const {data:ws,error:we}=await admin.from("user_work_scopes").select("scope_mode,resource_ids").eq("tenant_id",tenantId).eq("user_id",userId).eq("dimension","warehouse").maybeSingle();
+ const {data:ws,error:we}=await admin.from("tenant_user_work_scopes").select("scope_mode,resource_ids").eq("tenant_id",tenantId).eq("user_id",userId).eq("dimension","warehouse").maybeSingle();
  if(we||!ws)throw new Error("Area kerja Warehouse belum diatur oleh Superadmin perusahaan.");
  if(ws.scope_mode!=="all"&&(ws.scope_mode!=="selected"||warehouseIds.some(id=>!ws.resource_ids?.includes(id))))throw new Error("Salah satu Warehouse di luar area kerja akun Anda.");
 }
