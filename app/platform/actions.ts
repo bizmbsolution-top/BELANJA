@@ -191,9 +191,11 @@ export async function setTenantSuperadminActive(formData: FormData) {
     .eq("tenant_id", tenantId).eq("user_id", userId).eq("tenant_role", "superadmin");
   if (membershipUpdateError) redirect("/platform?adminError=status");
 
+  const { data: existingProfile } = await admin.from("tenant_user_access_profiles")
+    .select("roles,created_by").eq("tenant_id", tenantId).eq("user_id", userId).maybeSingle();
   const { error: profileError } = await admin.from("tenant_user_access_profiles").upsert({
-    tenant_id: tenantId, user_id: userId, roles: [], is_active: active,
-    created_by: owner.userId, updated_by: owner.userId,
+    tenant_id: tenantId, user_id: userId, roles: existingProfile?.roles ?? [], is_active: active,
+    created_by: existingProfile?.created_by ?? owner.userId, updated_by: owner.userId,
   }, { onConflict: "tenant_id,user_id" });
   if (profileError) {
     await admin.from("tenant_memberships").update({ is_active: membership.is_active })
