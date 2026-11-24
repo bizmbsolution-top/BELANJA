@@ -24,9 +24,11 @@ export async function createPurchaseCategory(input: CategoryInput): Promise<Acti
     const values = cleanInput(input);
     if (typeof values === "string") return { ok: false, error: values };
 
+    if (!actor.tenantId) return { ok: false, error: "Tenant aktif tidak ditemukan." };
     const admin = createAdminClient();
     const { error } = await admin.rpc("create_purchase_category_with_audit", {
       p_actor_user_id: actor.userId,
+      p_tenant_id: actor.tenantId,
       p_name: values.name,
       p_description: values.description,
     });
