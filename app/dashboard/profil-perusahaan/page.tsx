@@ -30,7 +30,7 @@ export default async function CompanyProfilePage({
         <div>
           <p className={styles.eyebrow}>PENGATURAN PERUSAHAAN</p>
           <h1>Profil Perusahaan</h1>
-          <p>Atur identitas perusahaan yang tampil pada halaman login dan seluruh area aplikasi.</p>
+          <p>Atur identitas perusahaan yang tampil pada sidebar dan seluruh area kerja setelah pengguna masuk.</p>
         </div>
         <span className={styles.headerTag}>Tenant aktif</span>
       </header>
