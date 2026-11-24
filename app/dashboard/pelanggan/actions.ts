@@ -4,19 +4,12 @@ import { requireAnyRole } from "@/lib/auth/authorization";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 type Result = { ok: true; id?: string } | { ok: false; error: string };
-async function canWrite(userId: string, isOwner: boolean, tenantId: string | null) {
-  if (isOwner) return true;
-  const { data, error } = await createAdminClient().from("tenant_user_permission_overrides").select("effect").eq("tenant_id", tenantId)
-    .eq("user_id", userId).eq("permission_key", "transaction.post_recognition").maybeSingle();
-  return !error && data?.effect === "allow";
-}
 export async function saveCustomer(input: {
   id?: string; name: string; phone: string; email: string; billingAddress: string; notes: string; active: boolean; warehouseAddresses: {id?:string;label:string;address:string}[];
 }): Promise<Result> {
   try {
     const actor = await requireAnyRole(["Sales"]);
     if (!actor.tenantId) return { ok: false, error: "Tenant aktif tidak ditemukan." };
-    if (!(await canWrite(actor.userId, actor.tenantRole === "superadmin", actor.tenantId))) return { ok: false, error: "Permission transaksi belum diberikan oleh Superadmin perusahaan." };
     if (!input.name?.trim() || input.name.trim().length < 2) return { ok: false, error: "Nama pelanggan minimal 2 karakter." };
     if (input.id) {
       const { data: existing, error: lookupError } = await createAdminClient().from("customers").select("id").eq("tenant_id", actor.tenantId).eq("id", input.id).maybeSingle();
