@@ -111,58 +111,68 @@ export default async function PlatformPage({
 
       <section className={styles.panel}>
         <div className={styles.panelHeading}>
-          <div><h2>Daftar Tenant</h2><p>Informasi administrasi, email Superadmin, dan status aplikasi. Email dan password login berlaku untuk seluruh tenant yang menggunakan akun yang sama.</p></div>
+          <div><h2>Daftar Tenant</h2><p>{tenantList.length} perusahaan terdaftar. Buka detail hanya pada tenant yang ingin diperiksa atau dikelola.</p></div>
         </div>
         {tenantList.length === 0 ? <p className={styles.empty}>Belum ada tenant terdaftar.</p> : (
-          <div className={styles.tableWrap}>
-            <table className={styles.table}>
-              <thead><tr><th>Perusahaan</th><th>Kode</th><th>Pengguna</th><th>Superadmin</th><th>Status Tenant</th><th>Application Health</th><th>Pemeriksaan Terakhir</th></tr></thead>
-              <tbody>
-                {tenantList.map((tenant) => {
-                  const health = latestHealth.get(tenant.id);
-                  return (
-                    <tr key={tenant.id}>
-                      <td><strong>{tenant.name}</strong></td>
-                      <td>{tenant.slug}</td>
-                      <td>{userCounts.get(tenant.id)?.size ?? 0}</td>
-                      <td>
-                        {(() => {
-                          const superadmin = superadmins.get(tenant.id);
-                          if (!superadmin) return <span className={styles.muted}>Belum ditetapkan</span>;
-                          return (
-                            <div className={styles.superadminCell}>
-                              <strong>{superadmin.email}</strong>
-                              <span className={superadmin.active ? styles.active : styles.inactive}>{superadmin.active ? "Aktif" : "Nonaktif"}</span>
-                              <form action={updateTenantSuperadminEmail} className={styles.inlineForm}>
+          <div className={styles.tenantList}>
+            {tenantList.map((tenant) => {
+              const health = latestHealth.get(tenant.id);
+              const superadmin = superadmins.get(tenant.id);
+              return (
+                <article className={styles.tenantItem} key={tenant.id}>
+                  <div className={styles.tenantSummary}>
+                    <div className={styles.tenantIdentity}>
+                      <strong>{tenant.name}</strong>
+                      <span>{tenant.slug} · {userCounts.get(tenant.id)?.size ?? 0} pengguna</span>
+                    </div>
+                    <div className={styles.tenantStatus}>
+                      <span className={tenant.status === "active" ? styles.active : styles.inactive}>{tenant.status === "active" ? "Aktif" : "Nonaktif"}</span>
+                      <span className={health?.health_status === "healthy" ? styles.active : health?.health_status === "down" ? styles.inactive : styles.pending}>{!health ? "Belum diperiksa" : health.health_status === "healthy" ? "Normal" : health.health_status === "down" ? "Gangguan" : "Perlu perhatian"}</span>
+                    </div>
+                    <details className={styles.tenantDetails}>
+                      <summary>Lihat / Kelola</summary>
+                      <div className={styles.tenantDetailPanel}>
+                        <div className={styles.detailGrid}>
+                          <div><span>Nama perusahaan</span><strong>{tenant.name}</strong></div>
+                          <div><span>Kode tenant</span><strong>{tenant.slug}</strong></div>
+                          <div><span>Terdaftar</span><strong>{new Intl.DateTimeFormat("id-ID", { dateStyle: "medium", timeZone: "Asia/Jakarta" }).format(new Date(tenant.created_at))}</strong></div>
+                          <div><span>Pengguna aktif</span><strong>{userCounts.get(tenant.id)?.size ?? 0}</strong></div>
+                          <div><span>Status tenant</span><strong>{tenant.status === "active" ? "Aktif" : "Nonaktif"}</strong></div>
+                          <div><span>Pemeriksaan aplikasi</span><strong>{health ? (health.health_status === "healthy" ? "Normal" : health.health_status === "down" ? "Gangguan" : "Perlu perhatian") : "Belum ada data"}</strong></div>
+                          <div><span>Pemeriksaan terakhir</span><strong>{health ? new Intl.DateTimeFormat("id-ID", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Jakarta" }).format(new Date(health.checked_at)) : "—"}</strong></div>
+                        </div>
+                        <div className={styles.superadminManagement}>
+                          <h3>Superadmin Tenant</h3>
+                          {!superadmin ? <span className={styles.muted}>Belum ditetapkan</span> : (
+                            <>
+                              <div className={styles.adminIdentity}><strong>{superadmin.email}</strong><span className={superadmin.active ? styles.active : styles.inactive}>{superadmin.active ? "Aktif" : "Nonaktif"}</span></div>
+                              <form action={updateTenantSuperadminEmail} className={styles.managementForm}>
                                 <input type="hidden" name="tenantId" value={tenant.id} />
                                 <input type="hidden" name="userId" value={superadmin.userId} />
-                                <input type="email" name="email" defaultValue={superadmin.email} required aria-label="Email Superadmin baru" />
+                                <label>Email Superadmin<input type="email" name="email" defaultValue={superadmin.email} required aria-label="Email Superadmin baru" /></label>
                                 <button type="submit">Simpan Email</button>
                               </form>
-                              <form action={resetTenantSuperadminPassword} className={styles.inlineForm}>
+                              <form action={resetTenantSuperadminPassword} className={styles.managementForm}>
                                 <input type="hidden" name="tenantId" value={tenant.id} />
                                 <input type="hidden" name="userId" value={superadmin.userId} />
-                                <input type="password" name="password" placeholder="Password baru (min. 10)" minLength={10} required aria-label="Password baru Superadmin" />
+                                <label>Password baru<input type="password" name="password" placeholder="Minimal 10 karakter" minLength={10} required aria-label="Password baru Superadmin" /></label>
                                 <button type="submit">Reset Password</button>
                               </form>
-                              <form action={setTenantSuperadminActive} className={styles.inlineForm}>
+                              <form action={setTenantSuperadminActive} className={styles.statusForm}>
                                 <input type="hidden" name="tenantId" value={tenant.id} />
                                 <input type="hidden" name="userId" value={superadmin.userId} />
                                 <input type="hidden" name="active" value={String(!superadmin.active)} />
-                                <button type="submit">{superadmin.active ? "Nonaktifkan" : "Aktifkan"}</button>
+                                <button type="submit" className={superadmin.active ? styles.deactivateButton : styles.activateButton}>{superadmin.active ? "Nonaktifkan Superadmin" : "Aktifkan Superadmin"}</button>
                               </form>
-                            </div>
-                          );
-                        })()}
-                      </td>
-                      <td><span className={tenant.status === "active" ? styles.active : styles.inactive}>{tenant.status === "active" ? "Aktif" : "Nonaktif"}</span></td>
-                      <td>{health ? <span className={health.health_status === "healthy" ? styles.active : health.health_status === "down" ? styles.inactive : styles.pending}>{health.health_status === "healthy" ? "Normal" : health.health_status === "down" ? "Gangguan" : "Perlu perhatian"}</span> : <span className={styles.muted}>Belum ada data</span>}</td>
-                      <td>{health ? new Intl.DateTimeFormat("id-ID", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Jakarta" }).format(new Date(health.checked_at)) : "—"}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </details>
+                  </div>
+                </article>
+              );
+            })}
           </div>
         )}
       </section>
