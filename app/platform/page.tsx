@@ -1,6 +1,6 @@
 import { guardPage, requirePlatformOwner } from "@/lib/auth/authorization";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createTenant, createTenantSuperadmin, updateTenantSuperadminEmail, setTenantSuperadminActive } from "./actions";
+import { createTenant, createTenantSuperadmin, updateTenantSuperadminEmail, setTenantSuperadminActive, resetTenantSuperadminPassword } from "./actions";
 import { signOut } from "@/app/login/actions";
 import styles from "./platform.module.css";
 
@@ -17,7 +17,7 @@ export const revalidate = 0;
 export default async function PlatformPage({
   searchParams,
 }: {
-  searchParams: Promise<{ created?: string; error?: string; adminCreated?: string; adminError?: string; auditWarning?: string; accountReused?: string; adminUpdated?: string; adminStatusUpdated?: string }>;
+  searchParams: Promise<{ created?: string; error?: string; adminCreated?: string; adminError?: string; auditWarning?: string; accountReused?: string; adminUpdated?: string; adminStatusUpdated?: string; passwordReset?: string }>;
 }) {
   const owner = await guardPage(requirePlatformOwner);
   const params = await searchParams;
@@ -99,6 +99,9 @@ export default async function PlatformPage({
       {params.adminError === "audit" && <p className={styles.error}>Pencatatan audit gagal. Keanggotaan tenant dibatalkan.</p>}
       {params.adminUpdated === "1" && <p className={styles.success}>Email Superadmin berhasil diperbarui. Email login ini berlaku untuk seluruh tenant yang memakai akun tersebut.</p>}
       {params.adminStatusUpdated === "1" && <p className={styles.success}>Status akses Superadmin berhasil diperbarui.</p>}
+      {params.passwordReset === "1" && <p className={styles.success}>Password Superadmin berhasil direset. Sampaikan password baru kepada pemilik akun melalui saluran yang aman.</p>}
+      {params.adminError === "passwordReset" && <p className={styles.error}>Reset password gagal. Pastikan akun Superadmin masih terhubung ke tenant ini.</p>}
+      {params.adminError === "passwordInvalid" && <p className={styles.error}>Password baru minimal 10 karakter.</p>}
       {params.adminError === "emailExists" && <p className={styles.error}>Email tersebut sudah digunakan akun lain.</p>}
       {params.adminError === "emailUpdate" && <p className={styles.error}>Email Superadmin gagal diperbarui.</p>}
       {params.adminError === "status" && <p className={styles.error}>Status Superadmin gagal diperbarui.</p>}
@@ -108,7 +111,7 @@ export default async function PlatformPage({
 
       <section className={styles.panel}>
         <div className={styles.panelHeading}>
-          <div><h2>Daftar Tenant</h2><p>Informasi administrasi, email Superadmin, dan status aplikasi. Email login yang diubah berlaku untuk seluruh tenant terkait.</p></div>
+          <div><h2>Daftar Tenant</h2><p>Informasi administrasi, email Superadmin, dan status aplikasi. Email dan password login berlaku untuk seluruh tenant yang menggunakan akun yang sama.</p></div>
         </div>
         {tenantList.length === 0 ? <p className={styles.empty}>Belum ada tenant terdaftar.</p> : (
           <div className={styles.tableWrap}>
@@ -135,6 +138,12 @@ export default async function PlatformPage({
                                 <input type="hidden" name="userId" value={superadmin.userId} />
                                 <input type="email" name="email" defaultValue={superadmin.email} required aria-label="Email Superadmin baru" />
                                 <button type="submit">Simpan Email</button>
+                              </form>
+                              <form action={resetTenantSuperadminPassword} className={styles.inlineForm}>
+                                <input type="hidden" name="tenantId" value={tenant.id} />
+                                <input type="hidden" name="userId" value={superadmin.userId} />
+                                <input type="password" name="password" placeholder="Password baru (min. 10)" minLength={10} required aria-label="Password baru Superadmin" />
+                                <button type="submit">Reset Password</button>
                               </form>
                               <form action={setTenantSuperadminActive} className={styles.inlineForm}>
                                 <input type="hidden" name="tenantId" value={tenant.id} />
