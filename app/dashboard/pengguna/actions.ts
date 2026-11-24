@@ -289,86 +289,106 @@ export async function createManagedUser(input: {
 }): Promise<{ ok: true; user: ManagedUser; warning?: string } | { ok: false; error: string }> {
   try {
     const owner = await requireOwner();
-
     const email = typeof input?.email === "string" ? input.email.trim().toLowerCase() : "";
     const password = typeof input?.password === "string" ? input.password : "";
 
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return { ok: false, error: "Masukkan alamat email yang valid." };
     }
-    if (password.length < 8) {
-      return { ok: false, error: "Password awal minimal 8 karakter." };
+    if (!owner.tenantId) return { ok: false, error: "Tenant Superadmin tidak ditemukan." };
+
+    const admin = createAdminClient();
+    let existingUser: { id: string; email?: string } | null = null;
+    let page = 1;
+    while (!existingUser) {
+      const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
+      if (error) return { ok: false, error: "Pemeriksaan akun pengguna gagal." };
+      existingUser = data.users.find((user) => (user.email ?? "").toLowerCase() === email) ?? null;
+      if (existingUser || data.users.length < 1000) break;
+      page += 1;
     }
 
-    if (!owner.tenantId) return { ok: false, error: "Tenant Superadmin tidak ditemukan." };
-    const admin = createAdminClient();
-    const { data, error } = await admin.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
-    });
+    const { data: existingMembership, error: membershipLookupError } = existingUser
+      ? await admin.from("tenant_memberships").select("id,is_active")
+          .eq("tenant_id", owner.tenantId).eq("user_id", existingUser.id).maybeSingle()
+      : { data: null, error: null };
+    if (membershipLookupError) return { ok: false, error: "Status keanggotaan pengguna gagal diperiksa." };
+    if (existingMembership) {
+      return { ok: false, error: existingMembership.is_active
+        ? "Pengguna sudah terdaftar di perusahaan ini."
+        : "Pengguna sudah terdaftar tetapi keanggotaannya nonaktif. Aktifkan kembali keanggotaan yang ada." };
+    }
 
-    if (error || !data.user) {
-      const message = error?.message.toLowerCase() ?? "";
-      return {
-        ok: false,
-        error: message.includes("already") || message.includes("registered")
-          ? "Email ini sudah terdaftar."
-          : "Akun gagal dibuat. Periksa email dan coba lagi.",
-      };
+    let userId = existingUser?.id ?? "";
+    let userEmail = existingUser?.email ?? email;
+    let createdNewAuthUser = false;
+
+    if (!existingUser) {
+      if (password.length < 8) {
+        return { ok: false, error: "Password awal akun baru minimal 8 karakter." };
+      }
+      const { data, error } = await admin.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+      });
+      if (error || !data.user) {
+        const message = error?.message.toLowerCase() ?? "";
+        return {
+          ok: false,
+          error: message.includes("already") || message.includes("registered")
+            ? "Email ini baru saja terdaftar. Muat ulang halaman dan coba lagi."
+            : "Akun gagal dibuat. Periksa email dan coba lagi.",
+        };
+      }
+      userId = data.user.id;
+      userEmail = data.user.email ?? email;
+      createdNewAuthUser = true;
     }
 
     const { error: membershipError } = await admin.from("tenant_memberships").insert({
       tenant_id: owner.tenantId,
-      user_id: data.user.id,
+      user_id: userId,
       tenant_role: "member",
       is_active: true,
       created_by: owner.userId,
     });
     if (membershipError) {
-      await admin.auth.admin.deleteUser(data.user.id);
-      return { ok: false, error: "Keanggotaan perusahaan gagal dibuat. Akun dibatalkan." };
+      if (createdNewAuthUser) await admin.auth.admin.deleteUser(userId);
+      return { ok: false, error: "Keanggotaan perusahaan gagal dibuat." };
     }
 
     const { error: profileError } = await admin.from("tenant_user_access_profiles").insert({
       tenant_id: owner.tenantId,
-      user_id: data.user.id,
+      user_id: userId,
       roles: [],
       is_active: true,
       created_by: owner.userId,
       updated_by: owner.userId,
     });
-
     if (profileError) {
-      await admin.from("tenant_memberships").delete().eq("tenant_id", owner.tenantId).eq("user_id", data.user.id);
-      await admin.auth.admin.deleteUser(data.user.id);
-      return { ok: false, error: "Profil akses perusahaan gagal dibuat. Akun dibatalkan." };
+      await admin.from("tenant_memberships").delete().eq("tenant_id", owner.tenantId).eq("user_id", userId);
+      if (createdNewAuthUser) await admin.auth.admin.deleteUser(userId);
+      return { ok: false, error: "Profil akses perusahaan gagal dibuat. Tidak ada akun yang ditambahkan." };
     }
 
     const auditLogged = await writeAuditEvent(
-      admin,
-      owner.userId,
-      data.user.id,
-      owner.tenantId!,
-      "user.created",
-      "auth_user",
-      undefined,
-      { email: data.user.email ?? email },
+      admin, owner.userId, userId, owner.tenantId, "user.created", "auth_user",
+      undefined, { email: userEmail, membership_added: true, auth_user_created: createdNewAuthUser },
     );
-
     if (!auditLogged) {
-      await admin.from("tenant_memberships").delete().eq("tenant_id", owner.tenantId).eq("user_id", data.user.id);
-      await admin.from("tenant_user_access_profiles").delete().eq("tenant_id", owner.tenantId).eq("user_id", data.user.id);
-      await admin.auth.admin.deleteUser(data.user.id);
-      return { ok: false, error: "Akun dibatalkan karena Audit Log gagal disimpan. Silakan coba lagi." };
+      await admin.from("tenant_memberships").delete().eq("tenant_id", owner.tenantId).eq("user_id", userId);
+      await admin.from("tenant_user_access_profiles").delete().eq("tenant_id", owner.tenantId).eq("user_id", userId);
+      if (createdNewAuthUser) await admin.auth.admin.deleteUser(userId);
+      return { ok: false, error: "Penambahan dibatalkan karena Audit Log gagal disimpan." };
     }
 
     return {
       ok: true,
       user: {
-        id: data.user.id,
-        name: displayName(email),
-        email: data.user.email ?? email,
+        id: userId,
+        name: displayName(userEmail),
+        email: userEmail,
         roles: [],
         status: "Aktif",
         scopes: { ...DEFAULT_SCOPES },
@@ -376,6 +396,7 @@ export async function createManagedUser(input: {
         warehouseIds: [],
         permissions: { ...DEFAULT_PERMISSIONS },
       },
+      ...(createdNewAuthUser ? {} : { warning: "Akun yang sudah ada berhasil ditambahkan ke perusahaan ini. Password lama tetap digunakan." }),
     };
   } catch (error) {
     return {
@@ -384,7 +405,6 @@ export async function createManagedUser(input: {
     };
   }
 }
-
 export async function updateManagedUserEmail(input: {
   userId: string;
   email: string;
