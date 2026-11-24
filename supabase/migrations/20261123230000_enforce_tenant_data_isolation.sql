@@ -95,6 +95,80 @@ begin
   end loop;
 end $$;
 
+-- Access-control tables are managed only by a Superadmin of the same active tenant.
+-- Regular members may read tenant access records but cannot alter another user's access.
+do $
+declare
+  t text;
+begin
+  foreach t in array array['user_access_profiles','user_permission_overrides','user_work_scopes'] loop
+    execute format('drop policy if exists %I on public.%I', t || '_tenant_member_insert', t);
+    execute format('drop policy if exists %I on public.%I', t || '_tenant_member_update', t);
+    execute format('drop policy if exists %I on public.%I', t || '_tenant_member_delete', t);
+
+    execute format(
+      'create policy %I on public.%I for insert to authenticated with check (
+        exists (
+          select 1 from public.tenant_memberships m
+          join public.tenants tn on tn.id=m.tenant_id
+          where m.user_id=(select auth.uid())
+            and m.tenant_id=%I.tenant_id
+            and m.is_active=true
+            and m.tenant_role=''superadmin''
+            and tn.status=''active''
+        )
+      )',
+      t || '_tenant_superadmin_insert', t, t
+    );
+    execute format(
+      'create policy %I on public.%I for update to authenticated using (
+        exists (
+          select 1 from public.tenant_memberships m
+          join public.tenants tn on tn.id=m.tenant_id
+          where m.user_id=(select auth.uid())
+            and m.tenant_id=%I.tenant_id
+            and m.is_active=true
+            and m.tenant_role=''superadmin''
+            and tn.status=''active''
+        )
+      ) with check (
+        exists (
+          select 1 from public.tenant_memberships m
+          join public.tenants tn on tn.id=m.tenant_id
+          where m.user_id=(select auth.uid())
+            and m.tenant_id=%I.tenant_id
+            and m.is_active=true
+            and m.tenant_role=''superadmin''
+            and tn.status=''active''
+        )
+      )',
+      t || '_tenant_superadmin_update', t, t, t
+    );
+    execute format(
+      'create policy %I on public.%I for delete to authenticated using (
+        exists (
+          select 1 from public.tenant_memberships m
+          join public.tenants tn on tn.id=m.tenant_id
+          where m.user_id=(select auth.uid())
+            and m.tenant_id=%I.tenant_id
+            and m.is_active=true
+            and m.tenant_role=''superadmin''
+            and tn.status=''active''
+        )
+      )',
+      t || '_tenant_superadmin_delete', t, t
+    );
+  end loop;
+end $;
+
+-- Audit history is append-only for tenant users.
+drop policy if exists audit_logs_tenant_member_update on public.audit_logs;
+drop policy if exists audit_logs_tenant_member_delete on public.audit_logs;
+
+-- This function is an internal DDL event-trigger handler, not a Data API RPC.
+-- Its event trigger remains installed; ordinary API roles must not invoke it.
+revoke all on function public.rls_auto_enable() from public, anon, authenticated;
+
 drop policy if exists tenant_memberships_self_select on public.tenant_memberships;
 create policy tenant_memberships_self_select on public.tenant_memberships
 for select to authenticated using(user_id=(select auth.uid()));
