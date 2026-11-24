@@ -8,7 +8,7 @@ export default async function PembelianPage() {
   const actor = await requireAnyRole(MODULE_ROLES);
   const admin = createAdminClient();
   let projectIds: string[] | null = null;
-  if (!actor.isOwner && !actor.roles.includes("Finance") && !actor.roles.includes("Management")) {
+  if (actor.tenantRole !== "superadmin" && !actor.roles.includes("Finance") && !actor.roles.includes("Management")) {
     const { data: scope, error } = await admin.from("tenant_user_work_scopes").select("scope_mode,resource_ids").eq("tenant_id", actor.tenantId)
       .eq("user_id", actor.userId).eq("dimension", "project").maybeSingle();
     if (error || !scope) projectIds = [];
@@ -20,7 +20,7 @@ export default async function PembelianPage() {
   }
 
   let warehouseIds: string[] | null = null;
-  if (actor.roles.includes("Procurement") && !actor.isOwner && !actor.roles.includes("Finance") && !actor.roles.includes("Management")) {
+  if (actor.roles.includes("Procurement") && actor.tenantRole !== "superadmin" && !actor.roles.includes("Finance") && !actor.roles.includes("Management")) {
     const { data: scope } = await admin.from("tenant_user_work_scopes").select("scope_mode,resource_ids").eq("tenant_id", actor.tenantId)
       .eq("user_id", actor.userId).eq("dimension", "warehouse").maybeSingle();
     if (!scope) warehouseIds = [];
@@ -72,7 +72,7 @@ export default async function PembelianPage() {
   }));
 
   const data: PurchasePageData = {
-    actorRoles: actor.isOwner ? ["Superadmin"] : actor.roles,
+    actorRoles: actor.tenantRole === "superadmin" ? ["Superadmin"] : actor.roles,
     projects: scopedProjects, suppliers: suppliers ?? [], categories: categories ?? [], warehouses: scopedWarehouses,
     requests: requests ?? [], receipts: receipts ?? [], payments: payments ?? [],
     receiptDocs: signedReceiptDocs, paymentDocs: signedPaymentDocs, warehouseProjects: mappings ?? [],
