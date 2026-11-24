@@ -12,7 +12,7 @@ type Result = { ok: true; id?: string } | { ok: false; error: string };
 
 async function hasPermission(userId: string, key: string, isOwner: boolean, tenantId: string | null) {
   if (isOwner) return true;
-  const { data, error } = await createAdminClient().from("user_permission_overrides").select("effect").eq("tenant_id", tenantId)
+  const { data, error } = await createAdminClient().from("tenant_user_permission_overrides").select("effect").eq("tenant_id", tenantId)
     .eq("user_id", userId).eq("permission_key", key).maybeSingle();
   return !error && data?.effect === "allow";
 }
@@ -21,7 +21,7 @@ async function assertProjectAccess(userId: string, projectId: string, isOwner: b
   const admin = createAdminClient();
   const { data: project } = await admin.from("projects").select("id,is_active").eq("tenant_id", tenantId).eq("id", projectId).maybeSingle();
   if (!project?.is_active) throw new Error("Project tidak aktif atau tidak ditemukan.");
-  const { data: scope, error } = await admin.from("user_work_scopes").select("scope_mode,resource_ids").eq("tenant_id", tenantId)
+  const { data: scope, error } = await admin.from("tenant_user_work_scopes").select("scope_mode,resource_ids").eq("tenant_id", tenantId)
     .eq("user_id", userId).eq("dimension", "project").maybeSingle();
   if (error || !scope) throw new Error("Area kerja Project belum diatur oleh Superadmin perusahaan.");
   if (scope.scope_mode === "all") return;
@@ -32,7 +32,7 @@ async function assertWarehouseAccess(userId: string, projectId: string, warehous
   const { data: mapping } = await admin.from("warehouse_projects").select("warehouse_id").eq("tenant_id", tenantId).eq("warehouse_id", warehouseId).eq("project_id", projectId).maybeSingle();
   if (!mapping) throw new Error("Warehouse tidak terhubung dengan Project yang dipilih.");
   if (isOwner || roles.includes("Finance") || roles.includes("Management")) return;
-  const { data: scope, error } = await admin.from("user_work_scopes").select("scope_mode,resource_ids").eq("tenant_id", tenantId)
+  const { data: scope, error } = await admin.from("tenant_user_work_scopes").select("scope_mode,resource_ids").eq("tenant_id", tenantId)
     .eq("user_id", userId).eq("dimension", "warehouse").maybeSingle();
   if (error || !scope) throw new Error("Area kerja Warehouse belum diatur oleh Superadmin perusahaan.");
   if (scope.scope_mode === "all") return;
