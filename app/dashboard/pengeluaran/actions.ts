@@ -15,8 +15,8 @@ async function hasPermission(userId: string, key: string, isOwner: boolean, tena
     .select("effect").eq("tenant_id", tenantId).eq("user_id", userId).eq("permission_key", key).maybeSingle();
   return !error && data?.effect === "allow";
 }
-async function assertProjectAccess(userId: string, projectId: string, isOwner: boolean, roles: string[], tenantId: string | null) {
-  if (isOwner || roles.includes("Finance") || roles.includes("Management")) return;
+async function assertProjectAccess(userId: string, projectId: string, isOwner: boolean, tenantId: string | null) {
+  if (isOwner) return;
   const admin = createAdminClient();
   const { data: project } = await admin.from("projects").select("id,is_active").eq("tenant_id", tenantId).eq("id", projectId).maybeSingle();
   if (!project?.is_active) throw new Error("Project tidak aktif atau tidak ditemukan.");
@@ -47,7 +47,7 @@ export async function createExpenseDraft(input: { expenseDate: string; projectId
     if (!uuid(input?.projectId ?? "") || !uuid(input?.categoryId ?? "")) return { ok: false, error: "Project dan kategori wajib dipilih." };
     if (!description || description.length > 1000) return { ok: false, error: "Keterangan wajib diisi (maksimal 1.000 karakter)." };
     if (!Number.isSafeInteger(amount) || amount <= 0) return { ok: false, error: "Nominal tidak valid." };
-    await assertProjectAccess(actor.userId, input.projectId, actor.tenantRole === "superadmin", actor.roles, actor.tenantId);
+    await assertProjectAccess(actor.userId, input.projectId, actor.tenantRole === "superadmin", actor.tenantId);
     const { data, error } = await createAdminClient().rpc("create_expense_draft_with_audit", {
       p_actor_user_id: actor.userId, p_expense_date: input.expenseDate, p_project_id: input.projectId,
       p_expense_category_id: input.categoryId, p_description: description, p_amount: amount,
@@ -68,8 +68,8 @@ export async function updateExpenseDraft(input: { expenseId: string; expenseDate
     const admin = createAdminClient();
     const { data: current } = await getExpense(input.expenseId, actor.tenantId);
     if (!current || current.status !== "Draft") return { ok: false, error: "Hanya Draft yang dapat diubah." };
-    await assertProjectAccess(actor.userId, current.project_id, actor.tenantRole === "superadmin", actor.roles, actor.tenantId);
-    await assertProjectAccess(actor.userId, input.projectId, actor.tenantRole === "superadmin", actor.roles, actor.tenantId);
+    await assertProjectAccess(actor.userId, current.project_id, actor.tenantRole === "superadmin", actor.tenantId);
+    await assertProjectAccess(actor.userId, input.projectId, actor.tenantRole === "superadmin", actor.tenantId);
     const { error } = await admin.rpc("update_expense_draft_with_audit", {
       p_expense_id: input.expenseId, p_actor_user_id: actor.userId, p_expense_date: input.expenseDate,
       p_project_id: input.projectId, p_expense_category_id: input.categoryId, p_description: description, p_amount: amount,
@@ -87,7 +87,7 @@ export async function submitExpense(expenseId: string): Promise<Result> {
     if (!uuid(expenseId)) return { ok: false, error: "Voucher tidak valid." };
     const { data: current } = await getExpense(expenseId, actor.tenantId);
     if (!current || current.status !== "Draft") return { ok: false, error: "Voucher bukan Draft yang dapat dikirim." };
-    await assertProjectAccess(actor.userId, current.project_id, actor.tenantRole === "superadmin", actor.roles, actor.tenantId);
+    await assertProjectAccess(actor.userId, current.project_id, actor.tenantRole === "superadmin", actor.tenantId);
     const { error } = await createAdminClient().rpc("submit_expense_with_audit", { p_expense_id: expenseId, p_actor_user_id: actor.userId });
     if (error) return { ok: false, error: "Voucher gagal dikirim ke antrean Kasir." };
     revalidatePath("/dashboard/pengeluaran");
@@ -102,7 +102,7 @@ export async function payExpense(input: { expenseId: string; paymentMethod: stri
     if (!uuid(input?.expenseId ?? "") || !["Tunai", "Transfer"].includes(input?.paymentMethod)) return { ok: false, error: "Data pembayaran tidak valid." };
     const { data: current } = await getExpense(input.expenseId, actor.tenantId);
     if (!current || current.status !== "Menunggu Pembayaran") return { ok: false, error: "Voucher tidak ditemukan atau sudah diproses." };
-    await assertProjectAccess(actor.userId, current.project_id, actor.tenantRole === "superadmin", actor.roles, actor.tenantId);
+    await assertProjectAccess(actor.userId, current.project_id, actor.tenantRole === "superadmin", actor.tenantId);
     const { error } = await createAdminClient().rpc("pay_expense_with_audit", {
       p_expense_id: input.expenseId, p_actor_user_id: actor.userId, p_payment_method: input.paymentMethod,
     });
@@ -125,7 +125,7 @@ export async function uploadExpensePaymentEvidence(expenseId: string, formData: 
     const admin=createAdminClient();
     const {data:expense}=await getExpense(expenseId, actor.tenantId);
     if(!expense||expense.status!=="Menunggu Pembayaran") return {ok:false,error:"Bukti hanya dapat ditambahkan sebelum pembayaran."};
-    await assertProjectAccess(actor.userId,expense.project_id,actor.tenantRole === "superadmin",actor.roles,actor.tenantId);
+    await assertProjectAccess(actor.userId,expense.project_id,actor.tenantRole === "superadmin", actor.tenantId);
     const files=formData.getAll("files").filter((v):v is File=>v instanceof File&&v.size>0);
     if(!files.length||files.length>15||files.reduce((n,f)=>n+f.size,0)>20*1024*1024) return {ok:false,error:"Pilih 1–15 file dengan total maksimal 20 MB."};
     for(const file of files){
@@ -156,7 +156,7 @@ export async function openExpensePaymentEvidence(documentId: string): Promise<Re
     if(!doc) return {ok:false,error:"Bukti pembayaran tidak ditemukan."};
     const {data:expense}=await getExpense(doc.expense_id, actor.tenantId);
     if(!expense) return {ok:false,error:"Voucher tidak ditemukan."};
-    await assertProjectAccess(actor.userId,expense.project_id,actor.tenantRole === "superadmin",actor.roles,actor.tenantId);
+    await assertProjectAccess(actor.userId,expense.project_id,actor.tenantRole === "superadmin", actor.tenantId);
     const {data,error}=await admin.storage.from("expense-payment-evidence").createSignedUrl(doc.storage_path,60);
     if(error||!data?.signedUrl) return {ok:false,error:"Bukti pembayaran gagal dibuka."};
     return {ok:true,url:data.signedUrl};
@@ -171,7 +171,7 @@ export async function cancelExpense(expenseId: string, reason: string): Promise<
     if (!cleanReason || cleanReason.length > 500) return { ok: false, error: "Alasan pembatalan wajib diisi (maksimal 500 karakter)." };
     const { data: current } = await getExpense(expenseId, actor.tenantId);
     if (!current || !["Draft", "Menunggu Pembayaran"].includes(current.status)) return { ok: false, error: "Voucher yang sudah dibayar tidak dapat dibatalkan." };
-    await assertProjectAccess(actor.userId, current.project_id, actor.tenantRole === "superadmin", actor.roles, actor.tenantId);
+    await assertProjectAccess(actor.userId, current.project_id, actor.tenantRole === "superadmin", actor.tenantId);
     const { error } = await createAdminClient().rpc("cancel_expense_with_audit", { p_expense_id: expenseId, p_actor_user_id: actor.userId, p_reason: cleanReason });
     if (error) return { ok: false, error: "Voucher gagal dibatalkan." };
     revalidatePath("/dashboard/pengeluaran");
@@ -187,7 +187,7 @@ export async function uploadExpenseDocuments(expenseId: string, formData: FormDa
     const admin = createAdminClient();
     const { data: expense } = await getExpense(expenseId, actor.tenantId);
     if (!expense || expense.status !== "Draft") return { ok: false, error: "Dokumen hanya dapat ditambahkan pada Draft." };
-    await assertProjectAccess(actor.userId, expense.project_id, actor.tenantRole === "superadmin", actor.roles, actor.tenantId);
+    await assertProjectAccess(actor.userId, expense.project_id, actor.tenantRole === "superadmin", actor.tenantId);
     const files = formData.getAll("files").filter((v): v is File => v instanceof File && v.size > 0);
     if (!files.length || files.length > 15 || files.reduce((n,f)=>n+f.size,0)>20*1024*1024) return { ok: false, error: "Pilih 1–15 file dengan total maksimal 20 MB." };
     for (const file of files) {
@@ -218,7 +218,7 @@ export async function openExpenseDocument(documentId: string): Promise<Result> {
     if (!doc) return { ok:false,error:"Dokumen tidak ditemukan." };
     const { data: expense } = await getExpense(doc.expense_id, actor.tenantId);
     if (!expense) return { ok:false,error:"Voucher tidak ditemukan." };
-    await assertProjectAccess(actor.userId,expense.project_id,actor.tenantRole === "superadmin",actor.roles,actor.tenantId);
+    await assertProjectAccess(actor.userId,expense.project_id,actor.tenantRole === "superadmin", actor.tenantId);
     const { data,error } = await admin.storage.from(BUCKET).createSignedUrl(doc.storage_path,60);
     if (error || !data?.signedUrl) return { ok:false,error:"Dokumen gagal dibuka." };
     return { ok:true,url:data.signedUrl };
@@ -235,7 +235,7 @@ export async function deleteExpenseDocument(documentId: string): Promise<Result>
     if (lookupError || !doc) return { ok:false,error:"Dokumen tidak ditemukan." };
     const { data: expense } = await getExpense(doc.expense_id, actor.tenantId);
     if (!expense || expense.status!=="Draft") return { ok:false,error:"Dokumen hanya dapat dihapus selama voucher masih Draft." };
-    await assertProjectAccess(actor.userId,expense.project_id,actor.tenantRole === "superadmin",actor.roles,actor.tenantId);
+    await assertProjectAccess(actor.userId,expense.project_id,actor.tenantRole === "superadmin", actor.tenantId);
     const { error } = await admin.rpc("delete_expense_document_with_audit",{p_document_id:documentId,p_actor_user_id:actor.userId});
     if (error) return { ok:false,error:"Catatan dokumen gagal dihapus. File belum dihapus dari penyimpanan." };
     const { error: storageError } = await admin.storage.from(BUCKET).remove([doc.storage_path]);
