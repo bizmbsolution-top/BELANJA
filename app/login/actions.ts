@@ -22,7 +22,6 @@ export async function signIn(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
   const next = safeNextPath(formData.get("next"));
-  const tenantId = String(formData.get("tenantId") ?? "").trim();
 
   if (!email || !password) {
     redirect("/login?error=missing");
@@ -48,37 +47,41 @@ export async function signIn(formData: FormData) {
     redirect("/platform");
   }
 
-  if (!tenantId) {
-    await supabase.auth.signOut();
-    redirect("/login?error=tenant");
-  }
-
-  const { data: membership, error: membershipError } = await admin
+  const { data: memberships, error: membershipsError } = await admin
     .from("tenant_memberships")
-    .select("tenant_id, tenants!inner(status)")
+    .select("tenant_id, created_at, tenants!inner(status)")
     .eq("user_id", authData.user.id)
-    .eq("tenant_id", tenantId)
     .eq("is_active", true)
     .eq("tenants.status", "active")
-    .maybeSingle();
+    .order("created_at", { ascending: true });
 
-  if (membershipError || !membership) {
-    await supabase.auth.signOut();
-    redirect("/login?error=invalid");
-  }
-
-  const { data: profile, error: profileError } = await admin
-    .from("tenant_user_access_profiles")
-    .select("is_active")
-    .eq("tenant_id", tenantId)
-    .eq("user_id", authData.user.id)
-    .maybeSingle();
-
-  if (profileError || !profile?.is_active) {
+  if (membershipsError || !memberships?.length) {
     await supabase.auth.signOut();
     redirect("/login?error=inactive");
   }
 
+  const tenantIds = memberships.map((item) => item.tenant_id);
+  const { data: profiles, error: profilesError } = await admin
+    .from("tenant_user_access_profiles")
+    .select("tenant_id, is_active")
+    .eq("user_id", authData.user.id)
+    .in("tenant_id", tenantIds)
+    .eq("is_active", true);
+
+  if (profilesError || !profiles?.length) {
+    await supabase.auth.signOut();
+    redirect("/login?error=inactive");
+  }
+
+  const validTenantIds = new Set(profiles.map((profile) => profile.tenant_id));
+  const defaultMembership = memberships.find((membership) => validTenantIds.has(membership.tenant_id));
+
+  if (!defaultMembership) {
+    await supabase.auth.signOut();
+    redirect("/login?error=inactive");
+  }
+
+  const tenantId = defaultMembership.tenant_id;
   cookieStore.set("belanja_active_tenant", tenantId, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
@@ -88,6 +91,53 @@ export async function signIn(formData: FormData) {
   });
 
   redirect(next);
+}
+
+export async function switchTenant(formData: FormData) {
+  const tenantId = String(formData.get("tenantId") ?? "").trim();
+  if (!tenantId) redirect("/dashboard");
+
+  const supabase = await createClient();
+  const { data: { user }, error } = await supabase.auth.getUser();
+  if (error || !user) redirect("/login");
+
+  const admin = createAdminClient();
+  const { data: owner } = await admin
+    .from("platform_owners")
+    .select("user_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (owner) redirect("/platform");
+
+  const { data: membership, error: membershipError } = await admin
+    .from("tenant_memberships")
+    .select("tenant_id, tenants!inner(status)")
+    .eq("user_id", user.id)
+    .eq("tenant_id", tenantId)
+    .eq("is_active", true)
+    .eq("tenants.status", "active")
+    .maybeSingle();
+
+  if (membershipError || !membership) redirect("/akses-ditolak?reason=inactive");
+
+  const { data: profile, error: profileError } = await admin
+    .from("tenant_user_access_profiles")
+    .select("is_active")
+    .eq("user_id", user.id)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+
+  if (profileError || profile?.is_active !== true) redirect("/akses-ditolak?reason=inactive");
+
+  const cookieStore = await cookies();
+  cookieStore.set("belanja_active_tenant", tenantId, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 30,
+  });
+  redirect("/dashboard");
 }
 
 export async function signOut() {
