@@ -9,7 +9,7 @@ export default async function PembelianPage() {
   const admin = createAdminClient();
   let projectIds: string[] | null = null;
   if (!actor.isOwner && !actor.roles.includes("Finance") && !actor.roles.includes("Management")) {
-    const { data: scope, error } = await admin.from("user_work_scopes").select("scope_mode,resource_ids").eq("tenant_id", actor.tenantId)
+    const { data: scope, error } = await admin.from("tenant_user_work_scopes").select("scope_mode,resource_ids").eq("tenant_id", actor.tenantId)
       .eq("user_id", actor.userId).eq("dimension", "project").maybeSingle();
     if (error || !scope) projectIds = [];
     else if (scope.scope_mode === "selected") projectIds = scope.resource_ids ?? [];
@@ -21,7 +21,7 @@ export default async function PembelianPage() {
 
   let warehouseIds: string[] | null = null;
   if (actor.roles.includes("Procurement") && !actor.isOwner && !actor.roles.includes("Finance") && !actor.roles.includes("Management")) {
-    const { data: scope } = await admin.from("user_work_scopes").select("scope_mode,resource_ids").eq("tenant_id", actor.tenantId)
+    const { data: scope } = await admin.from("tenant_user_work_scopes").select("scope_mode,resource_ids").eq("tenant_id", actor.tenantId)
       .eq("user_id", actor.userId).eq("dimension", "warehouse").maybeSingle();
     if (!scope) warehouseIds = [];
     else if (scope.scope_mode === "selected") warehouseIds = scope.resource_ids ?? [];
