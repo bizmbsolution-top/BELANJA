@@ -11,6 +11,13 @@ export default async function DashboardLayout({ children }: { children: React.Re
   if (!context.tenantId) redirect("/akses-ditolak?reason=inactive");
 
   const admin = createAdminClient();
+  const { data: company, error: companyError } = await admin
+    .from("tenants")
+    .select("name,logo_url")
+    .eq("id", context.tenantId)
+    .maybeSingle();
+  if (companyError || !company) throw new Error("Profil perusahaan aktif gagal dimuat.");
+
   const { data: memberships } = await admin
     .from("tenant_memberships")
     .select("tenant_id, tenants!inner(id, name, status)")
@@ -45,6 +52,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
       availableTenants={availableTenants}
       availableRoles={context.availableRoles}
       activeRole={context.activeRole}
+      companyName={company.name}
+      companyLogoUrl={company.logo_url}
     >
       {children}
     </DashboardShell>
