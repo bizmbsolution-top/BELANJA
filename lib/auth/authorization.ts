@@ -55,6 +55,7 @@ export type AccessContext = {
   tenantId: string | null;
   tenantRole: "superadmin" | "member" | null;
   activeRole: OperationalRole | null;
+  availableRoles: OperationalRole[];
 };
 
 type ProfileRow = { is_active: boolean; roles: unknown };
@@ -218,6 +219,7 @@ export async function getAccessContext(): Promise<AccessContext> {
       tenantId: null,
       tenantRole: null,
       activeRole: null,
+      availableRoles: [],
     };
   }
 
@@ -274,6 +276,7 @@ export async function getAccessContext(): Promise<AccessContext> {
     tenantId: membershipResult.data.tenant_id,
     tenantRole,
     activeRole,
+    availableRoles: allRoles,
   };
 }
 
@@ -312,6 +315,7 @@ export async function requireAuthenticatedUser(): Promise<AccessContext> {
     tenantId: null,
     tenantRole: null,
     activeRole: null,
+    availableRoles: [],
   };
 }
 
