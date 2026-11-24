@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -110,6 +111,34 @@ async function loadProfile(userId: string): Promise<ProfileLookup> {
  *   profile found, inactive -> deny
  *   profile found, active   -> allow
  */
+async function loadTenantProfile(userId: string, tenantId: string): Promise<ProfileLookup> {
+  let admin;
+  try {
+    admin = createAdminClient();
+  } catch {
+    return { status: "error" };
+  }
+
+  try {
+    const { data, error } = await admin
+      .from("tenant_user_access_profiles")
+      .select("is_active, roles")
+      .eq("user_id", userId)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+
+    if (error) return { status: "error" };
+    if (!data) return { status: "absent" };
+
+    return {
+      status: "found",
+      profile: { is_active: data.is_active === true, roles: data.roles },
+    };
+  } catch {
+    return { status: "error" };
+  }
+}
+
 async function verifyOwnerActive(userId: string): Promise<void> {
   const lookup = await loadProfile(userId);
 
@@ -190,19 +219,26 @@ export async function getAccessContext(): Promise<AccessContext> {
     };
   }
 
+  const cookieStore = await cookies();
+  const activeTenantId = cookieStore.get("belanja_active_tenant")?.value;
+  if (!activeTenantId) {
+    throw new AuthorizationError("inactive", "Pilih perusahaan untuk melanjutkan.");
+  }
+
   const membershipResult = await admin
     .from("tenant_memberships")
     .select("tenant_id, tenant_role, is_active, tenants!inner(status)")
     .eq("user_id", user.id)
+    .eq("tenant_id", activeTenantId)
     .eq("is_active", true)
     .eq("tenants.status", "active")
     .maybeSingle();
 
   if (membershipResult.error || !membershipResult.data) {
-    throw new AuthorizationError("inactive", "Akun belum terhubung ke perusahaan aktif.");
+    throw new AuthorizationError("inactive", "Anda tidak memiliki akses aktif ke perusahaan yang dipilih.");
   }
 
-  const lookup = await loadProfile(user.id);
+  const lookup = await loadTenantProfile(user.id, activeTenantId);
   if (lookup.status === "error") {
     throw new AuthorizationError("inactive", "Data akses pengguna tidak dapat dimuat.");
   }
