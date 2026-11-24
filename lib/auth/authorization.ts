@@ -324,6 +324,10 @@ export async function requirePlatformOwner(): Promise<AccessContext> {
     throw new AuthorizationError("not-owner");
   }
 
+  // Keep the Platform Owner console consistent with getAccessContext() and
+  // middleware: a registered Owner must also have an active access profile.
+  await verifyOwnerActive(user.id);
+
   return {
     userId: user.id,
     email: user.email,
