@@ -55,7 +55,10 @@ export async function updatePurchaseCategory(
     const values = cleanInput(input);
     if (typeof values === "string") return { ok: false, error: values };
 
+    if (!actor.tenantId) return { ok: false, error: "Tenant aktif tidak ditemukan." };
     const admin = createAdminClient();
+    const { data: existing, error: lookupError } = await admin.from("purchase_categories").select("id").eq("tenant_id", actor.tenantId).eq("id", categoryId).maybeSingle();
+    if (lookupError || !existing) return { ok: false, error: "Kategori tidak ditemukan pada perusahaan aktif." };
     const { error } = await admin.rpc("update_purchase_category_with_audit", {
       p_category_id: categoryId,
       p_actor_user_id: actor.userId,
