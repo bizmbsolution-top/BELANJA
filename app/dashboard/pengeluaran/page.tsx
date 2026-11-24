@@ -10,14 +10,15 @@ const ROLES = ["Procurement", "Sales", "Cashier", "Finance", "Warehouse", "Manag
 export default async function PengeluaranPage() {
   const actor = await guardPage(() => requireAnyRole(ROLES));
   const admin = createAdminClient();
-  const [{ data: allProjects, error: projectError }, { data: categories, error: categoryError }, scopeResult] = await Promise.all([
+  const [{ data: allProjects, error: projectError }, { data: categories, error: categoryError }, { data: overrides, error: permissionError }, scopeResult] = await Promise.all([
     admin.from("projects").select("id,code,name").eq("tenant_id", actor.tenantId).eq("is_active", true).order("name"),
     admin.from("expense_categories").select("id,code,name").eq("tenant_id", actor.tenantId).eq("is_active", true).order("name"),
+    admin.from("tenant_user_permission_overrides").select("permission_key,effect").eq("tenant_id", actor.tenantId).eq("user_id", actor.userId),
     actor.tenantRole !== "superadmin"
       ? admin.from("tenant_user_work_scopes").select("scope_mode,resource_ids").eq("tenant_id", actor.tenantId).eq("user_id", actor.userId).eq("dimension", "project").maybeSingle()
       : Promise.resolve({ data: null, error: null }),
   ]);
-  if (projectError || categoryError || scopeResult.error) throw new Error("Data Expenses gagal dimuat.");
+  if (projectError || categoryError || permissionError || scopeResult.error) throw new Error("Data Expenses gagal dimuat.");
   const all = (allProjects ?? []) as ProjectOption[];
   const broadAccess = actor.tenantRole === "superadmin";
   const scope = scopeResult.data as { scope_mode?: string; resource_ids?: string[] } | null;
@@ -40,6 +41,7 @@ export default async function PengeluaranPage() {
   const balances: Record<string, number> = {};
   for (const row of ledger ?? []) balances[row.project_id] = (balances[row.project_id] ?? 0) + Number(row.amount);
   const canCreate = true;
+  const permissionMap = new Map((overrides ?? []).map(row => [row.permission_key, row.effect]));
   const canPay = actor.tenantRole === "superadmin" || (actor.roles.includes("Cashier") && permissionMap.get("payment.post") === "allow");
   return <ExpenseManager categories={(categories ?? []) as ExpenseCategory[]} projects={projects}
     initialItems={initialItems} balances={balances} canCreate={canCreate} canPay={canPay} canViewBalances={canViewBalances}
