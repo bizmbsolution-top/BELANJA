@@ -5,22 +5,21 @@ import ExpenseManager, { type Expense, type ExpenseCategory, type ProjectOption 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-const ROLES = ["Procurement", "Sales", "Cashier", "Finance", "Management"] as const;
+const ROLES = ["Procurement", "Sales", "Cashier", "Finance", "Warehouse", "Management"] as const;
 
 export default async function PengeluaranPage() {
   const actor = await guardPage(() => requireAnyRole(ROLES));
   const admin = createAdminClient();
-  const [{ data: allProjects, error: projectError }, { data: categories, error: categoryError }, { data: overrides, error: permissionError }, scopeResult] = await Promise.all([
+  const [{ data: allProjects, error: projectError }, { data: categories, error: categoryError }, scopeResult] = await Promise.all([
     admin.from("projects").select("id,code,name").eq("tenant_id", actor.tenantId).eq("is_active", true).order("name"),
     admin.from("expense_categories").select("id,code,name").eq("tenant_id", actor.tenantId).eq("is_active", true).order("name"),
-    admin.from("tenant_user_permission_overrides").select("permission_key,effect").eq("tenant_id", actor.tenantId).eq("user_id", actor.userId),
-    !actor.isOwner && !actor.roles.some(r => r === "Finance" || r === "Management")
+    actor.tenantRole !== "superadmin"
       ? admin.from("tenant_user_work_scopes").select("scope_mode,resource_ids").eq("tenant_id", actor.tenantId).eq("user_id", actor.userId).eq("dimension", "project").maybeSingle()
       : Promise.resolve({ data: null, error: null }),
   ]);
-  if (projectError || categoryError || permissionError || scopeResult.error) throw new Error("Data Expenses gagal dimuat.");
+  if (projectError || categoryError || scopeResult.error) throw new Error("Data Expenses gagal dimuat.");
   const all = (allProjects ?? []) as ProjectOption[];
-  const broadAccess = actor.tenantRole === "superadmin" || actor.roles.some(r => r === "Finance" || r === "Management");
+  const broadAccess = actor.tenantRole === "superadmin";
   const scope = scopeResult.data as { scope_mode?: string; resource_ids?: string[] } | null;
   const projects = broadAccess ? all : scope?.scope_mode === "all" ? all :
     all.filter(p => scope?.scope_mode === "selected" && scope.resource_ids?.includes(p.id));
@@ -40,8 +39,7 @@ export default async function PengeluaranPage() {
   ) as unknown as Expense[];
   const balances: Record<string, number> = {};
   for (const row of ledger ?? []) balances[row.project_id] = (balances[row.project_id] ?? 0) + Number(row.amount);
-  const permissionMap = new Map((overrides ?? []).map(row => [row.permission_key, row.effect]));
-  const canCreate = actor.tenantRole === "superadmin" || (actor.roles.some(r => r === "Procurement" || r === "Sales") && permissionMap.get("transaction.post_recognition") === "allow");
+  const canCreate = true;
   const canPay = actor.tenantRole === "superadmin" || (actor.roles.includes("Cashier") && permissionMap.get("payment.post") === "allow");
   return <ExpenseManager categories={(categories ?? []) as ExpenseCategory[]} projects={projects}
     initialItems={initialItems} balances={balances} canCreate={canCreate} canPay={canPay} canViewBalances={canViewBalances}
