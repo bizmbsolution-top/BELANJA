@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireAnyRole } from "@/lib/auth/authorization";
 import { createAdminClient } from "@/lib/supabase/admin";
 
+const EXPENSE_ROLES = ["Procurement", "Sales", "Cashier", "Finance", "Warehouse", "Management"] as const;
 const BUCKET = "expense-billings";
 const MAX_SIZE = 10 * 1024 * 1024;
 type Result = { ok: true; id?: string; url?: string } | { ok: false; error: string };
@@ -31,16 +32,9 @@ async function assertProjectAccess(userId: string, projectId: string, isOwner: b
 async function getExpense(expenseId: string, tenantId: string | null) {
   return createAdminClient().from("expenses").select("id,project_id,status,created_by").eq("tenant_id", tenantId).eq("id", expenseId).maybeSingle();
 }
-async function canCreate(actor: Awaited<ReturnType<typeof requireAnyRole>>) {
-  if (actor.tenantRole === "superadmin") return true;
-  if (!actor.roles.some(role => role === "Procurement" || role === "Sales")) return false;
-  return hasPermission(actor.userId, "transaction.post_recognition", false, actor.tenantId);
-}
-
 export async function createExpenseDraft(input: { expenseDate: string; projectId: string; categoryId: string; description: string; amount: string }): Promise<Result> {
   try {
-    const actor = await requireAnyRole(["Procurement", "Sales"]);
-    if (!(await canCreate(actor))) return { ok: false, error: "Permission membuat voucher Expenses belum diberikan oleh Superadmin perusahaan." };
+    const actor = await requireAnyRole(EXPENSE_ROLES);
     const amount = Number(input?.amount);
     const description = typeof input?.description === "string" ? input.description.trim() : "";
     if (!/^\d{4}-\d{2}-\d{2}$/.test(input?.expenseDate ?? "")) return { ok: false, error: "Tanggal tidak valid." };
@@ -60,8 +54,7 @@ export async function createExpenseDraft(input: { expenseDate: string; projectId
 
 export async function updateExpenseDraft(input: { expenseId: string; expenseDate: string; projectId: string; categoryId: string; description: string; amount: string }): Promise<Result> {
   try {
-    const actor = await requireAnyRole(["Procurement", "Sales"]);
-    if (!(await canCreate(actor))) return { ok: false, error: "Permission membuat voucher Expenses belum diberikan oleh Superadmin perusahaan." };
+    const actor = await requireAnyRole(EXPENSE_ROLES);
     if (!uuid(input?.expenseId ?? "") || !uuid(input?.projectId ?? "") || !uuid(input?.categoryId ?? "")) return { ok: false, error: "Data voucher tidak valid." };
     const amount = Number(input.amount), description = input.description.trim();
     if (!/^\d{4}-\d{2}-\d{2}$/.test(input.expenseDate) || !description || description.length > 1000 || !Number.isSafeInteger(amount) || amount <= 0) return { ok: false, error: "Periksa tanggal, keterangan, dan nominal." };
@@ -82,8 +75,7 @@ export async function updateExpenseDraft(input: { expenseId: string; expenseDate
 
 export async function submitExpense(expenseId: string): Promise<Result> {
   try {
-    const actor = await requireAnyRole(["Procurement", "Sales"]);
-    if (!(await canCreate(actor))) return { ok: false, error: "Permission submit voucher belum diberikan oleh Superadmin perusahaan." };
+    const actor = await requireAnyRole(EXPENSE_ROLES);
     if (!uuid(expenseId)) return { ok: false, error: "Voucher tidak valid." };
     const { data: current } = await getExpense(expenseId, actor.tenantId);
     if (!current || current.status !== "Draft") return { ok: false, error: "Voucher bukan Draft yang dapat dikirim." };
@@ -149,7 +141,7 @@ export async function uploadExpensePaymentEvidence(expenseId: string, formData: 
 
 export async function openExpensePaymentEvidence(documentId: string): Promise<Result> {
   try {
-    const actor=await requireAnyRole(["Procurement","Sales","Cashier","Finance","Management"]);
+    const actor=await requireAnyRole(EXPENSE_ROLES);
     if(!uuid(documentId)) return {ok:false,error:"Dokumen tidak valid."};
     const admin=createAdminClient();
     const {data:doc}=await admin.from("expense_payment_documents").select("storage_path,expense_id").eq("tenant_id",actor.tenantId).eq("id",documentId).maybeSingle();
@@ -181,8 +173,7 @@ export async function cancelExpense(expenseId: string, reason: string): Promise<
 
 export async function uploadExpenseDocuments(expenseId: string, formData: FormData): Promise<Result> {
   try {
-    const actor = await requireAnyRole(["Procurement", "Sales"]);
-    if (!(await canCreate(actor))) return { ok: false, error: "Permission membuat voucher Expenses belum diberikan oleh Superadmin perusahaan." };
+    const actor = await requireAnyRole(EXPENSE_ROLES);
     if (!uuid(expenseId)) return { ok: false, error: "Voucher tidak valid." };
     const admin = createAdminClient();
     const { data: expense } = await getExpense(expenseId, actor.tenantId);
@@ -211,7 +202,7 @@ export async function uploadExpenseDocuments(expenseId: string, formData: FormDa
 
 export async function openExpenseDocument(documentId: string): Promise<Result> {
   try {
-    const actor = await requireAnyRole(["Procurement","Sales","Cashier","Finance","Management"]);
+    const actor = await requireAnyRole(EXPENSE_ROLES);
     if (!uuid(documentId)) return { ok:false,error:"Dokumen tidak valid." };
     const admin = createAdminClient();
     const { data: doc } = await admin.from("expense_documents").select("storage_path,expense_id").eq("tenant_id",actor.tenantId).eq("id",documentId).maybeSingle();
@@ -227,8 +218,7 @@ export async function openExpenseDocument(documentId: string): Promise<Result> {
 
 export async function deleteExpenseDocument(documentId: string): Promise<Result> {
   try {
-    const actor = await requireAnyRole(["Procurement","Sales"]);
-    if (!(await canCreate(actor))) return { ok:false,error:"Permission membuat voucher Expenses belum diberikan oleh Superadmin perusahaan." };
+    const actor = await requireAnyRole(EXPENSE_ROLES);
     if (!uuid(documentId)) return { ok:false,error:"Dokumen tidak valid." };
     const admin = createAdminClient();
     const { data: doc,error: lookupError } = await admin.from("expense_documents").select("storage_path,expense_id").eq("tenant_id",actor.tenantId).eq("id",documentId).maybeSingle();
