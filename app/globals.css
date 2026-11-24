@@ -229,3 +229,7 @@ footer {
 @media(max-width:800px){.home-dashboard{padding:26px 18px 44px}}
 @media(max-width:560px){.home-dashboard{padding:22px 14px 36px}.welcome-card{min-height:0;padding:16px}.quick-grid article{min-height:116px}.quick-grid article strong{font-size:22px}}
 [data-theme="dark"] .company-welcome-logo{border-color:#354963;background:#fff;color:#155eef}
+
+/* Keep the BELANJA product mark secondary on the login screen as well. */
+.auth-card .brand-mark{width:34px;height:34px;padding:4px;border-radius:10px}
+.auth-card .eyebrow{margin-top:16px;font-size:9px;letter-spacing:.12em}
