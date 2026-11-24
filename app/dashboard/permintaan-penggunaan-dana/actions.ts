@@ -14,7 +14,7 @@ async function assertProjectAccess(userId: string, projectId: string, isOwner: b
   const { data: project } = await admin.from("projects").select("id,is_active").eq("tenant_id", tenantId).eq("id", projectId).maybeSingle();
   if (!project || project.is_active !== true) throw new Error("Project tidak aktif atau tidak ditemukan.");
   if (isOwner) return;
-  const { data: scope, error } = await admin.from("user_work_scopes").select("scope_mode,resource_ids").eq("tenant_id", tenantId).eq("user_id", userId).eq("dimension", "project").maybeSingle();
+  const { data: scope, error } = await admin.from("tenant_user_work_scopes").select("scope_mode,resource_ids").eq("tenant_id", tenantId).eq("user_id", userId).eq("dimension", "project").maybeSingle();
   if (error || !scope) throw new Error("Area kerja Project belum diatur oleh Superadmin perusahaan.");
   if (scope.scope_mode === "all") return;
   if (scope.scope_mode !== "selected" || !Array.isArray(scope.resource_ids) || !scope.resource_ids.includes(projectId)) {
