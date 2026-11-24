@@ -175,8 +175,8 @@ export default function UserAccess({ initialUsers, initialProjects, initialWareh
       setFormError("Email ini sudah ada dalam daftar pengguna.");
       return;
     }
-    if (newPassword.length < 8) {
-      setFormError("Password awal minimal 8 karakter.");
+    if (newPassword && newPassword.length < 8) {
+      setFormError("Password awal akun baru minimal 8 karakter.");
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -591,15 +591,15 @@ export default function UserAccess({ initialUsers, initialProjects, initialWareh
                 <input type="email" autoComplete="off" placeholder="nama@perusahaan.com" value={newEmail} onChange={(event) => { setNewEmail(event.target.value); setFormError(""); }} required />
               </label>
               <label className={styles.modalField}>
-                <span>Password awal</span>
-                <input type="password" autoComplete="new-password" placeholder="Minimal 8 karakter" value={newPassword} onChange={(event) => { setNewPassword(event.target.value); setFormError(""); }} required />
+                <span>Password awal (khusus akun baru)</span>
+                <input type="password" autoComplete="new-password" placeholder="Kosongkan jika akun sudah terdaftar" value={newPassword} onChange={(event) => { setNewPassword(event.target.value); setFormError(""); }} />
               </label>
               <label className={styles.modalField}>
                 <span>Konfirmasi password</span>
-                <input type="password" autoComplete="new-password" placeholder="Ulangi password awal" value={confirmPassword} onChange={(event) => { setConfirmPassword(event.target.value); setFormError(""); }} required />
+                <input type="password" autoComplete="new-password" placeholder="Ulangi password akun baru" value={confirmPassword} onChange={(event) => { setConfirmPassword(event.target.value); setFormError(""); }} />
               </label>
               {formError && <p className={styles.formError} role="alert">{formError}</p>}
-              <p className={styles.modalNotice}>Akun baru akan muncul di daftar Pengguna tanpa Role. Atur Role, area kerja, dan permission setelah akun dibuat. Akun akan langsung dibuat di Supabase Auth dan dapat digunakan untuk login. Role dan area kerja diatur setelah akun terdaftar.</p>
+              <p className={styles.modalNotice}>Jika email belum terdaftar, akun baru dibuat dengan password awal. Jika email sudah terdaftar di BELANJA, akun yang sama ditambahkan ke perusahaan ini dan tetap menggunakan password lama. Atur Role, area kerja, dan permission setelah ditambahkan.</p>
               <div className={styles.modalActions}>
                 <button type="button" className={styles.cancelButton} onClick={() => setAddOpen(false)}>Batal</button>
                 <button type="submit" className={styles.createButton}>Tambah Pengguna</button>
