@@ -33,6 +33,9 @@ export async function updateExpenseCategory(id:string,input:Input):Promise<Resul
   if(typeof id!=="string"||!/^[0-9a-f-]{36}$/i.test(id))return{ok:false,error:"Data akun biaya tidak valid."};
   if(typeof input?.isActive!=="boolean")return{ok:false,error:"Status akun biaya tidak valid."};
   const v=clean(input);if(typeof v==="string")return{ok:false,error:v};
+  if(!actor.tenantId)return{ok:false,error:"Tenant aktif tidak ditemukan."};
+  const {data:existing,error:lookupError}=await createAdminClient().from("expense_categories").select("id").eq("tenant_id",actor.tenantId).eq("id",id).maybeSingle();
+  if(lookupError||!existing)return{ok:false,error:"Akun biaya tidak ditemukan pada perusahaan aktif."};
   const {error}=await createAdminClient().rpc("update_expense_category_with_audit",{
    p_category_id:id,p_actor_user_id:actor.userId,p_name:v.name,p_description:v.description,
    p_is_active:input.isActive,p_cost_classification:v.costClassification
