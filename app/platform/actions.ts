@@ -59,7 +59,7 @@ export async function createTenantSuperadmin(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
 
-  if (!/^[0-9a-f-]{36}$/i.test(tenantId) || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) {
+  if (!/^[0-9a-f-]{36}$/i.test(tenantId) || !/^[^\s@]+@[^\s@]+\\.[^\s@]+$/.test(email)) {
     redirect("/platform?adminError=invalid");
   }
 
@@ -151,7 +151,7 @@ export async function updateTenantSuperadminEmail(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "").trim();
   const userId = String(formData.get("userId") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
-  if (!/^[0-9a-f-]{36}$/i.test(tenantId) || !/^[0-9a-f-]{36}$/i.test(userId) || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) redirect("/platform?adminError=invalid");
+  if (!/^[0-9a-f-]{36}$/i.test(tenantId) || !/^[0-9a-f-]{36}$/i.test(userId) || !/^[^\s@]+@[^\s@]+\\.[^\s@]+$/.test(email)) redirect("/platform?adminError=invalid");
 
   const admin = createAdminClient();
   const { data: membership, error: membershipError } = await admin.from("tenant_memberships")
