@@ -24,6 +24,34 @@ type ProfileLookup =
   | { status: "absent" }
   | { status: "error" };
 
+async function loadTenantProfile(userId: string, tenantId: string): Promise<ProfileLookup> {
+  let admin;
+  try {
+    admin = createAdminClient();
+  } catch {
+    return { status: "error" };
+  }
+
+  try {
+    const { data, error } = await admin
+      .from("tenant_user_access_profiles")
+      .select("is_active, roles")
+      .eq("user_id", userId)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+
+    if (error) return { status: "error" };
+    if (!data) return { status: "absent" };
+
+    return {
+      status: "found",
+      profile: { is_active: data.is_active === true, roles: data.roles },
+    };
+  } catch {
+    return { status: "error" };
+  }
+}
+
 async function loadProfile(userId: string): Promise<ProfileLookup> {
   let admin;
   try {
