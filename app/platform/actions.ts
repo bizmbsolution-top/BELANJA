@@ -211,3 +211,37 @@ export async function setTenantSuperadminActive(formData: FormData) {
   revalidatePath("/platform");
   redirect(auditError ? "/platform?adminStatusUpdated=1&auditWarning=1" : "/platform?adminStatusUpdated=1");
 }
+
+
+export async function resetTenantSuperadminPassword(formData: FormData) {
+  const owner = await requirePlatformOwner();
+  const tenantId = String(formData.get("tenantId") ?? "").trim();
+  const userId = String(formData.get("userId") ?? "").trim();
+  const password = String(formData.get("password") ?? "");
+
+  if (!/^[0-9a-f-]{36}$/i.test(tenantId) || !/^[0-9a-f-]{36}$/i.test(userId)) {
+    redirect("/platform?adminError=invalid");
+  }
+  if (password.length < 10 || password.length > 128) {
+    redirect("/platform?adminError=passwordInvalid");
+  }
+
+  const admin = createAdminClient();
+  const { data: membership, error: membershipError } = await admin.from("tenant_memberships")
+    .select("tenant_id,user_id,tenant_role").eq("tenant_id", tenantId).eq("user_id", userId)
+    .eq("tenant_role", "superadmin").maybeSingle();
+  if (membershipError || !membership) redirect("/platform?adminError=passwordReset");
+
+  const { data: updated, error: updateError } = await admin.auth.admin.updateUserById(userId, { password });
+  if (updateError || !updated.user) redirect("/platform?adminError=passwordReset");
+
+  const { error: auditError } = await admin.from("platform_audit_logs").insert({
+    actor_user_id: owner.userId,
+    tenant_id: tenantId,
+    action: "tenant.superadmin_password_reset",
+    details: { user_id: userId, initiated_by: "platform_owner" },
+  });
+
+  revalidatePath("/platform");
+  redirect(auditError ? "/platform?passwordReset=1&auditWarning=1" : "/platform?passwordReset=1");
+}
