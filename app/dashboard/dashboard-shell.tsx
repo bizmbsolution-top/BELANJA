@@ -148,9 +148,6 @@ export default function DashboardShell({ children, email, roles, isSuperadmin, a
             <button type="submit">Ganti Perusahaan</button>
           </form>
         )}
-        {availableTenants.length === 1 && (
-          <p className={styles.currentTenant}>{availableTenants[0].name}</p>
-        )}
         {availableRoles.length > 1 && !isSuperadmin && (
           <form action={switchRole} className={styles.tenantSwitchForm}>
             <label htmlFor="role-switch">Mode kerja aktif</label>
