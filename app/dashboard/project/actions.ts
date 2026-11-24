@@ -26,6 +26,9 @@ export async function updateProject(id:string,input:Input):Promise<Result>{
  try{const actor=await requireOwner();if(typeof id!=="string"||!/^[0-9a-f-]{36}$/i.test(id))return{ok:false,error:"Data Project tidak valid."};
  if(typeof input?.isActive!=="boolean")return{ok:false,error:"Status Project tidak valid."};
  const v=clean(input);if(typeof v==="string")return{ok:false,error:v};
+ if(!actor.tenantId)return{ok:false,error:"Tenant aktif tidak ditemukan."};
+ const {data:existing,error:lookupError}=await createAdminClient().from("projects").select("id").eq("tenant_id",actor.tenantId).eq("id",id).maybeSingle();
+ if(lookupError||!existing)return{ok:false,error:"Project tidak ditemukan pada perusahaan aktif."};
  const {error}=await createAdminClient().rpc("update_project_with_audit",{p_project_id:id,p_actor_user_id:actor.userId,p_name:v.name,p_location:v.location,p_description:v.description,p_is_active:input.isActive});
  if(error?.code==="23505")return{ok:false,error:"Nama Project tersebut sudah digunakan."};
  if(error)return{ok:false,error:"Perubahan Project gagal disimpan. Silakan coba lagi."};return{ok:true};
