@@ -18,8 +18,9 @@ function clean(input:Input){
 export async function createExpenseCategory(input:Input):Promise<Result>{
  try{
   const actor=await requireAnyRole(ROLES);const v=clean(input);if(typeof v==="string")return{ok:false,error:v};
+  if(!actor.tenantId)return{ok:false,error:"Tenant aktif tidak ditemukan."};
   const {error}=await createAdminClient().rpc("create_expense_category_with_audit",{
-   p_actor_user_id:actor.userId,p_name:v.name,p_description:v.description,p_cost_classification:v.costClassification
+   p_actor_user_id:actor.userId,p_tenant_id:actor.tenantId,p_name:v.name,p_description:v.description,p_cost_classification:v.costClassification
   });
   if(error?.code==="23505")return{ok:false,error:"Nama akun biaya tersebut sudah digunakan."};
   if(error)return{ok:false,error:"Akun biaya gagal disimpan. Silakan coba lagi."};
