@@ -49,6 +49,23 @@ async function hasActiveTenantSuperadminMembership(userId: string): Promise<bool
   }
 }
 
+async function loadTenantProfile(userId: string, tenantId: string): Promise<ProfileLookup> {
+  try {
+    const admin = createAdminClient();
+    const { data, error } = await admin
+      .from("tenant_user_access_profiles")
+      .select("is_active, roles")
+      .eq("user_id", userId)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+    if (error) return { status: "error" };
+    if (!data) return { status: "absent" };
+    return { status: "found", profile: { is_active: data.is_active === true, roles: data.roles } };
+  } catch {
+    return { status: "error" };
+  }
+}
+
 async function loadProfile(userId: string): Promise<ProfileLookup> {
   let admin;
   try {
@@ -141,24 +158,36 @@ export async function updateSession(request: NextRequest) {
         return redirectTo(request, "/akses-ditolak", "inactive");
       }
     } else {
-      const lookup = await loadProfile(user.id);
-      const isActiveTenantSuperadmin =
-        lookup.status === "found" &&
-        lookup.profile.is_active &&
-        await hasActiveTenantSuperadminMembership(user.id);
+      const tenantId = request.cookies.get("belanja_active_tenant")?.value;
+      if (!tenantId) return redirectTo(request, "/login", "inactive");
 
-      // Tenant Superadmin is a tenant-level administrative role, not an
-      // operational role stored in user_access_profiles.roles.
-      if (!isActiveTenantSuperadmin) {
+      const admin = createAdminClient();
+      const { data: membership, error: membershipError } = await admin
+        .from("tenant_memberships")
+        .select("tenant_role, tenants!inner(status)")
+        .eq("user_id", user.id)
+        .eq("tenant_id", tenantId)
+        .eq("is_active", true)
+        .eq("tenants.status", "active")
+        .maybeSingle();
+
+      if (membershipError || !membership) {
+        return redirectTo(request, "/login", "inactive");
+      }
+
+      const lookup = await loadTenantProfile(user.id, tenantId);
+      if (lookup.status !== "found" || !lookup.profile.is_active) {
+        return redirectTo(request, "/akses-ditolak", "inactive");
+      }
+
+      // Superadmin is tenant-scoped by the selected membership. Other users
+      // must also hold an operational role in that same tenant profile.
+      if (membership.tenant_role !== "superadmin") {
         const decision = evaluateRouteAccess({
           isOwner: false,
-          profile:
-            lookup.status === "found"
-              ? lookup.profile
-              : { is_active: false, roles: [] },
+          profile: lookup.profile,
           requireActiveRole: true,
         });
-
         if (!decision.allowed) {
           return redirectTo(request, "/akses-ditolak", decision.reason);
         }
@@ -167,7 +196,10 @@ export async function updateSession(request: NextRequest) {
   }
 
   if (pathname === "/login" && user) {
-    return redirectTo(request, "/dashboard");
+    if (isOwnerEmail(user.email)) return redirectTo(request, "/platform");
+    if (request.cookies.get("belanja_active_tenant")?.value) {
+      return redirectTo(request, "/dashboard");
+    }
   }
 
   return response;
