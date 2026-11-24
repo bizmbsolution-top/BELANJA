@@ -136,8 +136,8 @@ export async function updateSession(request: NextRequest) {
 
     if (isOwner) {
       // Owner authority requires a verified active profile (owner decision B).
-      // Identity comes from BELANJA_OWNER_EMAIL; the active flag is evaluated by
-      // the same shared rule the server helpers use, so the two cannot drift apart.
+      // Identity comes from the platform_owners registry; the active flag is evaluated
+      // by the same shared rule the server helpers use.
       const lookup = await loadProfile(user.id);
 
       const decision = evaluateOwnerAccess(
