@@ -1,4 +1,3 @@
-import Image from "next/image";
 import { requireActiveUser } from "@/lib/auth/authorization";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -16,6 +15,11 @@ export default async function DashboardPage() {
   const access = await requireActiveUser();
   const canViewFinancialSummary = access.roles.some((role) => ["Finance", "Management"].includes(role)) || access.tenantRole === "superadmin";
   const activeRoleLabel = access.tenantRole === "superadmin" ? "Superadmin" : access.activeRole === "Procurement" ? "Pembelian" : access.activeRole === "Sales" ? "Penjualan" : access.activeRole === "Cashier" ? "Kasir" : access.activeRole === "Warehouse" ? "Gudang" : access.activeRole ?? "Operasional";
+  if (!access.tenantId) throw new Error("Tenant pengguna tidak ditemukan.");
+  const admin = createAdminClient();
+  const { data: company, error: companyError } = await admin.from("tenants").select("name,logo_url").eq("id", access.tenantId).maybeSingle();
+  if (companyError || !company) throw new Error("Profil perusahaan gagal dimuat.");
+  const companyName = company.name;
 
   const now = new Date();
   const parts = new Intl.DateTimeFormat("en-CA", {
@@ -30,8 +34,6 @@ export default async function DashboardPage() {
   let recentExpenses: { code: string; expense_date: string; description: string; amount: number; status: string }[] = [];
 
   if (canViewFinancialSummary) {
-    const admin = createAdminClient();
-    if (!access.tenantId) throw new Error("Tenant pengguna tidak ditemukan.");
     const { data, error } = await admin.from("expenses")
       .select("code,expense_date,description,amount,status")
       .eq("tenant_id", access.tenantId)
@@ -51,18 +53,18 @@ export default async function DashboardPage() {
   return (
     <div className="home-dashboard">
       <div className="home-heading">
-        <p className="home-eyebrow">SENTRALOGIS · OPERATIONS</p>
+        <p className="home-eyebrow">{companyName} · OPERATIONS</p>
         <h1>Dashboard {activeRoleLabel}</h1>
-        <p>Ringkasan aktivitas operasional BELANJA · {month}/{year}</p>
+        <p>Ringkasan aktivitas operasional perusahaan · {month}/{year}</p>
       </div>
       <section className="welcome-card">
-        <div className="welcome-icon">
-          <Image src="/logo_belanja.png" alt="" width={1026} height={1027} className="welcome-logo" />
+        <div className="welcome-icon company-welcome-logo">
+          {company.logo_url ? <img src={company.logo_url} alt={`Logo ${companyName}`} /> : <span>{companyName.slice(0, 1).toUpperCase()}</span>}
         </div>
         <div>
           <span className="welcome-status"><i /> Sistem siap digunakan</span>
-          <h2>Selamat datang di BELANJA</h2>
-          <p>Pantau aktivitas operasional dari satu halaman. Angka hanya ditampilkan jika datanya sudah tersedia dan tercatat di sistem.</p>
+          <h2>Selamat datang, {companyName}</h2>
+          <p>Kelola aktivitas operasional perusahaan dari satu halaman. BELANJA membantu pencatatan dan pemantauan kegiatan harian secara praktis.</p>
         </div>
       </section>
       <section className="quick-grid">
