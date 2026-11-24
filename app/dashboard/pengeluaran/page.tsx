@@ -13,9 +13,9 @@ export default async function PengeluaranPage() {
   const [{ data: allProjects, error: projectError }, { data: categories, error: categoryError }, { data: overrides, error: permissionError }, scopeResult] = await Promise.all([
     admin.from("projects").select("id,code,name").eq("tenant_id", actor.tenantId).eq("is_active", true).order("name"),
     admin.from("expense_categories").select("id,code,name").eq("tenant_id", actor.tenantId).eq("is_active", true).order("name"),
-    admin.from("user_permission_overrides").select("permission_key,effect").eq("tenant_id", actor.tenantId).eq("user_id", actor.userId),
+    admin.from("tenant_user_permission_overrides").select("permission_key,effect").eq("tenant_id", actor.tenantId).eq("user_id", actor.userId),
     !actor.isOwner && !actor.roles.some(r => r === "Finance" || r === "Management")
-      ? admin.from("user_work_scopes").select("scope_mode,resource_ids").eq("tenant_id", actor.tenantId).eq("user_id", actor.userId).eq("dimension", "project").maybeSingle()
+      ? admin.from("tenant_user_work_scopes").select("scope_mode,resource_ids").eq("tenant_id", actor.tenantId).eq("user_id", actor.userId).eq("dimension", "project").maybeSingle()
       : Promise.resolve({ data: null, error: null }),
   ]);
   if (projectError || categoryError || permissionError || scopeResult.error) throw new Error("Data Expenses gagal dimuat.");
