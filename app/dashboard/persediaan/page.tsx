@@ -25,10 +25,10 @@ export default async function PersediaanPage() {
   let warehouseIds: string[] | null = null, projectIds: string[] | null = null;
 
   if (!broadAccess) {
-    const projectScopePromise = admin.from("user_work_scopes").select("scope_mode,resource_ids").eq("tenant_id", actor.tenantId).eq("user_id", actor.userId).eq("dimension", "project").maybeSingle();
+    const projectScopePromise = admin.from("tenant_user_work_scopes").select("scope_mode,resource_ids").eq("tenant_id", actor.tenantId).eq("user_id", actor.userId).eq("dimension", "project").maybeSingle();
     const warehouseScopePromise = cashierAccess
       ? Promise.resolve({ data: null, error: null })
-      : admin.from("user_work_scopes").select("scope_mode,resource_ids").eq("tenant_id", actor.tenantId).eq("user_id", actor.userId).eq("dimension", "warehouse").maybeSingle();
+      : admin.from("tenant_user_work_scopes").select("scope_mode,resource_ids").eq("tenant_id", actor.tenantId).eq("user_id", actor.userId).eq("dimension", "warehouse").maybeSingle();
     const [{ data: ws, error: we }, { data: ps, error: pe }] = await Promise.all([warehouseScopePromise, projectScopePromise]);
     if (pe || !ps) throw new Error("Area kerja Project belum dapat diverifikasi.");
     projectIds = ps.scope_mode === "all" ? null : ps.scope_mode === "selected" ? ps.resource_ids ?? [] : [];
