@@ -15,6 +15,7 @@ const dateLabel = (value: string) => new Intl.DateTimeFormat("id-ID", {
 export default async function DashboardPage() {
   const access = await requireActiveUser();
   const canViewFinancialSummary = access.roles.some((role) => ["Finance", "Management"].includes(role)) || access.tenantRole === "superadmin";
+  const activeRoleLabel = access.tenantRole === "superadmin" ? "Superadmin" : access.activeRole === "Procurement" ? "Pembelian" : access.activeRole === "Sales" ? "Penjualan" : access.activeRole === "Cashier" ? "Kasir" : access.activeRole === "Warehouse" ? "Gudang" : access.activeRole ?? "Operasional";
 
   const now = new Date();
   const parts = new Intl.DateTimeFormat("en-CA", {
@@ -51,7 +52,7 @@ export default async function DashboardPage() {
     <div className="home-dashboard">
       <div className="home-heading">
         <p className="home-eyebrow">SENTRALOGIS · OPERATIONS</p>
-        <h1>Management Dashboard</h1>
+        <h1>Dashboard {activeRoleLabel}</h1>
         <p>Ringkasan aktivitas operasional BELANJA · {month}/{year}</p>
       </div>
       <section className="welcome-card">
