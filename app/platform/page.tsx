@@ -23,14 +23,15 @@ export default async function PlatformPage({
   const params = await searchParams;
   const admin = createAdminClient();
 
-  const [{ data: tenants, error: tenantError }, { data: memberships, error: membershipError }, { data: healthRows, error: healthError }, { data: superadminRows, error: superadminError }] = await Promise.all([
+  const [{ data: tenants, error: tenantError }, { data: memberships, error: membershipError }, { data: healthRows, error: healthError }, { data: superadminRows, error: superadminError }, { data: superadminProfiles, error: superadminProfileError }] = await Promise.all([
     admin.from("tenants").select("id,name,slug,status,created_at").order("created_at", { ascending: true }),
     admin.from("tenant_memberships").select("tenant_id,user_id").eq("is_active", true),
     admin.from("tenant_health_snapshots").select("tenant_id,health_status,response_time_ms,checked_at").order("checked_at", { ascending: false }).limit(300),
-    admin.from("tenant_memberships").select("tenant_id,user_id,is_active").eq("tenant_role", "superadmin"),
+    admin.from("tenant_memberships").select("tenant_id,user_id,is_active").eq("tenant_role", "superadmin").order("is_active", { ascending: false }),
+    admin.from("tenant_user_access_profiles").select("tenant_id,user_id,is_active"),
   ]);
 
-  if (tenantError || membershipError || healthError || superadminError) {
+  if (tenantError || membershipError || healthError || superadminError || superadminProfileError) {
     throw new Error("Data monitoring tenant gagal dimuat.");
   }
 
@@ -47,10 +48,16 @@ export default async function PlatformPage({
     if (!latestHealth.has(row.tenant_id)) latestHealth.set(row.tenant_id, row);
   }
 
+  const profileStatus = new Map((superadminProfiles ?? []).map((row) => [`${row.tenant_id}:${row.user_id}`, row.is_active === true]));
   const superadmins = new Map<string, { userId: string; email: string; active: boolean }>();
   for (const row of superadminRows ?? []) {
+    if (superadmins.has(row.tenant_id)) continue;
     const { data } = await admin.auth.admin.getUserById(row.user_id);
-    superadmins.set(row.tenant_id, { userId: row.user_id, email: data.user?.email ?? "Email tidak tersedia", active: row.is_active === true });
+    superadmins.set(row.tenant_id, {
+      userId: row.user_id,
+      email: data.user?.email ?? "Email tidak tersedia",
+      active: row.is_active === true && profileStatus.get(`${row.tenant_id}:${row.user_id}`) === true,
+    });
   }
 
   const activeCount = tenantList.filter((tenant) => tenant.status === "active").length;
@@ -97,11 +104,11 @@ export default async function PlatformPage({
       {params.adminError === "status" && <p className={styles.error}>Status Superadmin gagal diperbarui.</p>}
       {params.adminError === "superadmin" && <p className={styles.error}>Data Superadmin tenant tidak ditemukan.</p>}
       {params.adminError === "duplicate" && <p className={styles.error}>Email tersebut sudah terdaftar.</p>}
-      {params.adminError && !["exists","duplicate"].includes(params.adminError) && <p className={styles.error}>Pembuatan akun Superadmin gagal. Periksa data dan coba kembali.</p>}
+      {params.adminError && !["exists","duplicate","lookup","password","audit","emailExists","emailUpdate","status","superadmin"].includes(params.adminError) && <p className={styles.error}>Operasi Superadmin gagal. Periksa data dan coba kembali.</p>}
 
       <section className={styles.panel}>
         <div className={styles.panelHeading}>
-          <div><h2>Daftar Tenant</h2><p>Informasi administrasi, email Superadmin, dan status aplikasi.</p></div>
+          <div><h2>Daftar Tenant</h2><p>Informasi administrasi, email Superadmin, dan status aplikasi. Email login yang diubah berlaku untuk seluruh tenant terkait.</p></div>
         </div>
         {tenantList.length === 0 ? <p className={styles.empty}>Belum ada tenant terdaftar.</p> : (
           <div className={styles.tableWrap}>
