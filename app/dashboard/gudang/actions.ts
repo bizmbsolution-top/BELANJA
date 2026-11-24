@@ -45,7 +45,10 @@ export async function updateWarehouse(id: string, input: WarehouseInput): Promis
     if (typeof input?.isActive !== "boolean") return { ok: false, error: "Status gudang tidak valid." };
     const values = cleanInput(input);
     if (typeof values === "string") return { ok: false, error: values };
+    if (!actor.tenantId) return { ok: false, error: "Tenant aktif tidak ditemukan." };
     const admin = createAdminClient();
+    const { data: existing, error: lookupError } = await admin.from("warehouses").select("id").eq("tenant_id", actor.tenantId).eq("id", id).maybeSingle();
+    if (lookupError || !existing) return { ok: false, error: "Gudang tidak ditemukan pada perusahaan aktif." };
     const { error } = await admin.rpc("update_warehouse_with_audit", {
       p_warehouse_id: id, p_actor_user_id: actor.userId, p_name: values.name,
       p_location: values.location, p_description: values.description, p_is_active: input.isActive,
