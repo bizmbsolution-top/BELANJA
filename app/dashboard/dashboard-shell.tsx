@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { signOut } from "@/app/login/actions";
+import { signOut, switchTenant } from "@/app/login/actions";
 import styles from "./dashboard-shell.module.css";
 
 type Props = {
@@ -12,6 +12,8 @@ type Props = {
   email: string;
   roles: string[];
   isSuperadmin: boolean;
+  activeTenantId: string;
+  availableTenants: { id: string; name: string }[];
 };
 
 type MenuItem = {
@@ -93,7 +95,7 @@ function Brand() {
   );
 }
 
-export default function DashboardShell({ children, email, roles, isSuperadmin }: Props) {
+export default function DashboardShell({ children, email, roles, isSuperadmin, activeTenantId, availableTenants }: Props) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState<string[]>([]);
@@ -131,6 +133,20 @@ export default function DashboardShell({ children, email, roles, isSuperadmin }:
       <div className={styles.brandWrap}>
         <Brand />
         <span className={styles.brandCaption}>SENTRALOGIS · OPERATIONS</span>
+        {availableTenants.length > 1 && (
+          <form action={switchTenant} className={styles.tenantSwitchForm}>
+            <label htmlFor="tenant-switch">Perusahaan aktif</label>
+            <select id="tenant-switch" name="tenantId" defaultValue={activeTenantId}>
+              {availableTenants.map((tenant) => (
+                <option key={tenant.id} value={tenant.id}>{tenant.name}</option>
+              ))}
+            </select>
+            <button type="submit">Ganti Perusahaan</button>
+          </form>
+        )}
+        {availableTenants.length === 1 && (
+          <p className={styles.currentTenant}>{availableTenants[0].name}</p>
+        )}
       </div>
       <div className={styles.navScroll}>
         {visibleGroups.map((group) => (
