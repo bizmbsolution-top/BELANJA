@@ -137,6 +137,12 @@ export default function DashboardShell({ children, email, roles, isSuperadmin, a
     <>
       <div className={styles.brandWrap}>
         <Brand companyName={companyName} companyLogoUrl={companyLogoUrl} />
+        {isSuperadmin && (
+          <Link href="/dashboard/profil-perusahaan" className={styles.profileShortcut} onClick={() => setMobileOpen(false)}>
+            <span aria-hidden="true">✎</span>
+            Edit Profil Perusahaan
+          </Link>
+        )}
         {availableTenants.length > 1 && (
           <form action={switchTenant} className={styles.tenantSwitchForm}>
             <label htmlFor="tenant-switch">Perusahaan aktif</label>
