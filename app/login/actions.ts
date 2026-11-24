@@ -84,7 +84,6 @@ export async function signIn(formData: FormData) {
 
   const tenantId = defaultMembership.tenant_id;
   cookieStore.delete("belanja_active_role");
-  cookieStore.delete("belanja_active_role");
   cookieStore.set("belanja_active_tenant", tenantId, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
@@ -133,6 +132,7 @@ export async function switchTenant(formData: FormData) {
   if (profileError || profile?.is_active !== true) redirect("/akses-ditolak?reason=inactive");
 
   const cookieStore = await cookies();
+  cookieStore.delete("belanja_active_role");
   cookieStore.set("belanja_active_tenant", tenantId, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
