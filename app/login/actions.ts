@@ -35,11 +35,16 @@ export async function signIn(formData: FormData) {
   }
 
   const admin = createAdminClient();
-  const { data: owner } = await admin
+  const { data: owner, error: ownerError } = await admin
     .from("platform_owners")
     .select("user_id")
     .eq("user_id", authData.user.id)
     .maybeSingle();
+
+  if (ownerError) {
+    await supabase.auth.signOut();
+    redirect("/login?error=inactive");
+  }
 
   const cookieStore = await cookies();
   if (owner) {
@@ -104,11 +109,12 @@ export async function switchTenant(formData: FormData) {
   if (error || !user) redirect("/login");
 
   const admin = createAdminClient();
-  const { data: owner } = await admin
+  const { data: owner, error: ownerError } = await admin
     .from("platform_owners")
     .select("user_id")
     .eq("user_id", user.id)
     .maybeSingle();
+  if (ownerError) redirect("/akses-ditolak?reason=inactive");
   if (owner) redirect("/platform");
 
   const { data: membership, error: membershipError } = await admin
@@ -154,6 +160,14 @@ export async function switchRole(formData: FormData) {
   if (!tenantId) redirect("/login");
 
   const admin = createAdminClient();
+  const { data: owner, error: ownerError } = await admin
+    .from("platform_owners")
+    .select("user_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (ownerError) redirect("/akses-ditolak?reason=inactive");
+  if (owner) redirect("/platform");
+
   const { data: membership, error: membershipError } = await admin
     .from("tenant_memberships")
     .select("tenant_id, tenants!inner(status)")
