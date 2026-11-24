@@ -59,7 +59,7 @@ export async function createTenantSuperadmin(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
 
-  if (!/^[0-9a-f-]{36}$/i.test(tenantId) || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || password.length < 8) {
+  if (!/^[0-9a-f-]{36}$/i.test(tenantId) || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) {
     redirect("/platform?adminError=invalid");
   }
 
@@ -143,4 +143,69 @@ export async function createTenantSuperadmin(formData: FormData) {
   redirect(createdNewAuthUser
     ? "/platform?adminCreated=1"
     : "/platform?adminCreated=1&accountReused=1");
+}
+
+
+export async function updateTenantSuperadminEmail(formData: FormData) {
+  const owner = await requirePlatformOwner();
+  const tenantId = String(formData.get("tenantId") ?? "").trim();
+  const userId = String(formData.get("userId") ?? "").trim();
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  if (!/^[0-9a-f-]{36}$/i.test(tenantId) || !/^[0-9a-f-]{36}$/i.test(userId) || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) redirect("/platform?adminError=invalid");
+
+  const admin = createAdminClient();
+  const { data: membership, error: membershipError } = await admin.from("tenant_memberships")
+    .select("tenant_id,user_id,tenant_role").eq("tenant_id", tenantId).eq("user_id", userId)
+    .eq("tenant_role", "superadmin").maybeSingle();
+  if (membershipError || !membership) redirect("/platform?adminError=superadmin");
+
+  const { data: authUser, error: authError } = await admin.auth.admin.updateUserById(userId, { email, email_confirm: true });
+  if (authError || !authUser.user) {
+    const message = authError?.message.toLowerCase() ?? "";
+    redirect(message.includes("already") || message.includes("exists") ? "/platform?adminError=emailExists" : "/platform?adminError=emailUpdate");
+  }
+
+  const { error: auditError } = await admin.from("platform_audit_logs").insert({
+    actor_user_id: owner.userId, tenant_id: tenantId, action: "tenant.superadmin_email_updated",
+    details: { user_id: userId, new_email: email },
+  });
+  revalidatePath("/platform");
+  redirect(auditError ? "/platform?adminUpdated=1&auditWarning=1" : "/platform?adminUpdated=1");
+}
+
+export async function setTenantSuperadminActive(formData: FormData) {
+  const owner = await requirePlatformOwner();
+  const tenantId = String(formData.get("tenantId") ?? "").trim();
+  const userId = String(formData.get("userId") ?? "").trim();
+  const active = String(formData.get("active") ?? "") === "true";
+  if (!/^[0-9a-f-]{36}$/i.test(tenantId) || !/^[0-9a-f-]{36}$/i.test(userId)) redirect("/platform?adminError=invalid");
+
+  const admin = createAdminClient();
+  const { data: tenant } = await admin.from("tenants").select("name").eq("id", tenantId).maybeSingle();
+  const { data: membership, error: membershipError } = await admin.from("tenant_memberships")
+    .select("tenant_id,user_id,tenant_role,is_active").eq("tenant_id", tenantId).eq("user_id", userId)
+    .eq("tenant_role", "superadmin").maybeSingle();
+  if (membershipError || !membership || !tenant) redirect("/platform?adminError=superadmin");
+
+  const { error: membershipUpdateError } = await admin.from("tenant_memberships").update({ is_active: active })
+    .eq("tenant_id", tenantId).eq("user_id", userId).eq("tenant_role", "superadmin");
+  if (membershipUpdateError) redirect("/platform?adminError=status");
+
+  const { error: profileError } = await admin.from("tenant_user_access_profiles").upsert({
+    tenant_id: tenantId, user_id: userId, roles: [], is_active: active,
+    created_by: owner.userId, updated_by: owner.userId,
+  }, { onConflict: "tenant_id,user_id" });
+  if (profileError) {
+    await admin.from("tenant_memberships").update({ is_active: membership.is_active })
+      .eq("tenant_id", tenantId).eq("user_id", userId).eq("tenant_role", "superadmin");
+    redirect("/platform?adminError=status");
+  }
+
+  const { error: auditError } = await admin.from("platform_audit_logs").insert({
+    actor_user_id: owner.userId, tenant_id: tenantId,
+    action: active ? "tenant.superadmin_activated" : "tenant.superadmin_deactivated",
+    details: { user_id: userId, tenant_name: tenant.name },
+  });
+  revalidatePath("/platform");
+  redirect(auditError ? "/platform?adminStatusUpdated=1&auditWarning=1" : "/platform?adminStatusUpdated=1");
 }
