@@ -381,6 +381,8 @@ export async function requirePlatformOwner(): Promise<AccessContext> {
     displayRoles: ["Platform Owner"],
     tenantId: null,
     tenantRole: null,
+    activeRole: null,
+    availableRoles: [],
   };
 }
 
