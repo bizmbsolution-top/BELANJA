@@ -43,6 +43,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
       isSuperadmin={context.tenantRole === "superadmin"}
       activeTenantId={context.tenantId}
       availableTenants={availableTenants}
+      availableRoles={context.availableRoles}
+      activeRole={context.activeRole}
     >
       {children}
     </DashboardShell>
