@@ -1,14 +1,21 @@
 import Image from "next/image";
 import { signIn } from "./actions";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 type LoginPageProps = {
-  searchParams: Promise<{ error?: string; next?: string }>;
+  searchParams: Promise<{ error?: string; next?: string; reason?: string }>;
 };
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   const params = await searchParams;
-  const hasError = Boolean(params.error);
+  const hasError = Boolean(params.error || params.reason);
   const nextPath = typeof params.next === "string" ? params.next : "";
+  const admin = createAdminClient();
+  const { data: tenants } = await admin
+    .from("tenants")
+    .select("id, name")
+    .eq("status", "active")
+    .order("name");
 
   return (
     <main className="auth-shell">
@@ -31,12 +38,23 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           <p className="auth-error" role="alert">
             {params.error === "missing"
               ? "Email dan password wajib diisi."
-              : "Email atau password tidak sesuai, atau akun tidak dapat digunakan."}
+              : params.error === "tenant"
+                ? "Pilih perusahaan untuk melanjutkan."
+                : params.error === "inactive"
+                  ? "Akun Anda belum aktif di perusahaan tersebut."
+                  : "Email atau password tidak sesuai, atau akun tidak dapat digunakan."}
           </p>
         )}
 
         <form action={signIn} className="auth-form">
           {nextPath && <input type="hidden" name="next" value={nextPath} />}
+          <label htmlFor="tenantId">Perusahaan</label>
+          <select id="tenantId" name="tenantId" defaultValue="" required>
+            <option value="" disabled>Pilih perusahaan</option>
+            {(tenants ?? []).map((tenant) => (
+              <option key={tenant.id} value={tenant.id}>{tenant.name}</option>
+            ))}
+          </select>
           <label htmlFor="email">Email</label>
           <input id="email" name="email" type="email" autoComplete="username" required />
           <label htmlFor="password">Password</label>
