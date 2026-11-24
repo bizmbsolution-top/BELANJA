@@ -255,18 +255,6 @@ export async function getAccessContext(): Promise<AccessContext> {
   const allRoles = normalizeOperationalRoles(lookup.profile.roles);
   const requestedRole = cookieStore.get("belanja_active_role")?.value;
   const activeRole = allRoles.find((role) => role === requestedRole) ?? allRoles[0] ?? null;
-  if (activeRole) {
-    cookieStore.set("belanja_active_role", activeRole, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-      maxAge: 60 * 60 * 24 * 30,
-    });
-  } else {
-    cookieStore.delete("belanja_active_role");
-  }
-
   return {
     userId: user.id,
     email: user.email,
