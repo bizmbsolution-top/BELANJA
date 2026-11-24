@@ -60,9 +60,11 @@ export async function createSupplier(input: SupplierInput): Promise<ActionResult
     const values = cleanInput(input);
     if (typeof values === "string") return { ok: false, error: values };
 
+    if (!actor.tenantId) return { ok: false, error: "Tenant aktif tidak ditemukan." };
     const admin = createAdminClient();
     const { error } = await admin.rpc("create_supplier_with_audit", {
       p_actor_user_id: actor.userId,
+      p_tenant_id: actor.tenantId,
       p_name: values.name,
       p_contact_person: values.contactPerson,
       p_phone: values.phone,
