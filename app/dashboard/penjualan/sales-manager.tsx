@@ -2,6 +2,7 @@
 import { useMemo,useState,type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { createSalesDraft, confirmSalesDispatch, finalizeSalesOrder } from "./actions";
+import { saveCustomer } from "@/app/dashboard/pelanggan/actions";
 import styles from "./sales.module.css";
 type Lookup={id:string;code:string;name:string};
 type CustomerLookup=Lookup&{billing_address:string|null;warehouse_addresses:{id:string;label:string;address:string}[]};
@@ -15,6 +16,7 @@ const qty=(n:number)=>Number(n).toLocaleString("id-ID",{maximumFractionDigits:3}
 export default function SalesManager({data}:{data:SalesPageData}){
  const router=useRouter();const canCreate=data.actorRoles.includes("Sales")||data.actorRoles.includes("Superadmin");const canDispatch=data.actorRoles.includes("Sales")||data.actorRoles.includes("Warehouse")||data.actorRoles.includes("Superadmin");
  const [open,setOpen]=useState(false),[customerId,setCustomerId]=useState(""),[deliveryAddressId,setDeliveryAddressId]=useState(""),[projectId,setProjectId]=useState(""),[warehouseIds,setWarehouseIds]=useState<string[]>([]),[weights,setWeights]=useState<Record<string,string>>({});
+ const [quickCustomerOpen,setQuickCustomerOpen]=useState(false),[quickCustomerName,setQuickCustomerName]=useState(""),[quickAddressLabel,setQuickAddressLabel]=useState("Gudang Utama"),[quickCustomerAddress,setQuickCustomerAddress]=useState(""),[quickCustomerBusy,setQuickCustomerBusy]=useState(false);
  const [busy,setBusy]=useState(false),[error,setError]=useState(""),[message,setMessage]=useState(""),[salePriceInput,setSalePriceInput]=useState(""),[confirmDispatchId,setConfirmDispatchId]=useState(""),[dispatchingId,setDispatchingId]=useState(""),[finalizeId,setFinalizeId]=useState(""),[finalizingId,setFinalizingId]=useState("");
  const selectedCustomer=data.customers.find(c=>c.id===customerId);
  const warehousesForProject=useMemo(()=>data.warehouses.filter(w=>data.warehouseProjects.some(m=>m.project_id===projectId&&m.warehouse_id===w.id)),[data.warehouses,data.warehouseProjects,projectId]);
@@ -26,7 +28,17 @@ export default function SalesManager({data}:{data:SalesPageData}){
  const gradeUnits=[...new Set(selectedLots.map(x=>x.lot.grade_unit))];
  const estimatedGrade=selectedWeight>0&&gradeUnits.length===1?selectedLots.reduce((s,x)=>s+Number(x.lot.grade_value)*x.weight,0)/selectedWeight:null;
  const estimatedGradeUnit=gradeUnits.length===1?gradeUnits[0]:"";
- function reset(){setOpen(false);setCustomerId("");setDeliveryAddressId("");setProjectId("");setWarehouseIds([]);setWeights({});setSalePriceInput("");setError("");}
+ function reset(){setOpen(false);setCustomerId("");setDeliveryAddressId("");setProjectId("");setWarehouseIds([]);setWeights({});setSalePriceInput("");setError("");setQuickCustomerOpen(false);}
+ async function quickAddCustomer(e:FormEvent<HTMLFormElement>){
+  e.preventDefault();setQuickCustomerBusy(true);setError("");
+  const result=await saveCustomer({name:quickCustomerName,phone:"",email:"",billingAddress:"",notes:"",active:true,warehouseAddresses:[{label:quickAddressLabel,address:quickCustomerAddress}]});
+  setQuickCustomerBusy(false);
+  if(!result.ok){setError(result.error);return;}
+  if(!result.id||!result.addressId){setError("Pelanggan tersimpan, tetapi alamat tujuan belum berhasil dimuat. Muat ulang halaman.");router.refresh();return;}
+  setCustomerId(result.id);setDeliveryAddressId(result.addressId);setQuickCustomerOpen(false);
+  setQuickCustomerName("");setQuickAddressLabel("Gudang Utama");setQuickCustomerAddress("");
+  setMessage("Pelanggan baru berhasil dibuat dan langsung dipilih.");router.refresh();
+ }
  async function submit(e:FormEvent<HTMLFormElement>){e.preventDefault();setBusy(true);setError("");setMessage("");const f=new FormData(e.currentTarget);
   const r=await createSalesDraft({customerId,projectId,deliveryAddressId,salePricePerKg:salePriceInput.replace(/[^0-9]/g,""),notes:String(f.get("notes")??""),allocations:selected.map(([lotId,weightKg])=>({lotId,weightKg}))});
   setBusy(false);if(!r.ok){setError(r.error);return;}setMessage("Draft Penjualan berhasil dibuat.");reset();router.refresh();
@@ -54,8 +66,8 @@ export default function SalesManager({data}:{data:SalesPageData}){
   {message&&<p className={styles.success}>{message}</p>}{error&&<p className={styles.error}>{error}</p>}
   {open&&<section className={styles.formCard}><div className={styles.formTitle}><div><h2>Draft Penjualan Baru</h2><p>Pilih beberapa Lot, termasuk dari beberapa gudang dalam Project yang sama.</p></div><button type="button" className={styles.close} onClick={reset}>×</button></div>
    <form className={styles.form} onSubmit={submit}>
-    <label>Pelanggan / Pembeli<select required value={customerId} onChange={e=>{setCustomerId(e.target.value);setDeliveryAddressId("");}}><option value="">Pilih Pelanggan</option>{data.customers.map(c=><option key={c.id} value={c.id}>{c.code} · {c.name}</option>)}</select><small>Alamat Billing: {selectedCustomer?.billing_address||"Belum diisi pada Master Pelanggan."}</small></label>
-    <label>Alamat Pengiriman / Gudang Tujuan<select required value={deliveryAddressId} onChange={e=>setDeliveryAddressId(e.target.value)} disabled={!customerId}><option value="">Pilih Alamat Gudang Pelanggan</option>{(selectedCustomer?.warehouse_addresses??[]).map(a=><option key={a.id} value={a.id}>{a.label} · {a.address}</option>)}</select><small>Daftar alamat diambil dari Master Pelanggan. Untuk mengubahnya, buka Data Master → Pelanggan.</small></label>
+    <label>Pelanggan / Pembeli<select required value={customerId} onChange={e=>{setCustomerId(e.target.value);setDeliveryAddressId("");}}><option value="">Pilih Pelanggan</option>{data.customers.map(c=><option key={c.id} value={c.id}>{c.code} · {c.name}</option>)}</select><button type="button" className={styles.secondary} onClick={()=>{setQuickCustomerOpen(v=>!v);setError("");}}>+ Tambah Pelanggan</button><small>Alamat Billing: {selectedCustomer?.billing_address||"Belum diisi pada Master Pelanggan."}</small></label>
+    <label>Alamat Pengiriman / Gudang Tujuan<select required value={deliveryAddressId} onChange={e=>setDeliveryAddressId(e.target.value)} disabled={!customerId}><option value="">Pilih Alamat Gudang Pelanggan</option>{(selectedCustomer?.warehouse_addresses??[]).map(a=><option key={a.id} value={a.id}>{a.label} · {a.address}</option>)}</select><small>Alamat dapat ditambahkan langsung tanpa meninggalkan transaksi.</small></label>
     <label>Project<select required value={projectId} onChange={e=>{setProjectId(e.target.value);setWarehouseIds([]);setWeights({});}}><option value="">Pilih Project</option>{data.projects.map(p=><option key={p.id} value={p.id}>{p.code} · {p.name}</option>)}</select></label>
     <div className={styles.wide}><b className={styles.fieldTitle}>Gudang Sumber</b><div className={styles.checkList}>{warehousesForProject.map(w=><label key={w.id}><input type="checkbox" checked={warehouseIds.includes(w.id)} onChange={e=>toggleWarehouse(w.id,e.target.checked)}/>{w.code} · {w.name}</label>)}</div>{projectId&&!warehousesForProject.length&&<small>Belum ada Warehouse yang terhubung dengan Project ini.</small>}</div>
     <div className={styles.wide}><b className={styles.fieldTitle}>Pilih Lot & Berat yang Akan Dijual</b><p className={styles.hint}>Pilih satu atau banyak Lot. Berat penjualan tidak boleh melebihi stok tersedia.</p>
@@ -70,7 +82,9 @@ export default function SalesManager({data}:{data:SalesPageData}){
     <div className={styles.summary}><span>Lot dipilih: <b>{selected.length}</b></span><span>Total berat: <b>{qty(selectedWeight)} kg</b></span><span>Estimasi kadar rata-rata: <b>{estimatedGrade===null?"—":`${qty(estimatedGrade)} ${estimatedGradeUnit}`}</b></span><span>Estimasi nilai pembelian: <b>{money(estimatedCost)}</b></span></div>
     <p className={styles.notice}>Draft belum mengurangi stok. Stok baru berkurang setelah barang benar-benar keluar dan dikonfirmasi pada tahap berikutnya.</p>
     <div className={styles.actions}><button type="button" className={styles.secondary} onClick={reset}>Batal</button><button className={styles.primary} disabled={busy||!selected.length||!customerId||!deliveryAddressId}>{busy?"Menyimpan...":"Simpan Draft"}</button></div>
-   </form></section>}
+   </form>
+   {quickCustomerOpen&&<form className={styles.formCard} onSubmit={quickAddCustomer}><div className={styles.formTitle}><div><h3>Tambah Pelanggan Cepat</h3><small>Data akan tersimpan ke Master Pelanggan perusahaan aktif.</small></div><button type="button" className={styles.close} onClick={()=>setQuickCustomerOpen(false)}>×</button></div><div className={styles.form}><label>Nama Pelanggan<input required minLength={2} maxLength={160} value={quickCustomerName} onChange={e=>setQuickCustomerName(e.target.value)} placeholder="Nama sesuai penawaran / quotation"/></label><label>Nama Alamat Tujuan<input required maxLength={160} value={quickAddressLabel} onChange={e=>setQuickAddressLabel(e.target.value)} /></label><label className={styles.wide}>Alamat Gudang / Pengiriman<textarea required rows={2} maxLength={1000} value={quickCustomerAddress} onChange={e=>setQuickCustomerAddress(e.target.value)} placeholder="Alamat lengkap tujuan pengiriman"/></label><div className={styles.actions}><button type="button" className={styles.secondary} onClick={()=>setQuickCustomerOpen(false)}>Batal</button><button className={styles.primary} disabled={quickCustomerBusy}>{quickCustomerBusy?"Menyimpan...":"Simpan & Pilih Pelanggan"}</button></div></div></form>}
+   </section>}
   <section className={styles.section}><div className={styles.sectionHeading}><div><h2>Daftar Penjualan</h2><p>{data.orders.length} transaksi ditampilkan</p></div></div>
    {!data.orders.length?<div className={styles.empty}><b>Belum ada transaksi penjualan</b><p>Draft penjualan yang dibuat akan muncul di sini.</p></div>:data.orders.map(o=>{const c=data.customers.find(x=>x.id===o.customer_id);const p=data.projects.find(x=>x.id===o.project_id);const a=data.allocations.filter(x=>x.sales_order_id===o.id);return <article className={styles.orderCard} key={o.id}>
     <div className={styles.cardTop}><div><span className={styles.code}>{o.code}</span><span className={styles.status}>{o.status}</span><h3>{c?.name??"Pelanggan"}</h3><p>{p?.code} · {p?.name} · {o.destination}</p></div><b className={styles.price}>{money(Number(o.sale_price_per_kg))}/kg</b></div>
