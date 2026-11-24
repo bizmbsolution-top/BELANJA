@@ -16,6 +16,8 @@ type Props = {
   availableTenants: { id: string; name: string }[];
   availableRoles: string[];
   activeRole: string | null;
+  companyName: string;
+  companyLogoUrl: string | null;
 };
 
 type MenuItem = {
@@ -73,31 +75,32 @@ const groups: MenuGroup[] = [
       { label: "Pengguna & Akses", href: "/dashboard/pengguna" },
       { label: "Role & Permission" },
       { label: "Riwayat Aktivitas", href: "/dashboard/riwayat-aktivitas" },
-      { label: "Pengaturan Organisasi" },
+      { label: "Profil Perusahaan", href: "/dashboard/profil-perusahaan" },
       { label: "Master Project", href: "/dashboard/project" },
       { label: "Master Potongan Invoice", href: "/dashboard/potongan-invoice" },
     ],
   },
 ];
 
-function Brand() {
+function Brand({ companyName, companyLogoUrl }: { companyName: string; companyLogoUrl: string | null }) {
   return (
-    <div className={styles.brand}>
-      <span className={styles.brandMark}>
-        <Image
-          src="/logo_belanja.png"
-          alt=""
-          width={1026}
-          height={1027}
-          className={styles.brandLogo}
-        />
+    <div className={styles.companyBrand}>
+      <span className={styles.companyLogo}>
+        {companyLogoUrl ? <img src={companyLogoUrl} alt={`Logo ${companyName}`} /> : <span>{companyName.slice(0, 1).toUpperCase()}</span>}
       </span>
-      <span className={styles.brandName}>BELANJA</span>
+      <span className={styles.companyIdentity}>
+        <strong>{companyName}</strong>
+        <small>OPERATIONS</small>
+      </span>
+      <span className={styles.poweredBrand}>
+        <Image src="/logo_belanja.png" alt="" width={18} height={18} />
+        <span>Powered by BELANJA</span>
+      </span>
     </div>
   );
 }
 
-export default function DashboardShell({ children, email, roles, isSuperadmin, activeTenantId, availableTenants, availableRoles, activeRole }: Props) {
+export default function DashboardShell({ children, email, roles, isSuperadmin, activeTenantId, availableTenants, availableRoles, activeRole, companyName, companyLogoUrl }: Props) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState<string[]>([]);
@@ -133,8 +136,7 @@ export default function DashboardShell({ children, email, roles, isSuperadmin, a
   const nav = (
     <>
       <div className={styles.brandWrap}>
-        <Brand />
-        <span className={styles.brandCaption}>SENTRALOGIS · OPERATIONS</span>
+        <Brand companyName={companyName} companyLogoUrl={companyLogoUrl} />
         {availableTenants.length > 1 && (
           <form action={switchTenant} className={styles.tenantSwitchForm}>
             <label htmlFor="tenant-switch">Perusahaan aktif</label>
@@ -232,7 +234,7 @@ export default function DashboardShell({ children, email, roles, isSuperadmin, a
       <div className={styles.mainColumn}>
         <header className={styles.mobileTopbar}>
           <button type="button" className={styles.menuButton} onClick={() => setMobileOpen(true)} aria-label="Buka menu">☰</button>
-          <Brand />
+          <Brand companyName={companyName} companyLogoUrl={companyLogoUrl} />
           <button type="button" className={styles.mobileThemeToggle} onClick={toggleTheme} aria-label={theme === "light" ? "Aktifkan mode gelap" : "Aktifkan mode terang"}>{theme === "light" ? "☾" : "☀"}</button>
           <span className={styles.mobileRole}>{isSuperadmin ? "Superadmin" : roles.join(", ")}</span>
         </header>
