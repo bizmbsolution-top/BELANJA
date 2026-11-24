@@ -17,7 +17,7 @@ export const revalidate = 0;
 export default async function PlatformPage({
   searchParams,
 }: {
-  searchParams: Promise<{ created?: string; error?: string; adminCreated?: string; adminError?: string; auditWarning?: string }>;
+  searchParams: Promise<{ created?: string; error?: string; adminCreated?: string; adminError?: string; auditWarning?: string; accountReused?: string }>;
 }) {
   const owner = await guardPage(requirePlatformOwner);
   const params = await searchParams;
@@ -77,9 +77,12 @@ export default async function PlatformPage({
       {params.error === "duplicate" && <p className={styles.error}>Nama atau kode tenant sudah digunakan.</p>}
       {params.error === "invalid" && <p className={styles.error}>Nama tenant atau kode tenant belum valid.</p>}
       {params.error === "save" && <p className={styles.error}>Tenant gagal disimpan. Silakan coba kembali.</p>}
-      {params.adminCreated === "1" && <p className={styles.success}>Akun Superadmin tenant berhasil dibuat dan terhubung ke perusahaan.</p>}
+      {params.adminCreated === "1" && <p className={styles.success}>{params.accountReused === "1" ? "Akun yang sudah terdaftar berhasil dihubungkan ke tenant ini. Password lama tetap digunakan." : "Akun Superadmin tenant berhasil dibuat dan terhubung ke perusahaan."}</p> }
       {params.auditWarning === "1" && <p className={styles.error}>Akun berhasil dibuat, tetapi catatan audit gagal disimpan.</p>}
       {params.adminError === "exists" && <p className={styles.error}>Tenant ini sudah memiliki Superadmin aktif.</p>}
+      {params.adminError === "lookup" && <p className={styles.error}>Pemeriksaan akun email gagal. Silakan coba kembali.</p>}
+      {params.adminError === "password" && <p className={styles.error}>Password awal minimal 8 karakter untuk email yang belum terdaftar.</p>}
+      {params.adminError === "audit" && <p className={styles.error}>Pencatatan audit gagal. Keanggotaan tenant dibatalkan.</p>}
       {params.adminError === "duplicate" && <p className={styles.error}>Email tersebut sudah terdaftar.</p>}
       {params.adminError && !["exists","duplicate"].includes(params.adminError) && <p className={styles.error}>Pembuatan akun Superadmin gagal. Periksa data dan coba kembali.</p>}
 
@@ -125,7 +128,7 @@ export default async function PlatformPage({
 
       <section className={styles.panel}>
         <div className={styles.panelHeading}>
-          <div><h2>Buat Superadmin Tenant</h2><p>Platform Owner membuat akun awal untuk perusahaan. Setelah masuk, Superadmin mengelola seluruh pengguna dan operasional perusahaannya.</p></div>
+          <div><h2>Buat Superadmin Tenant</h2><p>Platform Owner membuat Superadmin tenant. Email yang sudah terdaftar dapat digunakan kembali untuk tenant lain; password lama tetap berlaku.</p></div>
         </div>
         <form action={createTenantSuperadmin} className={styles.form}>
           <label>Perusahaan
@@ -135,7 +138,7 @@ export default async function PlatformPage({
             </select>
           </label>
           <label>Email Superadmin<input name="email" type="email" placeholder="admin@perusahaan.com" required maxLength={254} /></label>
-          <label>Password awal<input name="password" type="password" placeholder="Minimal 8 karakter" required minLength={8} /></label>
+          <label>Password awal <span>(wajib hanya untuk email baru)</span><input name="password" type="password" placeholder="Kosongkan jika email sudah terdaftar" minLength={8} /></label>
           <button type="submit">Buat Akun Superadmin</button>
         </form>
       </section>
