@@ -54,6 +54,7 @@ export type AccessContext = {
   /** Active tenant resolved from server-side membership; null for Platform Owner. */
   tenantId: string | null;
   tenantRole: "superadmin" | "member" | null;
+  activeRole: OperationalRole | null;
 };
 
 type ProfileRow = { is_active: boolean; roles: unknown };
@@ -216,6 +217,7 @@ export async function getAccessContext(): Promise<AccessContext> {
       displayRoles: ["Platform Owner"],
       tenantId: null,
       tenantRole: null,
+      activeRole: null,
     };
   }
 
@@ -248,16 +250,30 @@ export async function getAccessContext(): Promise<AccessContext> {
   }
 
   const tenantRole = membershipResult.data.tenant_role === "superadmin" ? "superadmin" : "member";
-  const roles = normalizeOperationalRoles(lookup.profile.roles);
+  const allRoles = normalizeOperationalRoles(lookup.profile.roles);
+  const requestedRole = cookieStore.get("belanja_active_role")?.value;
+  const activeRole = allRoles.find((role) => role === requestedRole) ?? allRoles[0] ?? null;
+  if (activeRole) {
+    cookieStore.set("belanja_active_role", activeRole, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 30,
+    });
+  } else {
+    cookieStore.delete("belanja_active_role");
+  }
 
   return {
     userId: user.id,
     email: user.email,
     isOwner: false,
-    roles,
-    displayRoles: tenantRole === "superadmin" ? ["Superadmin"] : roles,
+    roles: activeRole ? [activeRole] : [],
+    displayRoles: tenantRole === "superadmin" ? ["Superadmin"] : activeRole ? [activeRole] : [],
     tenantId: membershipResult.data.tenant_id,
     tenantRole,
+    activeRole,
   };
 }
 
@@ -295,6 +311,7 @@ export async function requireAuthenticatedUser(): Promise<AccessContext> {
     displayRoles: ownerRow ? ["Platform Owner"] : [],
     tenantId: null,
     tenantRole: null,
+    activeRole: null,
   };
 }
 
