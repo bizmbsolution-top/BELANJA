@@ -82,6 +82,7 @@ export async function signIn(formData: FormData) {
   }
 
   const tenantId = defaultMembership.tenant_id;
+  cookieStore.delete("belanja_active_role");
   cookieStore.set("belanja_active_tenant", tenantId, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
@@ -140,10 +141,55 @@ export async function switchTenant(formData: FormData) {
   redirect("/dashboard");
 }
 
+export async function switchRole(formData: FormData) {
+  const requestedRole = String(formData.get("role") ?? "").trim();
+  const supabase = await createClient();
+  const { data: { user }, error } = await supabase.auth.getUser();
+  if (error || !user) redirect("/login");
+
+  const cookieStore = await cookies();
+  const tenantId = cookieStore.get("belanja_active_tenant")?.value;
+  if (!tenantId) redirect("/login");
+
+  const admin = createAdminClient();
+  const { data: membership, error: membershipError } = await admin
+    .from("tenant_memberships")
+    .select("tenant_id, tenants!inner(status)")
+    .eq("user_id", user.id)
+    .eq("tenant_id", tenantId)
+    .eq("is_active", true)
+    .eq("tenants.status", "active")
+    .maybeSingle();
+  if (membershipError || !membership) redirect("/akses-ditolak?reason=inactive");
+
+  const { data: profile, error: profileError } = await admin
+    .from("tenant_user_access_profiles")
+    .select("roles, is_active")
+    .eq("user_id", user.id)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+  if (profileError || profile?.is_active !== true || !Array.isArray(profile.roles) || !profile.roles.includes(requestedRole)) {
+    redirect("/akses-ditolak?reason=role-not-permitted");
+  }
+
+  const allowed = ["Procurement", "Sales", "Cashier", "Finance", "Warehouse", "Management"];
+  if (!allowed.includes(requestedRole)) redirect("/akses-ditolak?reason=invalid-role");
+
+  cookieStore.set("belanja_active_role", requestedRole, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 30,
+  });
+  redirect("/dashboard");
+}
+
 export async function signOut() {
   const supabase = await createClient();
   await supabase.auth.signOut();
   const cookieStore = await cookies();
   cookieStore.delete("belanja_active_tenant");
+  cookieStore.delete("belanja_active_role");
   redirect("/login");
 }
