@@ -25,7 +25,7 @@ export async function saveCustomer(input: {
     const { data, error } = await createAdminClient().rpc("save_customer_with_addresses_with_audit", {
       p_customer_id: input.id || null, p_actor_user_id: actor.userId, p_tenant_id: actor.tenantId, p_name: input.name,
       p_phone: input.phone, p_email: input.email, p_billing_address: input.billingAddress, p_notes: input.notes,
-      p_is_active: input.active, p_warehouse_addresses: input.warehouseAddresses, p_tenant_id: actor.tenantId,
+      p_is_active: input.active, p_warehouse_addresses: input.warehouseAddresses,
     });
     if (error || !data) return { ok: false, error: error?.message ?? "Pelanggan gagal disimpan." };
     revalidatePath("/dashboard/pelanggan"); revalidatePath("/dashboard/penjualan");
