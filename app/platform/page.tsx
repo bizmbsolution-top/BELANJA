@@ -92,7 +92,7 @@ export default async function PlatformPage({
       {params.error === "invalid" && <p className={styles.error}>Nama tenant atau kode tenant belum valid.</p>}
       {params.error === "save" && <p className={styles.error}>Tenant gagal disimpan. Silakan coba kembali.</p>}
       {params.adminCreated === "1" && <p className={styles.success}>{params.accountReused === "1" ? "Akun yang sudah terdaftar berhasil dihubungkan ke tenant ini. Password lama tetap digunakan." : "Akun Superadmin tenant berhasil dibuat dan terhubung ke perusahaan."}</p> }
-      {params.auditWarning === "1" && <p className={styles.error}>Akun berhasil dibuat, tetapi catatan audit gagal disimpan.</p>}
+      {params.auditWarning === "1" && <p className={styles.error}>Perubahan berhasil, tetapi catatan audit gagal disimpan. Mohon periksa log administrasi.</p>}
       {params.adminError === "exists" && <p className={styles.error}>Tenant ini sudah memiliki Superadmin aktif.</p>}
       {params.adminError === "lookup" && <p className={styles.error}>Pemeriksaan akun email gagal. Silakan coba kembali.</p>}
       {params.adminError === "password" && <p className={styles.error}>Password awal minimal 8 karakter untuk email yang belum terdaftar.</p>}
