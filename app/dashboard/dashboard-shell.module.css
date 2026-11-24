@@ -79,3 +79,12 @@
  .mobileThemeToggle{display:block;width:32px;height:32px;flex:0 0 32px;border:1px solid #dce4ef;border-radius:8px;background:#fff;color:#263b5c;font-size:17px;cursor:pointer}
  .app[data-theme="dark"] .mobileRole{color:#aab8cc}
 }
+
+.tenantSwitchForm{display:grid;gap:7px;margin:15px 0 0 49px;padding:10px;border:1px solid rgba(125,145,175,.25);border-radius:9px;background:rgba(125,145,175,.08)}
+.tenantSwitchForm label{color:#8fa1ba;font-size:9px;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
+.tenantSwitchForm select{width:100%;min-width:0;padding:8px 7px;border:1px solid #43536c;border-radius:6px;background:#1b2b43;color:#f4f7fb;font-size:11px}
+.tenantSwitchForm button{padding:8px;border:0;border-radius:6px;background:#3977e8;color:#fff;font-size:10px;font-weight:800;cursor:pointer}
+.currentTenant{margin:13px 0 0 49px;color:#73819a;font-size:11px;font-weight:700}
+.app[data-theme="light"] .tenantSwitchForm{border-color:#e3e9f2;background:#f7f9fc}
+.app[data-theme="light"] .tenantSwitchForm label{color:#78869b}
+.app[data-theme="light"] .tenantSwitchForm select{border-color:#d6deea;background:#fff;color:#263b5c}
