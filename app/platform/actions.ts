@@ -75,39 +75,72 @@ export async function createTenantSuperadmin(formData: FormData) {
   if (existingError) redirect("/platform?adminError=check");
   if (existingAdmin?.length) redirect("/platform?adminError=exists");
 
-  const { data: created, error: createError } = await admin.auth.admin.createUser({
-    email, password, email_confirm: true,
-  });
-  if (createError || !created.user) {
-    const message = createError?.message.toLowerCase() ?? "";
-    redirect(message.includes("already") || message.includes("registered")
-      ? "/platform?adminError=duplicate"
-      : "/platform?adminError=create");
+  // Supabase Auth email is globally unique. Reuse an existing Auth identity
+  // for another tenant instead of trying to create a duplicate login account.
+  let existingUser: { id: string; email?: string } | null = null;
+  let page = 1;
+  while (!existingUser) {
+    const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
+    if (error) redirect("/platform?adminError=lookup");
+    existingUser = data.users.find((user) => (user.email ?? "").toLowerCase() === email) ?? null;
+    if (existingUser || data.users.length < 1000) break;
+    page += 1;
   }
 
-  const { error: profileError } = await admin.from("user_access_profiles").insert({
-    tenant_id: tenantId, user_id: created.user.id, roles: [], is_active: true,
-    created_by: owner.userId, updated_by: owner.userId,
-  });
-  if (profileError) {
-    await admin.auth.admin.deleteUser(created.user.id);
-    redirect("/platform?adminError=profile");
+  if (!existingUser && password.length < 8) {
+    redirect("/platform?adminError=password");
   }
+
+  const { data: created, error: createError } = existingUser
+    ? { data: { user: existingUser }, error: null }
+    : await admin.auth.admin.createUser({ email, password, email_confirm: true });
+
+  if (createError || !created.user) {
+    redirect("/platform?adminError=create");
+  }
+
+  const userId = created.user.id;
+  const createdNewAuthUser = !existingUser;
 
   const { error: membershipError } = await admin.from("tenant_memberships").insert({
-    tenant_id: tenantId, user_id: created.user.id, tenant_role: "superadmin",
+    tenant_id: tenantId, user_id: userId, tenant_role: "superadmin",
     is_active: true, created_by: owner.userId,
   });
   if (membershipError) {
-    await admin.from("user_access_profiles").delete().eq("user_id", created.user.id);
-    await admin.auth.admin.deleteUser(created.user.id);
+    if (createdNewAuthUser) await admin.auth.admin.deleteUser(userId);
     redirect("/platform?adminError=membership");
   }
 
-  const { error: auditError } = await admin.from("platform_audit_logs").insert({
-    actor_user_id: owner.userId, tenant_id: tenantId, action: "tenant.admin_invited",
-    details: { email, tenant_name: tenant.name },
+  const { error: profileError } = await admin.from("tenant_user_access_profiles").insert({
+    tenant_id: tenantId, user_id: userId, roles: [], is_active: true,
+    created_by: owner.userId, updated_by: owner.userId,
   });
+  if (profileError) {
+    await admin.from("tenant_memberships").delete().eq("tenant_id", tenantId).eq("user_id", userId);
+    if (createdNewAuthUser) await admin.auth.admin.deleteUser(userId);
+    redirect("/platform?adminError=profile");
+  }
+
+  const { error: auditError } = await admin.from("platform_audit_logs").insert({
+    actor_user_id: owner.userId,
+    tenant_id: tenantId,
+    action: "tenant.admin_invited",
+    details: {
+      email,
+      tenant_name: tenant.name,
+      auth_user_reused: !createdNewAuthUser,
+    },
+  });
+
+  if (auditError) {
+    await admin.from("tenant_user_access_profiles").delete().eq("tenant_id", tenantId).eq("user_id", userId);
+    await admin.from("tenant_memberships").delete().eq("tenant_id", tenantId).eq("user_id", userId);
+    if (createdNewAuthUser) await admin.auth.admin.deleteUser(userId);
+    redirect("/platform?adminError=audit");
+  }
+
   revalidatePath("/platform");
-  redirect(auditError ? "/platform?adminCreated=1&auditWarning=1" : "/platform?adminCreated=1");
+  redirect(createdNewAuthUser
+    ? "/platform?adminCreated=1"
+    : "/platform?adminCreated=1&accountReused=1");
 }
