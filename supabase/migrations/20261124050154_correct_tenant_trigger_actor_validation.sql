@@ -112,7 +112,7 @@ begin
       into v_actor_is_platform_owner;
 
     if v_actor_tenant is null then
-      select count(*), min(m.tenant_id) into v_membership_count, v_membership_tenant
+      select count(*), (array_agg(m.tenant_id))[1] into v_membership_count, v_membership_tenant
       from public.tenant_memberships m join public.tenants t on t.id = m.tenant_id
       where m.user_id = v_actor_id and m.is_active = true and t.status = 'active';
       if v_membership_count = 1 then v_actor_tenant := v_membership_tenant;
