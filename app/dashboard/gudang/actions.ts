@@ -64,7 +64,24 @@ export async function setWarehouseProjects(input: { warehouseId: string; project
     if (!/^[0-9a-f-]{36}$/i.test(input?.warehouseId ?? "")) return { ok: false, error: "Gudang tidak valid." };
     const projectIds = Array.isArray(input.projectIds) ? [...new Set(input.projectIds)] : [];
     if (!projectIds.every((id) => /^[0-9a-f-]{36}$/i.test(id))) return { ok: false, error: "Project tidak valid." };
-    const { error } = await createAdminClient().rpc("set_warehouse_projects_with_audit", {
+    if (!owner.tenantId) return { ok: false, error: "Tenant aktif tidak ditemukan." };
+
+    const admin = createAdminClient();
+    const { data: warehouse, error: warehouseError } = await admin
+      .from("warehouses").select("id").eq("tenant_id", owner.tenantId)
+      .eq("id", input.warehouseId).eq("is_active", true).maybeSingle();
+    if (warehouseError || !warehouse) return { ok: false, error: "Gudang tidak ditemukan pada perusahaan aktif." };
+
+    if (projectIds.length > 0) {
+      const { data: projects, error: projectError } = await admin
+        .from("projects").select("id").eq("tenant_id", owner.tenantId)
+        .eq("is_active", true).in("id", projectIds);
+      if (projectError || !projects || projects.length !== projectIds.length) {
+        return { ok: false, error: "Semua Project harus aktif dan berasal dari perusahaan yang sama." };
+      }
+    }
+
+    const { error } = await admin.rpc("set_warehouse_projects_with_audit", {
       p_actor_user_id: owner.userId,
       p_warehouse_id: input.warehouseId,
       p_project_ids: projectIds,
