@@ -24,48 +24,6 @@ type ProfileLookup =
   | { status: "absent" }
   | { status: "error" };
 
-async function hasActiveTenantSuperadminMembership(userId: string): Promise<boolean> {
-  try {
-    const admin = createAdminClient();
-    const { data: membership, error: membershipError } = await admin
-      .from("tenant_memberships")
-      .select("tenant_id, tenant_role")
-      .eq("user_id", userId)
-      .eq("tenant_role", "superadmin")
-      .eq("is_active", true)
-      .maybeSingle();
-
-    if (membershipError || !membership) return false;
-
-    const { data: tenant, error: tenantError } = await admin
-      .from("tenants")
-      .select("status")
-      .eq("id", membership.tenant_id)
-      .maybeSingle();
-
-    return !tenantError && tenant?.status === "active";
-  } catch {
-    return false;
-  }
-}
-
-async function loadTenantProfile(userId: string, tenantId: string): Promise<ProfileLookup> {
-  try {
-    const admin = createAdminClient();
-    const { data, error } = await admin
-      .from("tenant_user_access_profiles")
-      .select("is_active, roles")
-      .eq("user_id", userId)
-      .eq("tenant_id", tenantId)
-      .maybeSingle();
-    if (error) return { status: "error" };
-    if (!data) return { status: "absent" };
-    return { status: "found", profile: { is_active: data.is_active === true, roles: data.roles } };
-  } catch {
-    return { status: "error" };
-  }
-}
-
 async function loadProfile(userId: string): Promise<ProfileLookup> {
   let admin;
   try {
