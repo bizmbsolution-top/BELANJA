@@ -6,7 +6,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 type Result = { ok: true; id?: string } | { ok: false; error: string };
 async function canWrite(userId: string, isOwner: boolean, tenantId: string | null) {
   if (isOwner) return true;
-  const { data, error } = await createAdminClient().from("user_permission_overrides").select("effect").eq("tenant_id", tenantId)
+  const { data, error } = await createAdminClient().from("tenant_user_permission_overrides").select("effect").eq("tenant_id", tenantId)
     .eq("user_id", userId).eq("permission_key", "transaction.post_recognition").maybeSingle();
   return !error && data?.effect === "allow";
 }
