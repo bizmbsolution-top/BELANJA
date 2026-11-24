@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { createPurchaseRequest, recordPurchaseReceipt, uploadPurchasePaymentEvidence, payPurchasePayment } from "./actions";
+import { createSupplier } from "../supplier/actions";
 import styles from "./purchase.module.css";
 
 type Lookup = { id: string; code: string; name: string };
@@ -26,6 +27,29 @@ export default function PurchaseManager({ data }: { data: PurchasePageData }) {
   const [error, setError] = useState("");
   const [selectedProject, setSelectedProject] = useState("");
   const [paymentBusy, setPaymentBusy] = useState<string | null>(null);
+  const [supplierId, setSupplierId] = useState("");
+  const [supplierSearch, setSupplierSearch] = useState("");
+  const [supplierDropdownOpen, setSupplierDropdownOpen] = useState(false);
+  const [supplierFormOpen, setSupplierFormOpen] = useState(false);
+  const [supplierSaving, setSupplierSaving] = useState(false);
+  const [supplierFormError, setSupplierFormError] = useState("");
+  const [pendingSupplierName, setPendingSupplierName] = useState("");
+  const [supplierForm, setSupplierForm] = useState({ name: "", contactPerson: "", phone: "", email: "", address: "", notes: "" });
+
+  const filteredSuppliers = useMemo(() => {
+    const term = supplierSearch.trim().toLowerCase();
+    return data.suppliers.filter(s => !term || [s.code, s.name].some(v => v.toLowerCase().includes(term)));
+  }, [data.suppliers, supplierSearch]);
+
+  useEffect(() => {
+    if (!pendingSupplierName) return;
+    const created = data.suppliers.find(s => s.name.trim().toLowerCase() === pendingSupplierName.trim().toLowerCase());
+    if (created) {
+      setSupplierId(created.id);
+      setSupplierSearch(`${created.code} · ${created.name}`);
+      setPendingSupplierName("");
+    }
+  }, [data.suppliers, pendingSupplierName]);
 
   const warehousesForProject = useMemo(() => data.warehouses.filter(w => data.warehouseProjects.some(m => m.warehouse_id === w.id && m.project_id === selectedProject)), [data.warehouses, data.warehouseProjects, selectedProject]);
   const pendingPayments = data.payments.filter(p => p.status === "Menunggu Pembayaran").length;
@@ -44,6 +68,18 @@ export default function PurchaseManager({ data }: { data: PurchasePageData }) {
     setSaving(false);
     if (!result.ok) { setError(result.error); return; }
     setMessage("Permintaan pembelian berhasil dibuat."); setShowRequest(false); setSelectedProject(""); router.refresh();
+  }
+
+  async function handleSupplierSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault(); setSupplierSaving(true); setSupplierFormError("");
+    const result = await createSupplier(supplierForm);
+    setSupplierSaving(false);
+    if (!result.ok) { setSupplierFormError(result.error); return; }
+    setPendingSupplierName(supplierForm.name.trim());
+    setSupplierSearch(supplierForm.name.trim());
+    setSupplierId(""); setSupplierFormOpen(false); setSupplierDropdownOpen(false);
+    setSupplierForm({ name: "", contactPerson: "", phone: "", email: "", address: "", notes: "" });
+    router.refresh();
   }
 
   async function handleReceiptSubmit(event: FormEvent<HTMLFormElement>) {
@@ -79,7 +115,7 @@ export default function PurchaseManager({ data }: { data: PurchasePageData }) {
     <main className={styles.page}>
       <header className={styles.header}>
         <div><p className={styles.eyebrow}>OPERASIONAL</p><h1>Pembelian</h1><p>Permintaan pembelian, pemeriksaan penerimaan, dan pembayaran berdasarkan barang yang diterima.</p></div>
-        {isProcurement && <button className={styles.primary} type="button" onClick={() => { setError(""); setShowRequest(true); }}>+ Buat Permintaan</button>}
+        {isProcurement && <button className={styles.primary} type="button" onClick={() => { setError(""); setSupplierId(""); setSupplierSearch(""); setSupplierFormOpen(false); setShowRequest(true); }}>+ Buat Permintaan</button>}
       </header>
       <section className={styles.metrics}>
         <article><strong>{data.requests.length}</strong><span>Permintaan Pembelian</span></article>
@@ -94,7 +130,27 @@ export default function PurchaseManager({ data }: { data: PurchasePageData }) {
         <form className={styles.form} onSubmit={handleRequestSubmit}>
           <label>Tanggal Permintaan<input name="requestDate" type="date" defaultValue={new Date().toISOString().slice(0,10)} required /></label>
           <label>Project<select name="projectId" value={selectedProject} onChange={e => setSelectedProject(e.target.value)} required><option value="">Pilih Project</option>{data.projects.map(p => <option key={p.id} value={p.id}>{p.code} · {p.name}</option>)}</select></label>
-          <label>Supplier<select name="supplierId" required defaultValue=""><option value="">Pilih Supplier</option>{data.suppliers.map(s => <option key={s.id} value={s.id}>{s.code} · {s.name}</option>)}</select></label>
+          <div className={styles.supplierField}>
+            <label htmlFor="purchase-supplier-search">Supplier</label>
+            <input type="hidden" name="supplierId" value={supplierId} />
+            <input id="purchase-supplier-search" className={styles.supplierSearch} value={supplierSearch} placeholder="Cari nama atau kode supplier..." autoComplete="off" onFocus={() => { setSupplierDropdownOpen(true); if (supplierId) setSupplierSearch(""); }} onChange={e => { setSupplierSearch(e.target.value); setSupplierId(""); setSupplierDropdownOpen(true); }} required={!supplierId} aria-expanded={supplierDropdownOpen} aria-controls="purchase-supplier-options" />
+            {supplierDropdownOpen && <div className={styles.supplierDropdown} id="purchase-supplier-options">
+              {filteredSuppliers.length > 0 ? filteredSuppliers.map(s => <button type="button" className={styles.supplierOption} key={s.id} onClick={() => { setSupplierId(s.id); setSupplierSearch(s.code + " · " + s.name); setSupplierDropdownOpen(false); }}>{s.code} · {s.name}</button>) : <div className={styles.supplierNoResults}><span>Supplier tidak ditemukan.</span><button type="button" className={styles.supplierAdd} onClick={() => { setSupplierFormError(""); setSupplierForm({ ...supplierForm, name: supplierSearch.trim() }); setSupplierFormOpen(true); }}>＋ Add New Supplier</button></div>}
+            </div>}
+            {supplierFormOpen && <div className={styles.supplierQuickForm}>
+              <div className={styles.formTitle}><div><h2>Master Supplier · Tambah Baru</h2><p>Kode supplier dibuat otomatis saat disimpan.</p></div><button type="button" className={styles.close} onClick={() => setSupplierFormOpen(false)}>×</button></div>
+              <div className={styles.supplierQuickGrid}>
+                <label>Nama Supplier *<input value={supplierForm.name} onChange={e => setSupplierForm({ ...supplierForm, name: e.target.value })} maxLength={160} required /></label>
+                <label>Nama Kontak<input value={supplierForm.contactPerson} onChange={e => setSupplierForm({ ...supplierForm, contactPerson: e.target.value })} maxLength={120} /></label>
+                <label>Nomor Telepon<input value={supplierForm.phone} onChange={e => setSupplierForm({ ...supplierForm, phone: e.target.value })} maxLength={40} /></label>
+                <label>Email<input type="email" value={supplierForm.email} onChange={e => setSupplierForm({ ...supplierForm, email: e.target.value })} maxLength={254} /></label>
+                <label className={styles.supplierQuickWide}>Alamat<textarea rows={2} value={supplierForm.address} onChange={e => setSupplierForm({ ...supplierForm, address: e.target.value })} maxLength={500} /></label>
+                <label className={styles.supplierQuickWide}>Catatan<textarea rows={2} value={supplierForm.notes} onChange={e => setSupplierForm({ ...supplierForm, notes: e.target.value })} maxLength={1000} /></label>
+              </div>
+              {supplierFormError && <p className={styles.error} role="alert">{supplierFormError}</p>}
+              <div className={styles.actions}><button type="button" className={styles.secondary} onClick={() => setSupplierFormOpen(false)}>Batal</button><button type="button" className={styles.primary} disabled={supplierSaving || !supplierForm.name.trim()} onClick={e => { const form = e.currentTarget.closest("form"); if (form) void handleSupplierSubmit({ preventDefault: () => {}, currentTarget: form } as unknown as FormEvent<HTMLFormElement>); }}>{supplierSaving ? "Menyimpan..." : "Simpan Supplier"}</button></div>
+            </div>}
+          </div>
           <label>Warehouse Tujuan<select name="warehouseId" required defaultValue="" disabled={!selectedProject}><option value="">Pilih Warehouse</option>{warehousesForProject.map(w => <option key={w.id} value={w.id}>{w.code} · {w.name}</option>)}</select></label>
           <label>Kategori<select name="categoryId" required defaultValue=""><option value="">Pilih Kategori</option>{data.categories.map(c => <option key={c.id} value={c.id}>{c.code} · {c.name}</option>)}</select></label>
           <label>Estimasi Berat (kg)<input name="estimatedWeightKg" type="number" min="0.001" step="0.001" required placeholder="Contoh: 10000" /></label>
