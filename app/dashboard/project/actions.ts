@@ -16,7 +16,8 @@ function clean(input:Input):Clean|string {
 }
 export async function createProject(input:Input):Promise<Result>{
  try{const actor=await requireOwner();const v=clean(input);if(typeof v==="string")return{ok:false,error:v};
- const {error}=await createAdminClient().rpc("create_project_with_audit",{p_actor_user_id:actor.userId,p_name:v.name,p_location:v.location,p_description:v.description});
+ if(!actor.tenantId)return{ok:false,error:"Tenant aktif tidak ditemukan."};
+ const {error}=await createAdminClient().rpc("create_project_with_audit",{p_actor_user_id:actor.userId,p_tenant_id:actor.tenantId,p_name:v.name,p_location:v.location,p_description:v.description});
  if(error?.code==="23505")return{ok:false,error:"Nama Project tersebut sudah digunakan."};
  if(error)return{ok:false,error:"Project gagal disimpan. Silakan coba lagi."};return{ok:true};
  }catch{return{ok:false,error:"Akses atau penyimpanan Project gagal. Silakan muat ulang halaman."};}
