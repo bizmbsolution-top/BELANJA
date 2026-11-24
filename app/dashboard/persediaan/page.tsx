@@ -20,7 +20,7 @@ type Lot = {
 export default async function PersediaanPage() {
   const actor = await requireAnyRole(["Warehouse", "Management", "Finance", "Cashier", "Sales", "Procurement"]);
   const admin = createAdminClient();
-  const broadAccess = actor.isOwner || actor.roles.includes("Management") || actor.roles.includes("Finance");
+  const broadAccess = actor.tenantRole === "superadmin" || actor.roles.includes("Management") || actor.roles.includes("Finance");
   const cashierAccess = actor.roles.includes("Cashier");
   let warehouseIds: string[] | null = null, projectIds: string[] | null = null;
 
