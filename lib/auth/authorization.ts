@@ -47,7 +47,7 @@ export type AccessContext = {
   email: string;
   /** True when the caller matches BELANJA_OWNER_EMAIL on the server. */
   isOwner: boolean;
-  /** Operational roles from `user_access_profiles`; never from the browser. */
+  /** All assigned tenant roles from `tenant_user_access_profiles`; never from the browser. */
   roles: OperationalRole[];
   /** Synthetic display role for the Owner; never a stored value. */
   displayRoles: string[];
@@ -259,7 +259,9 @@ export async function getAccessContext(): Promise<AccessContext> {
     userId: user.id,
     email: user.email,
     isOwner: false,
-    roles: activeRole ? [activeRole] : [],
+    // Role switching changes the selected work mode, not the user's authorization.
+    // Keep every assigned role for direct-route and server-action checks.
+    roles: allRoles,
     displayRoles: tenantRole === "superadmin" ? ["Superadmin"] : activeRole ? [activeRole] : [],
     tenantId: membershipResult.data.tenant_id,
     tenantRole,
