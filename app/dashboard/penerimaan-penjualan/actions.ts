@@ -18,6 +18,19 @@ export async function recordSalesSettlement(input:{salesOrderId:string;paymentMe
   const db=createAdminClient();
   const {data:order,error:oe}=await db.from("sales_orders").select("id,status,customer_id,project_id,final_amount,ba_number,ba_date").eq("tenant_id",actor.tenantId).eq("id",input.salesOrderId).maybeSingle();
   if(oe||!order||order.status!=="Selesai"||!order.ba_number||!order.ba_date)return{ok:false,error:"BA final tidak ditemukan atau belum selesai."};
+  if(actor.tenantRole!=="superadmin"){
+   const {data:permission,error:permissionError}=await db.from("tenant_user_permission_overrides").select("effect")
+    .eq("tenant_id",actor.tenantId).eq("user_id",actor.userId).eq("permission_key","payment.post").maybeSingle();
+   if(permissionError||permission?.effect!=="allow")return{ok:false,error:"Permission payment.post belum diberikan oleh Superadmin perusahaan."};
+   const {data:project,error:projectError}=await db.from("projects").select("id,is_active")
+    .eq("tenant_id",actor.tenantId).eq("id",order.project_id).maybeSingle();
+   if(projectError||!project?.is_active)return{ok:false,error:"Project tidak aktif atau tidak ditemukan."};
+   const {data:scope,error:scopeError}=await db.from("tenant_user_work_scopes").select("scope_mode,resource_ids")
+    .eq("tenant_id",actor.tenantId).eq("user_id",actor.userId).eq("dimension","project").maybeSingle();
+   if(scopeError||!scope)return{ok:false,error:"Area kerja Project belum diatur oleh Superadmin perusahaan."};
+   if(scope.scope_mode!=="all"&&!(scope.scope_mode==="selected"&&scope.resource_ids?.includes(order.project_id)))
+    return{ok:false,error:"Project di luar area kerja akun Anda."};
+  }
   const {data:existing}=await db.from("sales_order_settlements").select("id").eq("tenant_id",actor.tenantId).eq("sales_order_id",order.id).maybeSingle();
   if(existing)return{ok:false,error:"BA ini sudah memiliki settlement."};
   const componentIds=input.deductions.map(x=>x.componentId);
