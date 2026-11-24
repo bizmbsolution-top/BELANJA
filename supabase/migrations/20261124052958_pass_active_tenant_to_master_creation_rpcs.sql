@@ -21,9 +21,13 @@ begin
     v_def := replace(v_def, E')\n RETURNS', E', p_tenant_id uuid)\n RETURNS');
     v_def := replace(v_def, 'created_by,updated_by)', 'tenant_id,created_by,updated_by)');
     v_def := replace(v_def, 'created_by, updated_by)', 'tenant_id, created_by, updated_by)');
+    v_def := replace(v_def, 'created_by, updated_by
+  ) values', 'tenant_id, created_by, updated_by
+  ) values');
     v_def := replace(v_def, 'p_actor_user_id,p_actor_user_id)', 'p_tenant_id,p_actor_user_id,p_actor_user_id)');
     v_def := replace(v_def, 'p_actor_user_id,
     p_actor_user_id', 'p_tenant_id,
+    p_actor_user_id,
     p_actor_user_id');
     v_def := replace(v_def, 'audit_logs(actor_user_id', 'audit_logs(tenant_id,actor_user_id');
     v_def := replace(v_def, 'audit_logs (
@@ -36,6 +40,10 @@ begin
     p_actor_user_id,', 'values (
     p_tenant_id,
     p_actor_user_id,');
+    if r.proname = 'create_warehouse_with_audit' then
+      v_def := replace(v_def, 'nullif(btrim(coalesce(p_description, '''')), ''''), p_actor_user_id, p_actor_user_id)',
+        'nullif(btrim(coalesce(p_description, '''')), ''''), p_tenant_id, p_actor_user_id, p_actor_user_id)');
+    end if;
     if r.proname = 'save_customer_with_addresses_with_audit' then
       v_def := replace(v_def, 'where id=p_customer_id for update', 'where id=p_customer_id and tenant_id=p_tenant_id for update');
       v_def := replace(v_def, 'where id=p_customer_id returning id', 'where id=p_customer_id and tenant_id=p_tenant_id returning id');
