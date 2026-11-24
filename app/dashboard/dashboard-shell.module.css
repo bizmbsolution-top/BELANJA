@@ -108,3 +108,9 @@
 .mobileTopbar .poweredBrand{font-size:8px}
 .mobileTopbar .poweredBrand img{width:13px;height:13px}
 @media(max-width:800px){.mobileSidebar .brandWrap{padding:52px 16px 17px}.mobileSidebar .companyBrand{max-width:none}}
+
+.profileShortcut{display:flex;align-items:center;gap:9px;margin:13px 0 0;padding:10px 12px;border:1px solid #cbdcff;border-radius:9px;background:#eff5ff;color:#155eef;text-decoration:none;font-size:11px;font-weight:800;transition:background .15s ease,border-color .15s ease}
+.profileShortcut:hover{border-color:#9bbaff;background:#e5efff}
+.profileShortcut span{display:grid;width:19px;height:19px;place-items:center;border-radius:6px;background:#dce9ff;font-size:14px}
+.app[data-theme="dark"] .profileShortcut{border-color:#365a91;background:#1a3152;color:#a9c8ff}
+.app[data-theme="dark"] .profileShortcut:hover{background:#223d65}
