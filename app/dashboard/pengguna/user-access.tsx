@@ -81,7 +81,7 @@ const scopeDimensions = [
   { id: "warehouse", label: "Warehouse" },
 ] as const;
 
-export default function UserAccess({ initialUsers, initialProjects, initialWarehouses }: { initialUsers: UserRecord[]; initialProjects: { id: string; code: string; name: string }[]; initialWarehouses: { id: string; code: string; name: string; projectIds: string[] }[] }) {
+export default function UserAccess({ organizationName, initialUsers, initialProjects, initialWarehouses }: { organizationName: string; initialUsers: UserRecord[]; initialProjects: { id: string; code: string; name: string }[]; initialWarehouses: { id: string; code: string; name: string; projectIds: string[] }[] }) {
   const [users, setUsers] = useState(initialUsers);
   const [selectedId, setSelectedId] = useState(initialUsers[0]?.id ?? "");
   const [saved, setSaved] = useState(false);
@@ -369,8 +369,8 @@ export default function UserAccess({ initialUsers, initialProjects, initialWareh
 
           <section className={styles.section}>
             <h3>Organization</h3>
-            <div className={styles.organization}>PT Contoh Tambang Sejahtera</div>
-            <p className={styles.helper}>Scope Project, Department, dan Warehouse dibatasi oleh Organization ini.</p>
+            <div className={styles.organization}>{organizationName}</div>
+            <p className={styles.helper}>Organization mengikuti nama perusahaan pada Profil Perusahaan tenant aktif. Jika nama perusahaan diubah, bagian ini otomatis menampilkan nama terbaru. Scope Project, Department, dan Warehouse dibatasi oleh Organization ini.</p>
           </section>
 
           <section className={styles.section}>
