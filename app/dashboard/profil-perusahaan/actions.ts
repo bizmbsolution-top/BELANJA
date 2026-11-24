@@ -37,7 +37,8 @@ export async function saveCompanyProfile(formData: FormData) {
 
   if (candidate instanceof File && candidate.size > 0) {
     if (candidate.size > 2 * 1024 * 1024) redirectWith("error=size");
-    const bytes = new Uint8Array(await candidate.arrayBuffer());
+    const fileBuffer = await candidate.arrayBuffer();
+    const bytes = new Uint8Array(fileBuffer);
     const extension = detectImage(bytes);
     if (!extension) redirectWith("error=type");
     const contentType = extension === "jpg" ? "image/jpeg" : extension === "png" ? "image/png" : "image/webp";
@@ -45,7 +46,7 @@ export async function saveCompanyProfile(formData: FormData) {
 
     const { error: uploadError } = await admin.storage
       .from("tenant-branding")
-      .upload(newObjectPath, bytes, { contentType, upsert: false, cacheControl: "3600" });
+      .upload(newObjectPath, fileBuffer, { contentType, upsert: false, cacheControl: "3600" });
     if (uploadError) redirectWith("error=upload");
 
     const { data: publicData } = admin.storage.from("tenant-branding").getPublicUrl(newObjectPath);
