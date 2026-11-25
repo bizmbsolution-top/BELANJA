@@ -53,21 +53,21 @@ async function getPaymentContext(id: string, tenantId: string | null) {
 
 export async function createPurchaseRequest(input: {
   requestDate: string; projectId: string; supplierId: string; warehouseId: string; categoryId: string;
-  estimatedWeightKg: string; pricePerKg: string; notes: string;
+  estimatedWeightKg: string; estimatedValue: string; pricePerKg: string; notes: string;
 }): Promise<Result> {
   try {
     const actor = await requireAnyRole(["Procurement"]);
     if (!(await hasPermission(actor.userId, "transaction.post_recognition", actor.tenantRole === "superadmin", actor.tenantId))) return { ok: false, error: "Permission transaksi belum diberikan oleh Superadmin perusahaan." };
     if (!/^\d{4}-\d{2}-\d{2}$/.test(input?.requestDate ?? "") || !uuid(input?.projectId ?? "") ||
       !uuid(input?.supplierId ?? "") || !uuid(input?.warehouseId ?? "") || !uuid(input?.categoryId ?? "")) return { ok: false, error: "Lengkapi tanggal, Project, Supplier, Warehouse, dan Kategori." };
-    const weight = Number(input.estimatedWeightKg), price = Number(input.pricePerKg), notes = (input.notes ?? "").trim();
-    if (!Number.isFinite(weight) || weight <= 0 || !Number.isFinite(price) || price <= 0 || notes.length > 1000) return { ok: false, error: "Estimasi berat, harga per kg, atau keterangan tidak valid." };
+    const weight = Number(input.estimatedWeightKg), estimatedValue = Number(input.estimatedValue), price = Number(input.pricePerKg), notes = (input.notes ?? "").trim();
+    if (!Number.isFinite(weight) || weight <= 0 || !Number.isFinite(estimatedValue) || estimatedValue < 0 || estimatedValue > 100 || !Number.isFinite(price) || price <= 0 || notes.length > 1000) return { ok: false, error: "Estimasi berat, estimasi kadar (0–100%), harga per kg, atau keterangan tidak valid." };
     await assertProjectAccess(actor.userId, input.projectId, actor.tenantRole === "superadmin", actor.roles, actor.tenantId);
     await assertWarehouseAccess(actor.userId, input.projectId, input.warehouseId, actor.tenantRole === "superadmin", actor.roles, actor.tenantId);
     const { data, error } = await createAdminClient().rpc("create_purchase_request_with_audit", {
       p_actor_user_id: actor.userId, p_request_date: input.requestDate, p_project_id: input.projectId,
       p_supplier_id: input.supplierId, p_warehouse_id: input.warehouseId, p_category_id: input.categoryId,
-      p_estimated_weight_kg: weight, p_price_per_kg: price, p_notes: notes || null,
+      p_estimated_weight_kg: weight, p_estimated_value: estimatedValue, p_price_per_kg: price, p_notes: notes || null,
     });
     if (error || !data) return { ok: false, error: "Permintaan pembelian gagal disimpan." };
     revalidatePath("/dashboard/pembelian"); return { ok: true, id: data as string };
