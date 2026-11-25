@@ -70,7 +70,7 @@ export default async function PersediaanPage() {
   const categoryMap = new Map((categories ?? []).map(c => [c.id, c]));
   const warehouseMap = new Map((allWarehouses ?? []).map(w => [w.id, w]));
   const supplierMap = new Map((suppliers ?? []).map(s => [s.id, s.name]));
-  const lotMap = new Map(visibleLots.map(l => [l.id, l]));
+  const lotMap = new Map(((rawLots ?? []) as Lot[]).filter(l => !l.is_cancelled).map(l => [l.id, l]));
 
   const balances = new Map<string, { warehouse_id:string; project_id:string; category_id:string; value_unit:string; weight:number; valueWeight:number }>();
   const lotBalances = new Map<string, number>();
