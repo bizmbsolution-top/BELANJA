@@ -226,7 +226,7 @@ export default function PurchaseManager({ data }: { data: PurchasePageData }) {
               <span><small>Estimasi Kadar</small><b>{request?.estimated_value == null ? "Belum tersedia" : Number(request.estimated_value).toLocaleString("id-ID") + " %"}</b></span>
               <span><small>Kadar Aktual Diterima</small><b>{receipt ? Number(receipt.value).toLocaleString("id-ID") + " " + receipt.value_unit : "Belum tersedia"}</b></span>
               <span><small>Estimasi Berat</small><b>{request ? Number(request.estimated_weight_kg).toLocaleString("id-ID") + " kg" : "—"}</b></span>
-              <span><small>Berat Aktual Diterima</small><b>{receipt ? Number(receipt.weight).toLocaleString("id-ID") + " " + receipt.weight_unit : "Belum tersedia"}</b></span>
+              <span><small>Berat Aktual Diterima</small><b>{receipt ? (Number(receipt.weight) * (receipt.weight_unit === "ton" ? 1000 : 1)).toLocaleString("id-ID") + " kg" : "Belum tersedia"}</b></span>
             </div>
             {docs.map(doc => doc.signed_url && <a className={styles.proof} key={doc.id} href={doc.signed_url} target="_blank" rel="noreferrer">Bukti Transfer: {doc.file_name}</a>)}
             {isCashier && payment.status === "Menunggu Pembayaran" && <div className={styles.cashierActions}>
