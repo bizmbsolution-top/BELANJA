@@ -120,7 +120,7 @@ export default async function PersediaanPage() {
   }
   for (const rows of Object.values(lotGroups)) rows.sort((a,b)=>b.inboundDate.localeCompare(a.inboundDate)||a.code.localeCompare(b.code));
 
-  const movementGroups: Record<string, {id:string;type:string;date:string;category:string;weight:number;value:number;valueUnit:string;reference:string;lotCode:string;projectCode:string;projectName:string}[]> = {};
+  const movementGroups: Record<string, {id:string;type:string;date:string;category:string;weight:number;value:number;valueUnit:string;reason:string|null;reference:string;lotCode:string;projectCode:string;projectName:string}[]> = {};
   for (const m of visible) {
     const p=projectMap.get(m.project_id);
     const lotCode=m.lot_id ? lotMap.get(m.lot_id)?.code ?? "" : "";
