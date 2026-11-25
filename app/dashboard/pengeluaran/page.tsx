@@ -25,7 +25,8 @@ export default async function PengeluaranPage() {
   const projects = broadAccess ? all : scope?.scope_mode === "all" ? all :
     all.filter(p => scope?.scope_mode === "selected" && scope.resource_ids?.includes(p.id));
   const allowedIds = new Set(projects.map(p => p.id));
-  const canViewBalances = actor.tenantRole === "superadmin" || (!actor.roles.includes("Procurement") && actor.roles.some(r => ["Cashier", "Finance", "Management"].includes(r)));
+  const activeRole = actor.tenantRole === "superadmin" ? "Superadmin" : actor.activeRole;
+  const canViewBalances = actor.tenantRole === "superadmin" || ["Cashier", "Finance", "Management"].includes(activeRole ?? "");
   const [{ data: rawExpenses, error: expenseError }, ledgerResult] = await Promise.all([
     admin.from("expenses").select("id,code,expense_date,project_id,expense_category_id,description,amount,payment_method,paid_method,paid_at,paid_amount,submitted_at,status,cancellation_reason,cancelled_at,created_at,created_by,expense_categories(name),projects(code,name),expense_documents(id,file_name,mime_type,file_size,uploaded_at),expense_payment_documents(id,file_name,mime_type,file_size,uploaded_at)").eq("tenant_id", actor.tenantId)
       .order("created_at", { ascending: false }).limit(300),
@@ -42,8 +43,8 @@ export default async function PengeluaranPage() {
   for (const row of ledger ?? []) balances[row.project_id] = (balances[row.project_id] ?? 0) + Number(row.amount);
   const canCreate = true;
   const permissionMap = new Map((overrides ?? []).map(row => [row.permission_key, row.effect]));
-  const canPay = actor.tenantRole === "superadmin" || (actor.roles.includes("Cashier") && permissionMap.get("payment.post") === "allow");
+  const canPay = actor.tenantRole === "superadmin" || (activeRole === "Cashier" && permissionMap.get("payment.post") === "allow");
   return <ExpenseManager categories={(categories ?? []) as ExpenseCategory[]} projects={projects}
     initialItems={initialItems} balances={balances} canCreate={canCreate} canPay={canPay} canViewBalances={canViewBalances}
-    canCancel={actor.tenantRole === "superadmin" || actor.roles.some(r => ["Procurement","Sales","Cashier","Finance"].includes(r))} />;
+    canCancel={actor.tenantRole === "superadmin" || ["Procurement","Sales","Cashier","Finance"].includes(activeRole ?? "")} />;
 }
