@@ -11,7 +11,7 @@ type Movement = {
   value_unit: string; created_at: string;
 };
 type Lot = {
-  id: string; code: string; source_receipt_id: string; purchase_request_id: string; is_cancelled: boolean;
+  id: string; code: string; source_receipt_id: string; purchase_request_id: string; is_cancelled: boolean; is_returned: boolean;
   supplier_id: string; inbound_date: string; project_id: string; warehouse_id: string;
   category_id: string; initial_weight_kg: number; grade_value: number; grade_unit: string;
   purchase_price_per_kg: number; total_purchase_cost: number;
@@ -44,7 +44,7 @@ export default async function PersediaanPage() {
     admin.from("warehouses").select("id,code,name,location").eq("tenant_id", actor.tenantId).order("name"),
     admin.from("projects").select("id,code,name").eq("tenant_id", actor.tenantId).order("name"),
     admin.from("purchase_categories").select("id,name").eq("tenant_id", actor.tenantId).order("name"),
-    admin.from("inventory_lots").select("id,code,source_receipt_id,purchase_request_id,supplier_id,inbound_date,project_id,warehouse_id,category_id,initial_weight_kg,grade_value,grade_unit,purchase_price_per_kg,total_purchase_cost,is_cancelled").eq("tenant_id", actor.tenantId).order("inbound_date", { ascending: false }).limit(5000),
+    admin.from("inventory_lots").select("id,code,source_receipt_id,purchase_request_id,supplier_id,inbound_date,project_id,warehouse_id,category_id,initial_weight_kg,grade_value,grade_unit,purchase_price_per_kg,total_purchase_cost,is_cancelled,is_returned").eq("tenant_id", actor.tenantId).order("inbound_date", { ascending: false }).limit(5000),
     admin.from("suppliers").select("id,name").eq("tenant_id", actor.tenantId).order("name"),
   ]);
   if (error) throw new Error("Data pergerakan persediaan gagal dimuat.");
@@ -57,7 +57,7 @@ export default async function PersediaanPage() {
     (projectIds === null || projectIds.includes(m.project_id))
   );
   const visibleLots = ((rawLots ?? []) as Lot[]).filter(l =>
-    !l.is_cancelled &&
+    !l.is_cancelled && !l.is_returned &&
     (warehouseIds === null || warehouseIds.includes(l.warehouse_id)) &&
     (projectIds === null || projectIds.includes(l.project_id))
   );
@@ -77,7 +77,7 @@ export default async function PersediaanPage() {
   for (const m of visible) {
     const key = [m.warehouse_id,m.project_id,m.category_id,m.value_unit].join("|");
     const row = balances.get(key) ?? { warehouse_id:m.warehouse_id,project_id:m.project_id,category_id:m.category_id,value_unit:m.value_unit,weight:0,valueWeight:0 };
-    const sign = m.movement_type === "issue" || m.movement_type === "transfer_out" || m.movement_type === "sale_dispatch" ? -1 : 1;
+    const sign = m.movement_type === "issue" || m.movement_type === "transfer_out" || m.movement_type === "sale_dispatch" || m.movement_type === "purchase_return" ? -1 : 1;
     const kg = Number(m.weight_kg);
     row.weight += sign*kg; row.valueWeight += sign*kg*Number(m.value);
     balances.set(key,row);
