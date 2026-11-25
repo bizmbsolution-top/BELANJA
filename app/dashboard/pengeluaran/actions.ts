@@ -90,6 +90,7 @@ export async function submitExpense(expenseId: string): Promise<Result> {
 export async function payExpense(input: { expenseId: string; paymentMethod: string }): Promise<Result> {
   try {
     const actor = await requireAnyRole(["Cashier"]);
+    if (actor.tenantRole !== "superadmin" && actor.activeRole !== "Cashier") return { ok: false, error: "Pilih Mode Kerja Kasir untuk melakukan pembayaran." };
     if (!(await hasPermission(actor.userId, "payment.post", actor.tenantRole === "superadmin", actor.tenantId))) return { ok: false, error: "Permission pembayaran voucher belum diberikan oleh Superadmin perusahaan." };
     if (!uuid(input?.expenseId ?? "") || !["Tunai", "Transfer"].includes(input?.paymentMethod)) return { ok: false, error: "Data pembayaran tidak valid." };
     const { data: current } = await getExpense(input.expenseId, actor.tenantId);
@@ -112,6 +113,7 @@ export async function payExpense(input: { expenseId: string; paymentMethod: stri
 export async function uploadExpensePaymentEvidence(expenseId: string, formData: FormData): Promise<Result> {
   try {
     const actor = await requireAnyRole(["Cashier"]);
+    if (actor.tenantRole !== "superadmin" && actor.activeRole !== "Cashier") return { ok:false,error:"Pilih Mode Kerja Kasir untuk mengunggah bukti pembayaran." };
     if (!(await hasPermission(actor.userId, "payment.post", actor.tenantRole === "superadmin", actor.tenantId))) return { ok:false,error:"Permission pembayaran voucher belum diberikan oleh Superadmin perusahaan." };
     if (!uuid(expenseId)) return { ok:false,error:"Voucher tidak valid." };
     const admin=createAdminClient();
@@ -158,6 +160,7 @@ export async function openExpensePaymentEvidence(documentId: string): Promise<Re
 export async function cancelExpense(expenseId: string, reason: string): Promise<Result> {
   try {
     const actor = await requireAnyRole(["Procurement", "Sales", "Cashier", "Finance"]);
+    if (actor.tenantRole !== "superadmin" && !["Procurement", "Sales", "Cashier", "Finance"].includes(actor.activeRole ?? "")) return { ok:false,error:"Pilih Mode Kerja yang berwenang untuk membatalkan voucher." };
     if (!uuid(expenseId)) return { ok: false, error: "Voucher tidak valid." };
     const cleanReason = typeof reason === "string" ? reason.trim() : "";
     if (!cleanReason || cleanReason.length > 500) return { ok: false, error: "Alasan pembatalan wajib diisi (maksimal 500 karakter)." };
