@@ -25,7 +25,7 @@ export default async function PengeluaranPage() {
   const projects = broadAccess ? all : scope?.scope_mode === "all" ? all :
     all.filter(p => scope?.scope_mode === "selected" && scope.resource_ids?.includes(p.id));
   const allowedIds = new Set(projects.map(p => p.id));
-  const canViewBalances = actor.tenantRole === "superadmin" || actor.roles.some(r => ["Cashier", "Finance", "Management"].includes(r));
+  const canViewBalances = actor.tenantRole === "superadmin" || (!actor.roles.includes("Procurement") && actor.roles.some(r => ["Cashier", "Finance", "Management"].includes(r)));
   const [{ data: rawExpenses, error: expenseError }, ledgerResult] = await Promise.all([
     admin.from("expenses").select("id,code,expense_date,project_id,expense_category_id,description,amount,payment_method,paid_method,paid_at,paid_amount,submitted_at,status,cancellation_reason,cancelled_at,created_at,created_by,expense_categories(name),projects(code,name),expense_documents(id,file_name,mime_type,file_size,uploaded_at),expense_payment_documents(id,file_name,mime_type,file_size,uploaded_at)").eq("tenant_id", actor.tenantId)
       .order("created_at", { ascending: false }).limit(300),
