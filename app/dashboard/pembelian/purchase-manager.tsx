@@ -7,7 +7,7 @@ import { createSupplier } from "../supplier/actions";
 import styles from "./purchase.module.css";
 
 type Lookup = { id: string; code: string; name: string };
-type RequestRow = { id: string; code: string; request_date: string; project_id: string; supplier_id: string; warehouse_id: string; category_id: string; estimated_weight_kg: number; price_per_kg: number; notes: string | null; status: string; created_at: string };
+type RequestRow = { id: string; code: string; request_date: string; project_id: string; supplier_id: string; warehouse_id: string; category_id: string; estimated_weight_kg: number; estimated_value: number | null; price_per_kg: number; notes: string | null; status: string; created_at: string };
 type ReceiptRow = { id: string; code: string; purchase_request_id: string; receipt_date: string; value: number; value_unit: string; weight: number; weight_unit: string; notes: string | null; status: string; decision_reason: string | null; completed_at: string | null };
 type PaymentRow = { id: string; code: string; receipt_id: string; amount: number; status: string; requested_at: string; paid_at: string | null; payment_method: string | null };
 type DocRow = { id: string; receipt_id?: string; payment_request_id?: string; evidence_type?: string; file_name: string; signed_url: string | null };
@@ -75,7 +75,7 @@ export default function PurchaseManager({ data }: { data: PurchasePageData }) {
       requestDate: String(form.get("requestDate") ?? ""), projectId: String(form.get("projectId") ?? ""),
       supplierId: String(form.get("supplierId") ?? ""), warehouseId: String(form.get("warehouseId") ?? ""),
       categoryId: String(form.get("categoryId") ?? ""), estimatedWeightKg: String(form.get("estimatedWeightKg") ?? ""),
-      pricePerKg: String(form.get("pricePerKg") ?? "").replace(/\./g, ""), notes: String(form.get("notes") ?? ""),
+      estimatedValue: String(form.get("estimatedValue") ?? ""), pricePerKg: String(form.get("pricePerKg") ?? "").replace(/\./g, ""), notes: String(form.get("notes") ?? ""),
     });
     setSaving(false);
     if (!result.ok) { setError(result.error); return; }
@@ -166,6 +166,7 @@ export default function PurchaseManager({ data }: { data: PurchasePageData }) {
           <label>Warehouse Tujuan<select name="warehouseId" required defaultValue="" disabled={!selectedProject || warehousesForProject.length===0}><option value="">Pilih Warehouse</option>{warehousesForProject.map(w => <option key={w.id} value={w.id}>{w.code} · {w.name}</option>)}</select>{selectedProject && warehousesForProject.length===0 && <small className={styles.warehouseHint}>Belum ada gudang dari Master Gudang yang dihubungkan ke Project ini. Superadmin perlu mengatur hubungan Project–Gudang di menu Master Gudang.</small>}</label>
           <label>Kategori<select name="categoryId" required defaultValue=""><option value="">Pilih Kategori</option>{data.categories.map(c => <option key={c.id} value={c.id}>{c.code} · {c.name}</option>)}</select></label>
           <label>Estimasi Berat (kg)<input name="estimatedWeightKg" type="number" min="0.001" step="0.001" required placeholder="Contoh: 10000" /></label>
+          <label>Estimasi Kadar (%)<input name="estimatedValue" type="number" min="0" max="100" step="0.0001" required placeholder="Contoh: 72.5" /></label>
           <label>Harga Kesepakatan per kg (Rp)<input name="pricePerKg" type="text" inputMode="numeric" value={pricePerKgText} onChange={e => setPricePerKgText(formatRupiahInput(e.target.value))} required placeholder="Contoh: 125.000" autoComplete="off" /></label>
           <label className={styles.wide}>Keterangan<textarea name="notes" rows={3} maxLength={1000} placeholder="Keterangan pembelian (opsional)" /></label>
           <div className={styles.actions}><button type="button" className={styles.secondary} onClick={() => setShowRequest(false)}>Batal</button><button type="submit" className={styles.primary} disabled={saving}>{saving ? "Menyimpan..." : "Simpan Permintaan"}</button></div>
@@ -199,7 +200,7 @@ export default function PurchaseManager({ data }: { data: PurchasePageData }) {
           const receivedKg = receipts.filter(r => r.status === "Diterima").reduce((sum,r) => sum + Number(r.weight) * (r.weight_unit === "ton" ? 1000 : 1),0);
           return <article className={styles.requestCard} key={request.id}>
             <div className={styles.cardTop}><div><span className={styles.code}>{request.code}</span><span className={request.status === "Menunggu Barang" ? styles.pending : styles.neutral}>{request.status}</span><h3>{supplier?.name ?? "Supplier"}</h3><p>{project?.code} · {project?.name} · {warehouse?.name}</p></div>{isProcurement && request.status === "Menunggu Barang" && <button type="button" className={styles.secondary} onClick={() => { setError(""); setReceiptFor(request); }}>+ Catat Penerimaan</button>}</div>
-            <div className={styles.facts}><span><small>Kategori</small><b>{category?.name ?? "—"}</b></span><span><small>Estimasi</small><b>{Number(request.estimated_weight_kg).toLocaleString("id-ID")} kg</b></span><span><small>Sudah diterima</small><b>{receivedKg.toLocaleString("id-ID")} kg</b></span><span><small>Harga/kg</small><b>{rupiah(Number(request.price_per_kg))}</b></span></div>
+            <div className={styles.facts}><span><small>Kategori</small><b>{category?.name ?? "—"}</b></span><span><small>Estimasi Berat</small><b>{Number(request.estimated_weight_kg).toLocaleString("id-ID")} kg</b></span><span><small>Estimasi Kadar</small><b>{request.estimated_value == null ? "—" : Number(request.estimated_value).toLocaleString("id-ID") + " %"}</b></span><span><small>Sudah diterima</small><b>{receivedKg.toLocaleString("id-ID")} kg</b></span><span><small>Harga/kg</small><b>{rupiah(Number(request.price_per_kg))}</b></span></div>
             {request.notes && <p className={styles.note}>{request.notes}</p>}
             {receipts.length > 0 && <div className={styles.receipts}><h4>Riwayat Penerimaan</h4>{receipts.map(receipt => {
               const docs = data.receiptDocs.filter(d => d.receipt_id === receipt.id), payment = data.payments.find(p => p.receipt_id === receipt.id);
@@ -221,6 +222,12 @@ export default function PurchaseManager({ data }: { data: PurchasePageData }) {
           const project = request ? lookup(data.projects, request.project_id) : null, docs = data.paymentDocs.filter(d => d.payment_request_id === payment.id);
           return <article className={styles.paymentCard} key={payment.id}>
             <div className={styles.cardTop}><div><span className={styles.code}>{payment.code}</span><span className={payment.status === "Lunas" ? styles.good : styles.pending}>{payment.status}</span><h3>{request?.code ?? "Permintaan"} · {receipt?.code ?? "Penerimaan"}</h3><p>{project?.code} · {project?.name}</p></div><strong className={styles.amount}>{rupiah(Number(payment.amount))}</strong></div>
+            <div className={styles.facts}>
+              <span><small>Estimasi Kadar</small><b>{request?.estimated_value == null ? "Belum tersedia" : Number(request.estimated_value).toLocaleString("id-ID") + " %"}</b></span>
+              <span><small>Kadar Aktual Diterima</small><b>{receipt ? Number(receipt.value).toLocaleString("id-ID") + " " + receipt.value_unit : "Belum tersedia"}</b></span>
+              <span><small>Estimasi Berat</small><b>{request ? Number(request.estimated_weight_kg).toLocaleString("id-ID") + " kg" : "—"}</b></span>
+              <span><small>Berat Aktual Diterima</small><b>{receipt ? Number(receipt.weight).toLocaleString("id-ID") + " " + receipt.weight_unit : "Belum tersedia"}</b></span>
+            </div>
             {docs.map(doc => doc.signed_url && <a className={styles.proof} key={doc.id} href={doc.signed_url} target="_blank" rel="noreferrer">Bukti Transfer: {doc.file_name}</a>)}
             {isCashier && payment.status === "Menunggu Pembayaran" && <div className={styles.cashierActions}>
               <form onSubmit={event => { event.preventDefault(); void handlePaymentUpload(payment.id, event.currentTarget); }}>
