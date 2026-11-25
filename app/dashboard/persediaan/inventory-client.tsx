@@ -17,11 +17,11 @@ export default function InventoryClient({warehouses,lots,movements,totalKg,ready
  const [selectedGrade,setSelectedGrade]=useState<string|null>(null);
  const [selectedLot,setSelectedLot]=useState<string|null>(null);
  const [type,setType]=useState("all");
- const [page,setPage]=useState(0);
+ const [page,setPage]=useState(0);\n const [categoryFilter,setCategoryFilter]=useState("all");\n const [gradeFilter,setGradeFilter]=useState("all");
  const active=warehouses.find(w=>w.id===selected)??null;
  const activeLots=selected?lots[selected]??[]:[];
  const activeMoves=selected?movements[selected]??[]:[];
- const grade=active?.grades.find(g=>g.key===selectedGrade)??null;
+ const grade=active?.grades.find(g=>g.key===selectedGrade)??null;\n const categoryOptions=[...new Set((active?.grades??[]).map(g=>g.category))].sort((a,b)=>a.localeCompare(b));\n const gradeOptions=[...new Map((active?.grades??[]).filter(g=>categoryFilter==="all"||g.category===categoryFilter).map(g=>[g.gradeValue+"|"+g.gradeUnit,{value:g.gradeValue+"|"+g.gradeUnit,label:g.gradeValue+" "+g.gradeUnit}])).values()].sort((a,b)=>a.label.localeCompare(b.label,undefined,{numeric:true}));\n const filteredGrades=(active?.grades??[]).filter(g=>(categoryFilter==="all"||g.category===categoryFilter)&&(gradeFilter==="all"||(g.gradeValue+"|"+g.gradeUnit)===gradeFilter));
  const lot=activeLots.find(l=>l.id===selectedLot)??null;
  const gradeLots=grade?activeLots.filter(l=>l.category===grade.category&&l.gradeValue===grade.gradeValue&&l.gradeUnit===grade.gradeUnit):[];
  const rows=useMemo(()=>activeMoves.filter(m=>(type==="all"||m.type===type)&&(!selectedLot||m.lotId===selectedLot)),[activeMoves,type,selectedLot]);
@@ -59,12 +59,21 @@ export default function InventoryClient({warehouses,lots,movements,totalKg,ready
     <article><strong>{money(active.inventoryValue)}</strong><span>Nilai persediaan</span></article>
    </section>
    {!selectedGrade?<section className={styles.section}>
-    <div className={styles.sectionHeading}><div><h2>Kategori & Kadar / Value</h2><p>Pilih kelompok untuk melihat Lot yang membentuk saldo tersebut.</p></div><span className={styles.countPill}>{active.grades.length} kelompok</span></div>
-    {!active.grades.length?<div className={styles.empty}><p>Tidak ada saldo stok untuk gudang ini.</p></div>:<div className={styles.categoryGrid}>{active.grades.map(g=><article className={styles.categoryCard} key={g.key}>
-     <div className={styles.categoryCardTop}><div><span className={styles.categoryTag}>{g.category}</span><h3>Kadar {g.gradeValue} {g.gradeUnit}</h3></div><strong>{qty(g.weight)}</strong></div>
-     <div className={styles.categoryStats}><span><b>{g.lotCount}</b> Lot</span><span className={styles.readyText}>Siap {qty(g.readyWeight)}</span><span className={styles.quarantineText}>Karantina {qty(g.quarantineWeight)}</span></div>
-     <div className={styles.categoryFooter}><span>{money(g.inventoryValue)}</span><button type="button" onClick={()=>openGrade(g.key)}>View Lot ({g.lotCount}) →</button></div>
-    </article>)}</div>}
+    <div className={styles.sectionHeading}><div><h2>Kategori & Kadar / Value</h2><p>Filter kelompok persediaan, lalu buka daftar Lot yang membentuk saldo tersebut.</p></div><span className={styles.countPill}>{filteredGrades.length} dari {active.grades.length} kelompok</span></div>
+    <div className={styles.inventoryFilters}>
+     <label><span>Filter kategori</span><select value={categoryFilter} onChange={e=>{setCategoryFilter(e.target.value);setGradeFilter("all");}}><option value="all">Semua kategori</option>{categoryOptions.map(v=><option key={v} value={v}>{v}</option>)}</select></label>
+     <label><span>Filter kadar / value</span><select value={gradeFilter} onChange={e=>setGradeFilter(e.target.value)}><option value="all">Semua kadar</option>{gradeOptions.map(v=><option key={v.value} value={v.value}>{v.label}</option>)}</select></label>
+     <button type="button" onClick={()=>{setCategoryFilter("all");setGradeFilter("all");}}>Reset filter</button>
+    </div>
+    {!active.grades.length?<div className={styles.empty}><p>Tidak ada saldo stok untuk gudang ini.</p></div>:!filteredGrades.length?<div className={styles.empty}><p>Tidak ada kelompok yang sesuai dengan filter.</p></div>:<div className={styles.categoryTableWrap}>
+     <div className={styles.categoryTableHead}><span>Kategori & kadar</span><span>Jumlah Lot</span><span>Total saldo</span><span>Siap dijual</span><span>Karantina</span><span>Nilai stok</span><span></span></div>
+     {filteredGrades.map(g=><div className={styles.categoryTableRow} key={g.key}>
+      <div className={styles.categoryIdentity}><strong>{g.category}</strong><span>Kadar {g.gradeValue} {g.gradeUnit}</span></div>
+      <span data-label="Jumlah Lot">{g.lotCount} Lot</span><strong data-label="Total saldo">{qty(g.weight)}</strong>
+      <span className={styles.readyText} data-label="Siap dijual">{qty(g.readyWeight)}</span><span className={styles.quarantineText} data-label="Karantina">{qty(g.quarantineWeight)}</span>
+      <span data-label="Nilai stok">{money(g.inventoryValue)}</span><button type="button" onClick={()=>openGrade(g.key)}>View Lot Details →</button>
+     </div>)}
+    </div>}
    </section>:!selectedLot?<section className={styles.section}>
     <div className={styles.sectionHeading}><div><span className={styles.categoryTag}>{grade?.category}</span><h2>Kadar {grade?.gradeValue} {grade?.gradeUnit}</h2><p>{gradeLots.length} Lot · Total saldo {qty(grade?.weight??0)}</p></div><span className={styles.countPill}>Daftar Lot</span></div>
     {gradeLots.length===0?<div className={styles.empty}><p>Tidak ada Lot pada kelompok ini.</p></div>:<div className={styles.lotList}>{gradeLots.map(l=><article className={styles.lotCard} key={l.id}>
