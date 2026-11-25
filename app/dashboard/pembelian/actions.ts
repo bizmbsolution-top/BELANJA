@@ -233,3 +233,45 @@ export async function setInventoryLotProblemStatus(input: {
     return { ok: false, error: error instanceof Error ? error.message : "Perubahan status Purchase Lot gagal." };
   }
 }
+
+
+export async function cancelReceivedPurchase(paymentRequestId: string, reason: string): Promise<Result> {
+  try {
+    const actor = await requireAnyRole(["Procurement"]);
+    if (actor.tenantRole !== "superadmin" && actor.activeRole !== "Procurement") {
+      return { ok: false, error: "Pilih Mode Kerja Pembelian untuk membatalkan penerimaan." };
+    }
+    if (!(await hasPermission(actor.userId, "transaction.post_recognition", actor.tenantRole === "superadmin", actor.tenantId))) {
+      return { ok: false, error: "Permission Pembelian belum diberikan oleh Superadmin perusahaan." };
+    }
+    if (!uuid(paymentRequestId) || typeof reason !== "string" || reason.trim().length < 3 || reason.trim().length > 1000) {
+      return { ok: false, error: "Alasan pembatalan wajib diisi minimal 3 karakter." };
+    }
+    const admin = createAdminClient();
+    const { data: payment, error: paymentError } = await admin.from("purchase_payment_requests")
+      .select("id,receipt_id,status").eq("tenant_id", actor.tenantId).eq("id", paymentRequestId).maybeSingle();
+    if (paymentError || !payment || payment.status !== "Menunggu Pembayaran") {
+      return { ok: false, error: "Hanya penerimaan berstatus Diterima dan Menunggu Pembayaran yang dapat dibatalkan." };
+    }
+    const { data: receipt } = await admin.from("purchase_receipts")
+      .select("id,purchase_request_id").eq("tenant_id", actor.tenantId).eq("id", payment.receipt_id).maybeSingle();
+    if (!receipt) return { ok: false, error: "Data penerimaan tidak ditemukan." };
+    const { data: request } = await admin.from("purchase_requests")
+      .select("id,project_id,warehouse_id").eq("tenant_id", actor.tenantId).eq("id", receipt.purchase_request_id).maybeSingle();
+    if (!request) return { ok: false, error: "Permintaan pembelian tidak ditemukan." };
+    await assertProjectAccess(actor.userId, request.project_id, actor.tenantRole === "superadmin", actor.roles, actor.tenantId);
+    await assertWarehouseAccess(actor.userId, request.project_id, request.warehouse_id, actor.tenantRole === "superadmin", actor.roles, actor.tenantId);
+    const { error } = await admin.rpc("cancel_received_purchase_with_audit", {
+      p_payment_request_id: paymentRequestId,
+      p_actor_user_id: actor.userId,
+      p_reason: reason.trim(),
+    });
+    if (error) return { ok: false, error: error.message || "Pembatalan penerimaan gagal." };
+    revalidatePath("/dashboard/pembelian");
+    revalidatePath("/dashboard/penjualan");
+    revalidatePath("/dashboard/persediaan");
+    return { ok: true, id: receipt.id };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Pembatalan penerimaan gagal." };
+  }
+}
