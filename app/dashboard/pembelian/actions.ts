@@ -341,19 +341,27 @@ export async function quarantineInventoryLot(input: { lotId: string; weightKg: s
   } catch(error) { return {ok:false,error:error instanceof Error?error.message:"Karantina gagal dicatat."}; }
 }
 
-export async function createPurchaseReturnDraft(input: { returnDate: string; reason: string; notes?: string; items: { quarantineId: string; weightKg: string }[] }): Promise<Result> {
+export async function createPurchaseReturnDraft(input: { returnDate?: string; reason?: string; notes?: string; items?: { quarantineId: string; weightKg: string | number }[] }): Promise<Result> {
   try {
     const actor=await requireAnyRole(["Procurement"]);
     if(actor.tenantRole!=="superadmin"&&actor.activeRole!=="Procurement")return {ok:false,error:"Pilih Mode Kerja Pembelian untuk membuat Draft Return."};
     if(!(await hasPermission(actor.userId,"transaction.post_recognition",actor.tenantRole==="superadmin",actor.tenantId)))return {ok:false,error:"Permission Pembelian belum diberikan."};
-    if(!/^\d{4}-\d{2}-\d{2}$/.test(input?.returnDate??"")||typeof input?.reason!=="string"||input.reason.trim().length<3||input.reason.trim().length>1000||!Array.isArray(input.items)||!input.items.length||input.items.length>100)return {ok:false,error:"Tanggal, alasan, dan minimal satu item Return wajib diisi."};
-    const items=input.items.map(i=>({quarantineId:i.quarantineId,weightKg:Number(i.weightKg)}));
+
+    // Normalize server-action input before validating. Keep errors specific so a
+    // missing field can be identified without masking the actual cause.
+    const returnDate=typeof input?.returnDate==="string"?input.returnDate.trim():"";
+    const reason=typeof input?.reason==="string"?input.reason.trim():"";
+    const rawItems=Array.isArray(input?.items)?input.items:[];
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(returnDate))return {ok:false,error:"Tanggal Return tidak valid. Pilih tanggal kembali pada kolom Tanggal Return."};
+    if(reason.length<3||reason.length>1000)return {ok:false,error:"Alasan Return wajib diisi minimal 3 karakter dan maksimal 1.000 karakter."};
+    if(!rawItems.length||rawItems.length>100)return {ok:false,error:"Pilih minimal satu Lot Karantina dan isi Berat Return (kg)."};
+    const items=rawItems.map(i=>({quarantineId:String(i?.quarantineId??""),weightKg:Number(i?.weightKg)}));
     if(items.some(i=>!uuid(i.quarantineId)||!Number.isFinite(i.weightKg)||i.weightKg<=0)||new Set(items.map(i=>i.quarantineId)).size!==items.length)return {ok:false,error:"Periksa pilihan Karantina dan kuantitas Return."};
     const admin=createAdminClient();
     const {data:cases,error}=await admin.from("inventory_lot_quarantines").select("id,lot_id,inventory_lots(project_id,warehouse_id)").eq("tenant_id",actor.tenantId).in("id",items.map(i=>i.quarantineId));
     if(error||!cases||cases.length!==items.length)return {ok:false,error:"Sebagian data Karantina tidak ditemukan."};
     for(const q of cases){const lot=Array.isArray(q.inventory_lots)?q.inventory_lots[0]:q.inventory_lots;if(!lot)return {ok:false,error:"Lot Karantina tidak ditemukan."};await assertProjectAccess(actor.userId,lot.project_id,actor.tenantRole==="superadmin",actor.roles,actor.tenantId);await assertWarehouseAccess(actor.userId,lot.project_id,lot.warehouse_id,actor.tenantRole==="superadmin",actor.roles,actor.tenantId);}
-    const {data,error:rpcError}=await admin.rpc("create_purchase_return_draft_with_audit",{p_actor_user_id:actor.userId,p_tenant_id:actor.tenantId,p_return_date:input.returnDate,p_reason:input.reason.trim(),p_notes:input.notes?.trim()||null,p_items:items.map(i=>({quarantine_id:i.quarantineId,weight_kg:i.weightKg}))});
+    const {data,error:rpcError}=await admin.rpc("create_purchase_return_draft_with_audit",{p_actor_user_id:actor.userId,p_tenant_id:actor.tenantId,p_return_date:returnDate,p_reason:reason,p_notes:typeof input.notes==="string"?input.notes.trim()||null:null,p_items:items.map(i=>({quarantine_id:i.quarantineId,weight_kg:i.weightKg}))});
     if(rpcError||!data)return {ok:false,error:rpcError?.message??"Draft Return gagal dibuat."};
     revalidatePath("/dashboard/pembelian");revalidatePath("/dashboard/persediaan");
     return {ok:true,id:data as string};
