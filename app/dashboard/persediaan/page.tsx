@@ -7,7 +7,7 @@ export const revalidate = 0;
 
 type Movement = {
   id: string; movement_type: string; receipt_id: string | null; lot_id: string | null; project_id: string;
-  warehouse_id: string; category_id: string; weight_kg: number; value: number;
+  warehouse_id: string; category_id: string; weight_kg: number; value: number; reason: string | null;
   value_unit: string; created_at: string;
 };
 type Lot = {
@@ -40,7 +40,7 @@ export default async function PersediaanPage() {
 
   const [{ data: movements, error }, { data: allWarehouses }, { data: projects }, { data: categories },
     { data: rawLots, error: lotError }, { data: suppliers }] = await Promise.all([
-    admin.from("inventory_movements").select("id,movement_type,receipt_id,lot_id,project_id,warehouse_id,category_id,weight_kg,value,value_unit,created_at").eq("tenant_id", actor.tenantId).order("created_at", { ascending: false }).limit(5000),
+    admin.from("inventory_movements").select("id,movement_type,receipt_id,lot_id,project_id,warehouse_id,category_id,weight_kg,value,value_unit,reason,created_at").eq("tenant_id", actor.tenantId).order("created_at", { ascending: false }).limit(5000),
     admin.from("warehouses").select("id,code,name,location").eq("tenant_id", actor.tenantId).order("name"),
     admin.from("projects").select("id,code,name").eq("tenant_id", actor.tenantId).order("name"),
     admin.from("purchase_categories").select("id,name").eq("tenant_id", actor.tenantId).order("name"),
@@ -127,7 +127,7 @@ export default async function PersediaanPage() {
     const receiptCode=m.receipt_id ? receiptMap.get(m.receipt_id) ?? "" : "";
     (movementGroups[m.warehouse_id] ??= []).push({
       id:m.id,type:m.movement_type,date:m.created_at,category:categoryMap.get(m.category_id)?.name ?? "Barang",
-      weight:Number(m.weight_kg),value:Number(m.value),valueUnit:m.value_unit,
+      weight:Number(m.weight_kg),value:Number(m.value),valueUnit:m.value_unit,reason:m.reason,
       reference:[receiptCode ? `Penerimaan ${receiptCode}` : "",lotCode].filter(Boolean).join(" · "),
       lotCode,projectCode:p?.code ?? "",projectName:p?.name ?? ""
     });
