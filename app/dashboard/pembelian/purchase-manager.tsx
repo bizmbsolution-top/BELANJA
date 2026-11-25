@@ -29,6 +29,7 @@ export default function PurchaseManager({ data }: { data: PurchasePageData }) {
   const [filterTo, setFilterTo] = useState("");
   const [filterSearch, setFilterSearch] = useState("");
   const [expandedRequestId, setExpandedRequestId] = useState<string | null>(null);
+  const [expandedPaymentId, setExpandedPaymentId] = useState<string | null>(null);
   const [receiptFor, setReceiptFor] = useState<RequestRow | null>(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -73,14 +74,15 @@ export default function PurchaseManager({ data }: { data: PurchasePageData }) {
   const warehousesForProject = useMemo(() => data.warehouses.filter(w => data.warehouseProjects.some(m => m.warehouse_id === w.id && m.project_id === selectedProject)), [data.warehouses, data.warehouseProjects, selectedProject]);
   const pendingPayments = data.payments.filter(p => p.status === "Menunggu Pembayaran").length;
   const paidPayments = data.payments.filter(p => p.status === "Lunas").length;
-  const acceptedReceipts = data.receipts.filter(r => r.status === "Diterima").length;
   const matchesRequest = (request: RequestRow | null) => {
     if (!request) return false;
     const supplier = lookup(data.suppliers, request.supplier_id);
     const warehouse = lookup(data.warehouses, request.warehouse_id);
     const term = filterSearch.trim().toLowerCase();
     const haystack = [request.code, supplier?.name, supplier?.code].filter(Boolean).join(" ").toLowerCase();
-    return (!term || haystack.includes(term)) &&
+    const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 30);
+    const withinDefaultHistory = activeBucket !== "paid" || filterFrom || filterTo || new Date(request.request_date + "T00:00:00") >= cutoff;
+    return withinDefaultHistory && (!term || haystack.includes(term)) &&
       (!filterSupplier || request.supplier_id === filterSupplier) &&
       (!filterWarehouse || request.warehouse_id === filterWarehouse) &&
       (!filterFrom || request.request_date >= filterFrom) &&
@@ -170,7 +172,7 @@ export default function PurchaseManager({ data }: { data: PurchasePageData }) {
         <div className={styles.sectionHeading}>
           <div><h2>{activeBucket === "draft" ? "Draft Pembelian" : activeBucket === "receipt" ? "Tunggu Penerimaan" : activeBucket === "payment" ? "Tunggu Pelunasan" : "Pembelian Lunas"}</h2>
           <p>{activeBucket === "draft" ? "Draft belum didukung pada alur penyimpanan saat ini." : activeBucket === "receipt" ? visibleRequests.length + " permintaan" : visiblePayments.length + " pengajuan pembayaran"}</p></div>
-          <button type="button" className={styles.secondary} onClick={() => { setActiveBucket(null); setFilterSupplier(""); setFilterWarehouse(""); setFilterFrom(""); setFilterTo(""); setFilterSearch(""); setExpandedRequestId(null); }}>Kembali</button>
+          <button type="button" className={styles.secondary} onClick={() => { setActiveBucket(null); setFilterSupplier(""); setFilterWarehouse(""); setFilterFrom(""); setFilterTo(""); setFilterSearch(""); setExpandedRequestId(null); setExpandedPaymentId(null); }}>Kembali</button>
         </div>
         {activeBucket !== "draft" && <div className={styles.filterPanel}>
           <input aria-label="Cari nomor order atau supplier" placeholder="Cari nomor order / supplier..." value={filterSearch} onChange={e => setFilterSearch(e.target.value)} />
@@ -248,7 +250,9 @@ export default function PurchaseManager({ data }: { data: PurchasePageData }) {
           const receipts = data.receipts.filter(r => r.purchase_request_id === request.id);
           const receivedKg = receipts.filter(r => r.status === "Diterima").reduce((sum,r) => sum + Number(r.weight) * (r.weight_unit === "ton" ? 1000 : 1),0);
           return <article className={styles.requestCard} key={request.id}>
-            <div className={styles.cardTop}><div><span className={styles.code}>{request.code}</span><span className={request.status === "Menunggu Barang" ? styles.pending : styles.neutral}>{request.status}</span><h3>{supplier?.name ?? "Supplier"}</h3><p>{project?.code} · {project?.name} · {warehouse?.name}</p></div>{isProcurement && request.status === "Menunggu Barang" && <button type="button" className={styles.secondary} onClick={() => { setError(""); setReceiptFor(request); }}>+ Catat Penerimaan</button>}</div>
+            <div className={styles.cardTop}><div><span className={styles.code}>{request.code}</span><span className={styles.pending}>{request.status}</span><h3>{supplier?.name ?? "Supplier"}</h3><p>{project?.code} · {project?.name} · {warehouse?.name}</p></div>{isProcurement && request.status === "Menunggu Barang" && <button type="button" className={styles.secondary} onClick={() => { setError(""); setReceiptFor(request); }}>+ Catat Penerimaan</button>}</div>
+            <button type="button" className={styles.detailToggle} aria-expanded={expandedRequestId === request.id} onClick={() => setExpandedRequestId(expandedRequestId === request.id ? null : request.id)}>{expandedRequestId === request.id ? "Tutup detail" : "Lihat detail order"} <span>{expandedRequestId === request.id ? "−" : "+"}</span></button>
+            {expandedRequestId === request.id && <>
             <div className={styles.facts}><span><small>Kategori</small><b>{category?.name ?? "—"}</b></span><span><small>Estimasi Berat</small><b>{Number(request.estimated_weight_kg).toLocaleString("id-ID")} kg</b></span><span><small>Estimasi Kadar</small><b>{request.estimated_value == null ? "—" : Number(request.estimated_value).toLocaleString("id-ID") + " %"}</b></span><span><small>Sudah diterima</small><b>{receivedKg.toLocaleString("id-ID")} kg</b></span><span><small>Harga/kg</small><b>{rupiah(Number(request.price_per_kg))}</b></span></div>
             {request.notes && <p className={styles.note}>{request.notes}</p>}
             {receipts.length > 0 && <div className={styles.receipts}><h4>Riwayat Penerimaan</h4>{receipts.map(receipt => {
@@ -260,6 +264,7 @@ export default function PurchaseManager({ data }: { data: PurchasePageData }) {
                 {payment && <div className={styles.paymentLine}><b>{payment.code} · {rupiah(Number(payment.amount))}</b><span className={payment.status === "Lunas" ? styles.good : styles.pending}>{payment.status}</span></div>}
               </div>;
             })}</div>}
+            </>}
           </article>;
         })}
       </section>}
@@ -271,6 +276,8 @@ export default function PurchaseManager({ data }: { data: PurchasePageData }) {
           const project = request ? lookup(data.projects, request.project_id) : null, docs = data.paymentDocs.filter(d => d.payment_request_id === payment.id);
           return <article className={styles.paymentCard} key={payment.id}>
             <div className={styles.cardTop}><div><span className={styles.code}>{payment.code}</span><span className={payment.status === "Lunas" ? styles.good : styles.pending}>{payment.status}</span><h3>{request?.code ?? "Permintaan"} · {receipt?.code ?? "Penerimaan"}</h3><p>{project?.code} · {project?.name}</p></div><strong className={styles.amount}>{rupiah(Number(payment.amount))}</strong></div>
+            <button type="button" className={styles.detailToggle} aria-expanded={expandedPaymentId === payment.id} onClick={() => setExpandedPaymentId(expandedPaymentId === payment.id ? null : payment.id)}>{expandedPaymentId === payment.id ? "Tutup detail" : "Lihat detail pembayaran"} <span>{expandedPaymentId === payment.id ? "−" : "+"}</span></button>
+            {expandedPaymentId === payment.id && <>
             <div className={styles.facts}>
               <span><small>Estimasi Kadar</small><b>{request?.estimated_value == null ? "Belum tersedia" : Number(request.estimated_value).toLocaleString("id-ID") + " %"}</b></span>
               <span><small>Kadar Aktual Diterima</small><b>{receipt ? Number(receipt.value).toLocaleString("id-ID") + " " + receipt.value_unit : "Belum tersedia"}</b></span>
@@ -285,6 +292,7 @@ export default function PurchaseManager({ data }: { data: PurchasePageData }) {
               </form>
               <button className={styles.primary} type="button" onClick={() => void handlePay(payment.id)} disabled={paymentBusy === payment.id || docs.length === 0}>{paymentBusy === payment.id ? "Memproses..." : "Bayar Lunas"}</button>
             </div>}
+            </>}
           </article>;
         })}
       </section>}
