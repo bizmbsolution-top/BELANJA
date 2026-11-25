@@ -20,6 +20,7 @@ alter table public.purchase_receipts
   add constraint purchase_receipts_rejected_weight_nonnegative check (rejected_weight_kg is null or rejected_weight_kg >= 0),
   add constraint purchase_receipts_weight_split_check check (
     received_weight_kg is null or accepted_weight_kg is null or rejected_weight_kg is null
+    or (accepted_weight_kg = 0 and rejected_weight_kg = 0)
     or abs(received_weight_kg - accepted_weight_kg - rejected_weight_kg) <= 0.0001
   );
 
