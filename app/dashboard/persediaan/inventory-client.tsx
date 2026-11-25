@@ -25,14 +25,14 @@ export default function InventoryClient({warehouses,lots,movements,totalKg,ready
  const activeMoves=selected?movements[selected]??[]:[];
  const grade=active?.grades.find(g=>g.key===selectedGrade)??null;
  const categoryOptions=[...new Set((active?.grades??[]).map(g=>g.category))].sort((a,b)=>a.localeCompare(b));
- const gradeOptions=[...new Map((active?.grades??[]).filter(g=>categoryFilter==="all"||g.category===categoryFilter).map(g=>[g.gradeValue+"|"+g.gradeUnit,{value:g.gradeValue+"|"+g.gradeUnit,label:g.gradeValue+" "+g.gradeUnit}])).values()].sort((a,b)=>a.label.localeCompare(b.label,undefined,{numeric:true}));
+ const gradeOptions=[...new Set((active?.grades??[]).filter(g=>categoryFilter==="all"||g.category===categoryFilter).map(g=>g.gradeValue+"|"+g.gradeUnit))].map(value=>({value,label:value.replace("|"," ")})).sort((a,b)=>a.label.localeCompare(b.label,undefined,{numeric:true}));
  const filteredGrades=(active?.grades??[]).filter(g=>(categoryFilter==="all"||g.category===categoryFilter)&&(gradeFilter==="all"||(g.gradeValue+"|"+g.gradeUnit)===gradeFilter));
  const lot=activeLots.find(l=>l.id===selectedLot)??null;
  const gradeLots=grade?activeLots.filter(l=>l.category===grade.category&&l.gradeValue===grade.gradeValue&&l.gradeUnit===grade.gradeUnit):[];
  const rows=useMemo(()=>activeMoves.filter(m=>(type==="all"||m.type===type)&&(!selectedLot||m.lotId===selectedLot)),[activeMoves,type,selectedLot]);
  const pageSize=12,pageCount=Math.max(1,Math.ceil(rows.length/pageSize)),pageRows=rows.slice(page*pageSize,(page+1)*pageSize);
- const open=(id:string)=>{setSelected(id);setSelectedGrade(null);setSelectedLot(null);setType("all");setPage(0);};
- const backWarehouse=()=>{setSelected(null);setSelectedGrade(null);setSelectedLot(null);setPage(0);};
+ const open=(id:string)=>{setSelected(id);setSelectedGrade(null);setSelectedLot(null);setCategoryFilter("all");setGradeFilter("all");setType("all");setPage(0);};
+ const backWarehouse=()=>{setSelected(null);setSelectedGrade(null);setSelectedLot(null);setCategoryFilter("all");setGradeFilter("all");setPage(0);};
  const backGrade=()=>{setSelectedGrade(null);setSelectedLot(null);setType("all");setPage(0);};
  const openGrade=(key:string)=>{setSelectedGrade(key);setSelectedLot(null);setType("all");setPage(0);};
  const openLot=(id:string)=>{setSelectedLot(id);setType("all");setPage(0);};
