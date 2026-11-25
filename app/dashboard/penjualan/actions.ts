@@ -18,6 +18,7 @@ async function assertScope(userId:string,projectId:string,warehouseIds:string[],
 export async function createSalesDraft(input:{customerId:string;projectId:string;deliveryAddressId:string;salePricePerKg:string;notes:string;allocations:{lotId:string;weightKg:string}[]}):Promise<Result>{
  try{
   const actor=await requireAnyRole(["Sales"]);
+  if(actor.tenantRole !== "superadmin" && actor.activeRole !== "Sales")return{ok:false,error:"Pilih Mode Kerja Sales untuk membuat transaksi."};
   if(!(await canWrite(actor.userId,actor.tenantRole === "superadmin",actor.tenantId)))return{ok:false,error:"Permission transaksi belum diberikan oleh Superadmin perusahaan."};
   if(!uuid(input.customerId)||!uuid(input.projectId)||!uuid(input.deliveryAddressId))return{ok:false,error:"Pilih Pelanggan, Project, dan Alamat Gudang tujuan pengiriman."};
   const price=Number(input.salePricePerKg);if(!Number.isFinite(price)||price<=0)return{ok:false,error:"Harga jual per kg harus lebih besar dari nol."};
@@ -30,7 +31,7 @@ export async function createSalesDraft(input:{customerId:string;projectId:string
   if(error||!lots||lots.length!==lotIds.length)return{ok:false,error:"Data Lot tidak ditemukan."};
   const warehouseIds=[...new Set(lots.map(l=>l.warehouse_id))];
   if(lots.some(l=>l.project_id!==input.projectId))return{ok:false,error:"Semua Lot harus berasal dari Project yang sama."};
-  await assertScope(actor.userId,input.projectId,warehouseIds,actor.tenantRole === "superadmin",actor.roles,actor.tenantId);
+  await assertScope(actor.userId,input.projectId,warehouseIds,actor.tenantRole === "superadmin",actor.activeRole ? [actor.activeRole] : [],actor.tenantId);
   const {data:deliveryAddress,error:addressError}=await admin.from("customer_warehouse_addresses").select("id,customer_id,label,address").eq("tenant_id",actor.tenantId).eq("id",input.deliveryAddressId).eq("customer_id",input.customerId).eq("is_active",true).maybeSingle();
   if(addressError||!deliveryAddress)return{ok:false,error:"Alamat Gudang tidak ditemukan pada Master Pelanggan yang dipilih."};
   const destinationSnapshot=`${deliveryAddress.label} — ${deliveryAddress.address}`;
@@ -47,6 +48,7 @@ export async function createSalesDraft(input:{customerId:string;projectId:string
 export async function confirmSalesDispatch(salesOrderId:string):Promise<Result>{
  try{
   const actor=await requireAnyRole(["Sales","Warehouse"]);
+  if(actor.tenantRole !== "superadmin" && !["Sales","Warehouse"].includes(actor.activeRole ?? ""))return{ok:false,error:"Pilih Mode Kerja Sales atau Warehouse untuk mengonfirmasi barang keluar."};
   if(!uuid(salesOrderId))return{ok:false,error:"Transaksi penjualan tidak valid."};
   if(!(await canWrite(actor.userId,actor.tenantRole === "superadmin",actor.tenantId)))return{ok:false,error:"Permission transaksi belum diberikan oleh Superadmin perusahaan."};
   const admin=createAdminClient();
@@ -71,6 +73,7 @@ export async function finalizeSalesOrder(input:{salesOrderId:string;receivedWeig
  let cleanupTenantId:string|null=null;
  try{
   const actor=await requireAnyRole(["Sales"]);
+  if(actor.tenantRole !== "superadmin" && actor.activeRole !== "Sales")return{ok:false,error:"Pilih Mode Kerja Sales untuk finalisasi penjualan."};
   cleanupTenantId=actor.tenantId;
   if(!uuid(input.salesOrderId))return{ok:false,error:"Transaksi penjualan tidak valid."};
   if(!(await canWrite(actor.userId,actor.tenantRole === "superadmin",actor.tenantId)))return{ok:false,error:"Permission transaksi belum diberikan oleh Superadmin perusahaan."};
