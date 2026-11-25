@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { createPurchaseRequest, recordPurchaseReceipt, uploadPurchasePaymentEvidence, payPurchasePayment } from "./actions";
 import { createSupplier } from "../supplier/actions";
@@ -15,6 +15,7 @@ export type PurchasePageData = { actorRoles: string[]; projects: Lookup[]; suppl
 
 const rupiah = (value: number) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(value);
 const dateLabel = (value: string) => new Date(value + (value.length === 10 ? "T00:00:00" : "")).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" });
+const formatRupiahInput = (value: string) => { const digits = value.replace(/\\D/g, ""); return digits ? new Intl.NumberFormat("id-ID", { maximumFractionDigits: 0 }).format(Number(digits)) : ""; };
 
 export default function PurchaseManager({ data }: { data: PurchasePageData }) {
   const router = useRouter();
@@ -30,6 +31,8 @@ export default function PurchaseManager({ data }: { data: PurchasePageData }) {
   const [supplierId, setSupplierId] = useState("");
   const [supplierSearch, setSupplierSearch] = useState("");
   const [supplierDropdownOpen, setSupplierDropdownOpen] = useState(false);
+  const supplierFieldRef = useRef<HTMLDivElement>(null);
+  const [pricePerKgText, setPricePerKgText] = useState("");
   const [supplierFormOpen, setSupplierFormOpen] = useState(false);
   const [supplierSaving, setSupplierSaving] = useState(false);
   const [supplierFormError, setSupplierFormError] = useState("");
@@ -63,11 +66,11 @@ export default function PurchaseManager({ data }: { data: PurchasePageData }) {
       requestDate: String(form.get("requestDate") ?? ""), projectId: String(form.get("projectId") ?? ""),
       supplierId: String(form.get("supplierId") ?? ""), warehouseId: String(form.get("warehouseId") ?? ""),
       categoryId: String(form.get("categoryId") ?? ""), estimatedWeightKg: String(form.get("estimatedWeightKg") ?? ""),
-      pricePerKg: String(form.get("pricePerKg") ?? ""), notes: String(form.get("notes") ?? ""),
+      pricePerKg: String(form.get("pricePerKg") ?? "").replace(/\\./g, ""), notes: String(form.get("notes") ?? ""),
     });
     setSaving(false);
     if (!result.ok) { setError(result.error); return; }
-    setMessage("Permintaan pembelian berhasil dibuat."); setShowRequest(false); setSelectedProject(""); router.refresh();
+    setMessage("Permintaan pembelian berhasil dibuat."); setShowRequest(false); setSelectedProject(""); setPricePerKgText(""); router.refresh();
   }
 
   async function handleSupplierSubmit() {
@@ -115,7 +118,7 @@ export default function PurchaseManager({ data }: { data: PurchasePageData }) {
     <main className={styles.page}>
       <header className={styles.header}>
         <div><p className={styles.eyebrow}>OPERASIONAL</p><h1>Pembelian</h1><p>Permintaan pembelian, pemeriksaan penerimaan, dan pembayaran berdasarkan barang yang diterima.</p></div>
-        {isProcurement && <button className={styles.primary} type="button" onClick={() => { setError(""); setSupplierId(""); setSupplierSearch(""); setSupplierFormOpen(false); setShowRequest(true); }}>+ Buat Permintaan</button>}
+        {isProcurement && <button className={styles.primary} type="button" onClick={() => { setError(""); setSupplierId(""); setSupplierSearch(""); setSupplierFormOpen(false); setPricePerKgText(""); setShowRequest(true); }}>+ Buat Permintaan</button>}
       </header>
       <section className={styles.metrics}>
         <article><strong>{data.requests.length}</strong><span>Permintaan Pembelian</span></article>
@@ -130,7 +133,7 @@ export default function PurchaseManager({ data }: { data: PurchasePageData }) {
         <form className={styles.form} onSubmit={handleRequestSubmit}>
           <label>Tanggal Permintaan<input name="requestDate" type="date" defaultValue={new Date().toISOString().slice(0,10)} required /></label>
           <label>Project<select name="projectId" value={selectedProject} onChange={e => setSelectedProject(e.target.value)} required><option value="">Pilih Project</option>{data.projects.map(p => <option key={p.id} value={p.id}>{p.code} · {p.name}</option>)}</select></label>
-          <div className={styles.supplierField}>
+          <div className={styles.supplierField} ref={supplierFieldRef}>
             <label htmlFor="purchase-supplier-search">Supplier</label>
             <input type="hidden" name="supplierId" value={supplierId} />
             <input id="purchase-supplier-search" className={styles.supplierSearch} value={supplierSearch} placeholder="Cari nama atau kode supplier..." autoComplete="off" onFocus={e => { setSupplierDropdownOpen(true); e.currentTarget.select(); }} onChange={e => { setSupplierSearch(e.target.value); setSupplierId(""); setSupplierDropdownOpen(true); }} onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); if (filteredSuppliers.length === 1) { const match = filteredSuppliers[0]; setSupplierId(match.id); setSupplierSearch(match.code + " · " + match.name); setSupplierDropdownOpen(false); } } }} required={!supplierId} aria-expanded={supplierDropdownOpen} aria-controls="purchase-supplier-options" />
@@ -154,7 +157,7 @@ export default function PurchaseManager({ data }: { data: PurchasePageData }) {
           <label>Warehouse Tujuan<select name="warehouseId" required defaultValue="" disabled={!selectedProject || warehousesForProject.length===0}><option value="">Pilih Warehouse</option>{warehousesForProject.map(w => <option key={w.id} value={w.id}>{w.code} · {w.name}</option>)}</select>{selectedProject && warehousesForProject.length===0 && <small className={styles.warehouseHint}>Belum ada gudang dari Master Gudang yang dihubungkan ke Project ini. Superadmin perlu mengatur hubungan Project–Gudang di menu Master Gudang.</small>}</label>
           <label>Kategori<select name="categoryId" required defaultValue=""><option value="">Pilih Kategori</option>{data.categories.map(c => <option key={c.id} value={c.id}>{c.code} · {c.name}</option>)}</select></label>
           <label>Estimasi Berat (kg)<input name="estimatedWeightKg" type="number" min="0.001" step="0.001" required placeholder="Contoh: 10000" /></label>
-          <label>Harga Kesepakatan per kg (Rp)<input name="pricePerKg" type="number" min="0.01" step="0.01" required placeholder="Harga per kg" /></label>
+          <label>Harga Kesepakatan per kg (Rp)<input name="pricePerKg" type="text" inputMode="numeric" value={pricePerKgText} onChange={e => setPricePerKgText(formatRupiahInput(e.target.value))} required placeholder="Contoh: 125.000" autoComplete="off" /></label>
           <label className={styles.wide}>Keterangan<textarea name="notes" rows={3} maxLength={1000} placeholder="Keterangan pembelian (opsional)" /></label>
           <div className={styles.actions}><button type="button" className={styles.secondary} onClick={() => setShowRequest(false)}>Batal</button><button type="submit" className={styles.primary} disabled={saving}>{saving ? "Menyimpan..." : "Simpan Permintaan"}</button></div>
         </form>
