@@ -57,6 +57,7 @@ export async function createPurchaseRequest(input: {
 }): Promise<Result> {
   try {
     const actor = await requireAnyRole(["Procurement"]);
+    if (actor.activeRole !== "Procurement" && actor.tenantRole !== "superadmin") return { ok: false, error: "Pilih Mode Kerja Pembelian untuk melakukan tindakan ini." };
     if (!(await hasPermission(actor.userId, "transaction.post_recognition", actor.tenantRole === "superadmin", actor.tenantId))) return { ok: false, error: "Permission transaksi belum diberikan oleh Superadmin perusahaan." };
     if (!/^\d{4}-\d{2}-\d{2}$/.test(input?.requestDate ?? "") || !uuid(input?.projectId ?? "") ||
       !uuid(input?.supplierId ?? "") || !uuid(input?.warehouseId ?? "") || !uuid(input?.categoryId ?? "")) return { ok: false, error: "Lengkapi tanggal, Project, Supplier, Warehouse, dan Kategori." };
@@ -143,7 +144,7 @@ export async function recordPurchaseReceipt(formData: FormData): Promise<Result>
 export async function uploadPurchasePaymentEvidence(paymentRequestId: string, formData: FormData): Promise<Result> {
   try {
     const actor = await requireAnyRole(["Cashier"]);
-    if (actor.roles.includes("Procurement")) return { ok:false,error:"Akun Procurement tidak dapat mengunggah bukti pembayaran. Gunakan akun dengan Role Cashier." };
+    if (actor.activeRole !== "Cashier" && actor.tenantRole !== "superadmin") return { ok:false,error:"Pilih Mode Kerja Kasir untuk mengunggah bukti pembayaran." };
     if (!(await hasPermission(actor.userId,"payment.post",actor.tenantRole === "superadmin",actor.tenantId))) return { ok:false,error:"Permission pembayaran belum diberikan oleh Superadmin perusahaan." };
     if (!uuid(paymentRequestId)) return { ok:false,error:"Pengajuan pembayaran tidak valid." };
     const context = await getPaymentContext(paymentRequestId, actor.tenantId);
@@ -171,7 +172,7 @@ export async function uploadPurchasePaymentEvidence(paymentRequestId: string, fo
 export async function payPurchasePayment(paymentRequestId: string): Promise<Result> {
   try {
     const actor=await requireAnyRole(["Cashier"]);
-    if(actor.roles.includes("Procurement")) return {ok:false,error:"Akun Procurement tidak dapat melakukan pembayaran. Gunakan akun dengan Role Cashier."};
+    if(actor.activeRole !== "Cashier" && actor.tenantRole !== "superadmin") return {ok:false,error:"Pilih Mode Kerja Kasir untuk mengeksekusi pembayaran."};
     if(!(await hasPermission(actor.userId,"payment.post",actor.tenantRole === "superadmin",actor.tenantId))) return {ok:false,error:"Permission pembayaran belum diberikan oleh Superadmin perusahaan."};
     if(!uuid(paymentRequestId)) return {ok:false,error:"Pengajuan pembayaran tidak valid."};
     const context=await getPaymentContext(paymentRequestId, actor.tenantId);
