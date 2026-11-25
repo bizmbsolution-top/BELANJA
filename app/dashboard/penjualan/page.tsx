@@ -24,12 +24,15 @@ export default async function PenjualanPage(){
  const rejectedReceiptIds=new Set((receipts??[]).filter(r=>["Ditolak","Dibatalkan"].includes(r.status)).map(r=>r.id));
  const eligibleLots=(lots??[]).filter(l=>!l.is_problematic&&!l.is_cancelled&&!l.is_returned&&!rejectedReceiptIds.has(l.source_receipt_id));
  const lotIds=eligibleLots.map(l=>l.id);
- const [{data:movements},{data:suppliers},{data:categories}]=await Promise.all([
+ const [{data:movements},{data:suppliers},{data:categories},{data:quarantines}]=await Promise.all([
   lotIds.length?admin.from("inventory_movements").select("lot_id,movement_type,weight_kg").eq("tenant_id", actor.tenantId).in("lot_id",lotIds):Promise.resolve({data:[]}),
   admin.from("suppliers").select("id,name").eq("tenant_id", actor.tenantId),
-  admin.from("purchase_categories").select("id,name").eq("tenant_id", actor.tenantId)
+  admin.from("purchase_categories").select("id,name").eq("tenant_id", actor.tenantId),
+  lotIds.length?admin.from("inventory_lot_quarantines").select("lot_id,quarantined_weight_kg,returned_weight_kg,released_weight_kg").eq("tenant_id",actor.tenantId).in("lot_id",lotIds).eq("status","Active"):Promise.resolve({data:[]})
  ]);
- const available=eligibleLots.map(l=>({...l,available_weight_kg:(movements??[]).filter(m=>m.lot_id===l.id).reduce((sum,m)=>sum+(["issue","transfer_out","sale_dispatch","purchase_return"].includes(m.movement_type)?-1:1)*Number(m.weight_kg),0)})).filter(l=>l.available_weight_kg>0.0001);
+ const quarantineByLot=new Map<string,number>();
+ for(const q of quarantines??[])quarantineByLot.set(q.lot_id,(quarantineByLot.get(q.lot_id)??0)+Math.max(0,Number(q.quarantined_weight_kg)-Number(q.returned_weight_kg)-Number(q.released_weight_kg)));
+ const available=eligibleLots.map(l=>({...l,available_weight_kg:Math.max(0,(movements??[]).filter(m=>m.lot_id===l.id).reduce((sum,m)=>sum+(["issue","transfer_out","sale_dispatch","purchase_return"].includes(m.movement_type)?-1:1)*Number(m.weight_kg),0)-(quarantineByLot.get(l.id)??0))})).filter(l=>l.available_weight_kg>0.0001);
  let orderQuery=admin.from("sales_orders").select("*").eq("tenant_id", actor.tenantId).order("created_at",{ascending:false}).limit(300);
  if(projectIds!==null)orderQuery=orderQuery.in("project_id",projectIds.length?projectIds:["00000000-0000-0000-0000-000000000000"]);
  const {data:orders}=await orderQuery;
