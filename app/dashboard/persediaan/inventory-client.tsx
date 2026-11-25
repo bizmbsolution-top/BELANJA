@@ -1,25 +1,27 @@
 "use client";
 import { useMemo, useState } from "react";
+import Link from "next/link";
+import { quarantineInventoryLot } from "../pembelian/actions";
 import styles from "./inventory.module.css";
 type Grade={key:string;gradeValue:number;gradeUnit:string;category:string;weight:number;readyWeight:number;quarantineWeight:number;unpaidWeight:number;inventoryValue:number;lotCount:number};
 type Warehouse={id:string;code:string;name:string;location:string|null;projectLabel:string;totalKg:number;readyKg:number;quarantineKg:number;unpaidKg:number;inventoryValue:number;gradeCount:number;grades:Grade[]};
-type Lot={id:string;code:string;inboundDate:string;category:string;supplier:string;initialWeight:number;availableWeight:number;gradeValue:number;gradeUnit:string;purchasePricePerKg:number;inventoryValue:number;isProblematic:boolean;problematicReason:string|null;problematicAt:string|null;paymentStatus:string;paidAt:string|null};
+type Lot={id:string;code:string;inboundDate:string;category:string;supplier:string;initialWeight:number;availableWeight:number;normalWeight:number;quarantineWeight:number;gradeValue:number;gradeUnit:string;purchasePricePerKg:number;inventoryValue:number;isProblematic:boolean;problematicReason:string|null;problematicAt:string|null;paymentStatus:string;paidAt:string|null};
 type Movement={id:string;lotId:string|null;type:string;date:string;category:string;weight:number;value:number;valueUnit:string;reason:string|null;reference:string;lotCode:string;gradeValue:number;gradeUnit:string;projectCode:string;projectName:string};
-type Props={warehouses:Warehouse[];lots:Record<string,Lot[]>;movements:Record<string,Movement[]>;totalKg:number;readyKg:number;quarantineKg:number;inventoryValue:number;gradeCount:number;movementCount:number};
+type Props={warehouses:Warehouse[];lots:Record<string,Lot[]>;movements:Record<string,Movement[]>;totalKg:number;readyKg:number;quarantineKg:number;inventoryValue:number;gradeCount:number;movementCount:number;canManageQuarantine:boolean};
 const qty=(n:number)=>Number(n).toLocaleString("id-ID",{maximumFractionDigits:3})+" kg";
 const money=(n:number)=>new Intl.NumberFormat("id-ID",{style:"currency",currency:"IDR",maximumFractionDigits:0}).format(n);
 const date=(s:string)=>new Date(s).toLocaleString("id-ID",{dateStyle:"medium",timeStyle:"short"});
 const day=(s:string)=>new Date(s+"T00:00:00").toLocaleDateString("id-ID",{dateStyle:"medium"});
 const movementLabel:Record<string,string>={receipt:"Penerimaan",issue:"Stok keluar",sale_dispatch:"Penjualan keluar",purchase_return:"Return supplier",transfer_in:"Transfer masuk",transfer_out:"Transfer keluar"};
 const outgoing=(type:string)=>["issue","transfer_out","sale_dispatch","purchase_return"].includes(type);
-export default function InventoryClient({warehouses,lots,movements,totalKg,readyKg,quarantineKg,inventoryValue,gradeCount,movementCount}:Props){
+export default function InventoryClient({warehouses,lots,movements,totalKg,readyKg,quarantineKg,inventoryValue,gradeCount,movementCount,canManageQuarantine}:Props){
  const [selected,setSelected]=useState<string|null>(null);
  const [selectedGrade,setSelectedGrade]=useState<string|null>(null);
  const [selectedLot,setSelectedLot]=useState<string|null>(null);
  const [type,setType]=useState("all");
  const [page,setPage]=useState(0);
  const [categoryFilter,setCategoryFilter]=useState("all");
- const [gradeFilter,setGradeFilter]=useState("all");
+ const [gradeFilter,setGradeFilter]=useState("all");\n const [quarantineBusy,setQuarantineBusy]=useState(false);\n const [actionMessage,setActionMessage]=useState("");
  const active=warehouses.find(w=>w.id===selected)??null;
  const activeLots=selected?lots[selected]??[]:[];
  const activeMoves=selected?movements[selected]??[]:[];
@@ -83,16 +85,16 @@ export default function InventoryClient({warehouses,lots,movements,totalKg,ready
     <div className={styles.sectionHeading}><div><span className={styles.categoryTag}>{grade?.category}</span><h2>Kadar {grade?.gradeValue} {grade?.gradeUnit}</h2><p>{gradeLots.length} Lot · Total saldo {qty(grade?.weight??0)}</p></div><span className={styles.countPill}>Daftar Lot</span></div>
     {gradeLots.length===0?<div className={styles.empty}><p>Tidak ada Lot pada kelompok ini.</p></div>:<div className={styles.lotList}>{gradeLots.map(l=><article className={styles.lotCard} key={l.id}>
      <div className={styles.lotTop}><div><strong>{l.code}</strong><span>{l.supplier} · Diterima {day(l.inboundDate)}</span></div><strong>{qty(l.availableWeight)}</strong></div>
-     <div className={styles.lotStatus}>{l.isProblematic?<span className={styles.quarantineBadge}>Karantina</span>:<span className={styles.readyBadge}>Siap dijual</span>}<span className={styles.unpaidBadge}>{l.paymentStatus}</span><span>Nilai stok {money(l.inventoryValue)}</span></div>
+     <div className={styles.lotStatus}>{l.normalWeight>0?<span className={styles.readyBadge}>Siap dijual {qty(l.normalWeight)}</span>:null}{l.quarantineWeight>0?<span className={styles.quarantineBadge}>Karantina {qty(l.quarantineWeight)}</span>:null}<span className={styles.unpaidBadge}>{l.paymentStatus}</span><span>Nilai stok {money(l.inventoryValue)}</span></div>
      {l.isProblematic&&l.problematicReason&&<p className={styles.reasonText}>Alasan karantina: {l.problematicReason}</p>}
      <button type="button" className={styles.stockCardButton} onClick={()=>openLot(l.id)}>View Detail Lot & Stock Card →</button>
     </article>)}</div>}
    </section>:<section className={styles.section}>
     <div className={styles.sectionHeading}><div><span className={styles.categoryTag}>{lot?.category} · Kadar {lot?.gradeValue} {lot?.gradeUnit}</span><h2>Detail Lot · {lot?.code}</h2><p>{lot?.supplier} · Diterima {lot?day(lot.inboundDate):""}</p></div></div>
     {lot&&<><div className={styles.lotOverview}>
-     <div><span>Saldo fisik tersisa</span><strong>{qty(lot.availableWeight)}</strong></div><div><span>Berat awal diterima</span><strong>{qty(lot.initialWeight)}</strong></div><div><span>Status stok</span><strong>{lot.isProblematic?"Karantina":"Siap dijual"}</strong></div><div><span>Status pembayaran</span><strong>{lot.paymentStatus}</strong></div>
+     <div><span>Saldo fisik tersisa</span><strong>{qty(lot.availableWeight)}</strong></div><div><span>Berat awal diterima</span><strong>{qty(lot.initialWeight)}</strong></div><div><span>Stok normal / siap dijual</span><strong>{qty(lot.normalWeight)}</strong></div><div><span>Stok karantina</span><strong>{qty(lot.quarantineWeight)}</strong></div><div><span>Status pembayaran</span><strong>{lot.paymentStatus}</strong></div>
     </div>
-    {lot.isProblematic&&<p className={styles.reasonText}>Alasan karantina: {lot.problematicReason||"Status penolakan/karantina aktif."}</p>}
+    {lot.isProblematic&&<p className={styles.reasonText}>Alasan karantina: {lot.problematicReason||"Status penolakan/karantina aktif."}</p>}\n    {actionMessage&&<p role="status" className={styles.reasonText}>{actionMessage}</p>}\n    <div style={{display:"flex",gap:10,flexWrap:"wrap",margin:"12px 0"}}>\n     {canManageQuarantine&&lot.normalWeight>0.0001&&<button type="button" className={styles.stockCardButton} disabled={quarantineBusy} onClick={async()=>{const w=window.prompt("Berapa kg yang dimasukkan ke Karantina?");if(w===null)return;const n=Number(w.replace(",","."));if(!Number.isFinite(n)||n<=0||n>lot.normalWeight){setActionMessage("Berat harus lebih besar dari 0 dan tidak melebihi stok normal.");return;}const reason=window.prompt("Alasan Karantina:");if(reason===null)return;if(reason.trim().length<3){setActionMessage("Alasan minimal 3 karakter.");return;}setQuarantineBusy(true);setActionMessage("");const result=await quarantineInventoryLot({lotId:lot.id,weightKg:String(n),reason:reason.trim()});setQuarantineBusy(false);setActionMessage(result.ok?"Kuantitas berhasil dimasukkan ke Karantina.":"Gagal: "+result.error);if(result.ok)window.location.reload();}}>\n      {quarantineBusy?"Memproses…":"Masukkan kuantitas ke Karantina"}\n     </button>}\n     <Link href="/dashboard/retur-pembelian" className={styles.stockCardButton}>Buka Return Pembelian →</Link>\n    </div>
     <div className={styles.milestoneList}><div><b>01</b><span><strong>Barang diterima</strong><small>{day(lot.inboundDate)} · {qty(lot.initialWeight)}</small></span></div>{lot.paidAt&&<div><b>02</b><span><strong>Pembayaran lunas</strong><small>{date(lot.paidAt)}</small></span></div>}{lot.isProblematic&&<div><b>!</b><span><strong>Masuk karantina</strong><small>{lot.problematicAt?date(lot.problematicAt):"Status karantina aktif"} · {lot.problematicReason||"Alasan tidak tersedia"}</small></span></div>}</div>
     <div className={styles.historyHeading}><div><h3>Stock Card / Riwayat Mutasi Lot</h3><span>{rows.length} catatan pergerakan</span></div><select value={type} onChange={e=>{setType(e.target.value);setPage(0);}} aria-label="Filter jenis pergerakan"><option value="all">Semua aktivitas</option><option value="receipt">Penerimaan</option><option value="sale_dispatch">Penjualan keluar</option><option value="purchase_return">Return supplier</option><option value="issue">Stok keluar</option><option value="transfer_in">Transfer masuk</option><option value="transfer_out">Transfer keluar</option></select></div>
     {!rows.length?<div className={styles.empty}><p>Belum ada riwayat mutasi Lot ini.</p></div>:<div className={styles.modalMovements}>{pageRows.map(m=><article className={styles.modalMovement} key={m.id}><div className={styles.movementTop}><span className={outgoing(m.type)?styles.out:styles.in}>{movementLabel[m.type]??"Mutasi"}</span><time>{date(m.date)}</time></div><div className={styles.movementMain}><div><h4>{m.reference||"Mutasi persediaan"}</h4>{m.reason&&<small>Alasan: {m.reason}</small>}</div><strong className={outgoing(m.type)?styles.negative:styles.positive}>{outgoing(m.type)?"−":"+"}{qty(m.weight)}</strong></div></article>)}</div>}
