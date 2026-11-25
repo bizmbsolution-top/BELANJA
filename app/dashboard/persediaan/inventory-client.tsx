@@ -17,11 +17,16 @@ export default function InventoryClient({warehouses,lots,movements,totalKg,ready
  const [selectedGrade,setSelectedGrade]=useState<string|null>(null);
  const [selectedLot,setSelectedLot]=useState<string|null>(null);
  const [type,setType]=useState("all");
- const [page,setPage]=useState(0);\n const [categoryFilter,setCategoryFilter]=useState("all");\n const [gradeFilter,setGradeFilter]=useState("all");
+ const [page,setPage]=useState(0);
+ const [categoryFilter,setCategoryFilter]=useState("all");
+ const [gradeFilter,setGradeFilter]=useState("all");
  const active=warehouses.find(w=>w.id===selected)??null;
  const activeLots=selected?lots[selected]??[]:[];
  const activeMoves=selected?movements[selected]??[]:[];
- const grade=active?.grades.find(g=>g.key===selectedGrade)??null;\n const categoryOptions=[...new Set((active?.grades??[]).map(g=>g.category))].sort((a,b)=>a.localeCompare(b));\n const gradeOptions=[...new Map((active?.grades??[]).filter(g=>categoryFilter==="all"||g.category===categoryFilter).map(g=>[g.gradeValue+"|"+g.gradeUnit,{value:g.gradeValue+"|"+g.gradeUnit,label:g.gradeValue+" "+g.gradeUnit}])).values()].sort((a,b)=>a.label.localeCompare(b.label,undefined,{numeric:true}));\n const filteredGrades=(active?.grades??[]).filter(g=>(categoryFilter==="all"||g.category===categoryFilter)&&(gradeFilter==="all"||(g.gradeValue+"|"+g.gradeUnit)===gradeFilter));
+ const grade=active?.grades.find(g=>g.key===selectedGrade)??null;
+ const categoryOptions=[...new Set((active?.grades??[]).map(g=>g.category))].sort((a,b)=>a.localeCompare(b));
+ const gradeOptions=[...new Map((active?.grades??[]).filter(g=>categoryFilter==="all"||g.category===categoryFilter).map(g=>[g.gradeValue+"|"+g.gradeUnit,{value:g.gradeValue+"|"+g.gradeUnit,label:g.gradeValue+" "+g.gradeUnit}])).values()].sort((a,b)=>a.label.localeCompare(b.label,undefined,{numeric:true}));
+ const filteredGrades=(active?.grades??[]).filter(g=>(categoryFilter==="all"||g.category===categoryFilter)&&(gradeFilter==="all"||(g.gradeValue+"|"+g.gradeUnit)===gradeFilter));
  const lot=activeLots.find(l=>l.id===selectedLot)??null;
  const gradeLots=grade?activeLots.filter(l=>l.category===grade.category&&l.gradeValue===grade.gradeValue&&l.gradeUnit===grade.gradeUnit):[];
  const rows=useMemo(()=>activeMoves.filter(m=>(type==="all"||m.type===type)&&(!selectedLot||m.lotId===selectedLot)),[activeMoves,type,selectedLot]);
