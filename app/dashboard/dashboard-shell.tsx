@@ -39,6 +39,7 @@ const groups: MenuGroup[] = [
     title: "OPERASIONAL",
     items: [
       { label: "Pembelian", href: "/dashboard/pembelian", roles: ["Procurement", "Cashier", "Finance", "Management"] },
+      { label: "Return Pembelian", href: "/dashboard/retur-pembelian", roles: ["Procurement"] },
       { label: "Pengeluaran", href: "/dashboard/pengeluaran", roles: ["Procurement", "Sales", "Cashier", "Finance", "Management"] },
       { label: "Permintaan Dana Kasir", href: "/dashboard/permintaan-penggunaan-dana", roles: ["Cashier", "Finance", "Management"] },
       { label: "Persediaan", href: "/dashboard/persediaan", roles: ["Warehouse", "Management", "Finance", "Cashier", "Sales", "Procurement"] },
