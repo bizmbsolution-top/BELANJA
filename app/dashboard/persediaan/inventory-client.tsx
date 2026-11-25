@@ -46,7 +46,7 @@ export default function InventoryClient({warehouses,lots,movements,totalKg,ready
     <section className={styles.modalSection}><h3>Daftar Lot</h3><p className={styles.footnote}>Setiap Lot menyimpan kadar aktual, status, saldo fisik, dan histori pergerakan sendiri.</p>
      {activeLots.length===0?<div className={styles.empty}><p>Tidak ada Lot aktif.</p></div>:activeLots.map(l=><article className={styles.lotCard} key={l.id}>
       <div className={styles.lotTop}><div><strong>{l.code}</strong><span>{l.category} · {l.supplier} · {day(l.inboundDate)}</span><b className={styles.gradeLabel}>Kadar {l.gradeValue} {l.gradeUnit}</b></div><strong>{qty(l.availableWeight)}</strong></div>
-      <div className={styles.lotStatus}>{l.isProblematic?<span className={styles.quarantineBadge}>Karantina</span>:l.paymentStatus==="Lunas"?<span className={styles.readyBadge}>Siap dijual</span>:<span className={styles.unpaidBadge}>Belum lunas</span>}<span>Nilai stok {money(l.inventoryValue)}</span></div>
+      <div className={styles.lotStatus}>{l.isProblematic?<span className={styles.quarantineBadge}>Karantina</span>:l.paymentStatus==="Lunas"?<span className={styles.readyBadge}>Siap dijual · {l.paymentStatus}</span>}<span>Nilai stok {money(l.inventoryValue)}</span></div>
       {l.isProblematic&&l.problematicReason&&<p className={styles.reasonText}>Keterangan karantina: {l.problematicReason}</p>}
       <button type="button" className={styles.stockCardButton} onClick={()=>stockCard(l.id)}>Buka Stock Card / Milestone →</button>
      </article>)}
