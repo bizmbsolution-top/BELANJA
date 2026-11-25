@@ -59,7 +59,7 @@ export default async function PembelianPage() {
       ? admin.from("purchase_payment_requests").select("*").eq("tenant_id", actor.tenantId).in("receipt_id", receiptIds).order("requested_at", { ascending: false })
       : Promise.resolve({ data: [] }),
     receiptIds.length
-      ? admin.from("inventory_lots").select("id,source_receipt_id,is_problematic,problematic_reason").eq("tenant_id", actor.tenantId).in("source_receipt_id", receiptIds)
+      ? admin.from("inventory_lots").select("id,source_receipt_id,is_problematic,problematic_reason,is_cancelled,cancellation_reason").eq("tenant_id", actor.tenantId).in("source_receipt_id", receiptIds)
       : Promise.resolve({ data: [] }),
   ]);
   const paymentIds = (payments ?? []).map(row => row.id);
