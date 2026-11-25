@@ -20,7 +20,7 @@ export default async function PembelianPage() {
   }
 
   let warehouseIds: string[] | null = null;
-  if (actor.roles.includes("Procurement") && actor.tenantRole !== "superadmin" && !actor.roles.includes("Finance") && !actor.roles.includes("Management")) {
+  if ((actor.roles.includes("Procurement") || actor.roles.includes("Cashier")) && actor.tenantRole !== "superadmin" && !actor.roles.includes("Finance") && !actor.roles.includes("Management")) {
     const { data: scope } = await admin.from("tenant_user_work_scopes").select("scope_mode,resource_ids").eq("tenant_id", actor.tenantId)
       .eq("user_id", actor.userId).eq("dimension", "warehouse").maybeSingle();
     if (!scope) warehouseIds = [];
@@ -44,7 +44,7 @@ export default async function PembelianPage() {
 
   let requestQuery = admin.from("purchase_requests").select("*").eq("tenant_id", actor.tenantId).order("created_at", { ascending: false }).limit(300);
   if (projectIds !== null) requestQuery = requestQuery.in("project_id", projectIds.length ? projectIds : ["00000000-0000-0000-0000-000000000000"]);
-  if (warehouseIds !== null && actor.roles.includes("Procurement")) {
+  if (warehouseIds !== null && (actor.roles.includes("Procurement") || actor.roles.includes("Cashier"))) {
     requestQuery = requestQuery.in("warehouse_id", warehouseIds.length ? warehouseIds : ["00000000-0000-0000-0000-000000000000"]);
   }
   const { data: requests, error: requestError } = await requestQuery;
