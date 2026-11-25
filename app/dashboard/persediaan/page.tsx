@@ -1,138 +1,37 @@
 import { requireAnyRole } from "@/lib/auth/authorization";
 import { createAdminClient } from "@/lib/supabase/admin";
 import InventoryClient from "./inventory-client";
-
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-
-type Movement = {
-  id: string; movement_type: string; receipt_id: string | null; lot_id: string | null; project_id: string;
-  warehouse_id: string; category_id: string; weight_kg: number; value: number; reason: string | null;
-  value_unit: string; created_at: string;
-};
-type Lot = {
-  id: string; code: string; source_receipt_id: string; purchase_request_id: string; is_cancelled: boolean; is_returned: boolean;
-  supplier_id: string; inbound_date: string; project_id: string; warehouse_id: string;
-  category_id: string; initial_weight_kg: number; grade_value: number; grade_unit: string;
-  purchase_price_per_kg: number; total_purchase_cost: number;
-};
-
+type Movement = { id:string; movement_type:string; receipt_id:string|null; lot_id:string|null; project_id:string; warehouse_id:string; category_id:string; weight_kg:number; value:number; value_unit:string; reason:string|null; created_at:string };
+type Lot = { id:string; code:string; source_receipt_id:string; purchase_request_id:string; is_cancelled:boolean; is_returned:boolean; is_problematic:boolean; problematic_reason:string|null; supplier_id:string; inbound_date:string; project_id:string; warehouse_id:string; category_id:string; initial_weight_kg:number; grade_value:number; grade_unit:string; purchase_price_per_kg:number; total_purchase_cost:number };
 export default async function PersediaanPage() {
-  const actor = await requireAnyRole(["Warehouse", "Management", "Finance", "Cashier", "Sales", "Procurement"]);
-  const admin = createAdminClient();
-  const broadAccess = actor.tenantRole === "superadmin" || actor.roles.includes("Management") || actor.roles.includes("Finance");
-  const cashierAccess = actor.roles.includes("Cashier");
-  let warehouseIds: string[] | null = null, projectIds: string[] | null = null;
-
-  if (!broadAccess) {
-    const projectScopePromise = admin.from("tenant_user_work_scopes").select("scope_mode,resource_ids").eq("tenant_id", actor.tenantId).eq("user_id", actor.userId).eq("dimension", "project").maybeSingle();
-    const warehouseScopePromise = cashierAccess
-      ? Promise.resolve({ data: null, error: null })
-      : admin.from("tenant_user_work_scopes").select("scope_mode,resource_ids").eq("tenant_id", actor.tenantId).eq("user_id", actor.userId).eq("dimension", "warehouse").maybeSingle();
-    const [{ data: ws, error: we }, { data: ps, error: pe }] = await Promise.all([warehouseScopePromise, projectScopePromise]);
-    if (pe || !ps) throw new Error("Area kerja Project belum dapat diverifikasi.");
-    projectIds = ps.scope_mode === "all" ? null : ps.scope_mode === "selected" ? ps.resource_ids ?? [] : [];
-    if (!cashierAccess) {
-      if (we || !ws) throw new Error("Area kerja Warehouse belum dapat diverifikasi.");
-      warehouseIds = ws.scope_mode === "all" ? null : ws.scope_mode === "selected" ? ws.resource_ids ?? [] : [];
-    }
-  }
-
-  const [{ data: movements, error }, { data: allWarehouses }, { data: projects }, { data: categories },
-    { data: rawLots, error: lotError }, { data: suppliers }] = await Promise.all([
-    admin.from("inventory_movements").select("id,movement_type,receipt_id,lot_id,project_id,warehouse_id,category_id,weight_kg,value,value_unit,reason,created_at").eq("tenant_id", actor.tenantId).order("created_at", { ascending: false }).limit(5000),
-    admin.from("warehouses").select("id,code,name,location").eq("tenant_id", actor.tenantId).order("name"),
-    admin.from("projects").select("id,code,name").eq("tenant_id", actor.tenantId).order("name"),
-    admin.from("purchase_categories").select("id,name").eq("tenant_id", actor.tenantId).order("name"),
-    admin.from("inventory_lots").select("id,code,source_receipt_id,purchase_request_id,supplier_id,inbound_date,project_id,warehouse_id,category_id,initial_weight_kg,grade_value,grade_unit,purchase_price_per_kg,total_purchase_cost,is_cancelled,is_returned").eq("tenant_id", actor.tenantId).order("inbound_date", { ascending: false }).limit(5000),
-    admin.from("suppliers").select("id,name").eq("tenant_id", actor.tenantId).order("name"),
-  ]);
-  if (error) throw new Error("Data pergerakan persediaan gagal dimuat.");
-  if (lotError) throw new Error("Data Lot persediaan gagal dimuat.");
-
-  const cancelledLotIds = new Set(((rawLots ?? []) as Lot[]).filter(l => l.is_cancelled).map(l => l.id));
-  const visible = ((movements ?? []) as Movement[]).filter(m =>
-    (!m.lot_id || !cancelledLotIds.has(m.lot_id)) &&
-    (warehouseIds === null || warehouseIds.includes(m.warehouse_id)) &&
-    (projectIds === null || projectIds.includes(m.project_id))
-  );
-  const visibleLots = ((rawLots ?? []) as Lot[]).filter(l =>
-    !l.is_cancelled && !l.is_returned &&
-    (warehouseIds === null || warehouseIds.includes(l.warehouse_id)) &&
-    (projectIds === null || projectIds.includes(l.project_id))
-  );
-  const receiptIds = [...new Set(visible.map(m => m.receipt_id).filter((id): id is string => Boolean(id)))];
-  const { data: receipts } = receiptIds.length
-    ? await admin.from("purchase_receipts").select("id,code").eq("tenant_id", actor.tenantId).in("id", receiptIds)
-    : { data: [] };
-  const receiptMap = new Map((receipts ?? []).map(r => [r.id, r.code]));
-  const projectMap = new Map((projects ?? []).map(p => [p.id, p]));
-  const categoryMap = new Map((categories ?? []).map(c => [c.id, c]));
-  const warehouseMap = new Map((allWarehouses ?? []).map(w => [w.id, w]));
-  const supplierMap = new Map((suppliers ?? []).map(s => [s.id, s.name]));
-  const lotMap = new Map(((rawLots ?? []) as Lot[]).filter(l => !l.is_cancelled).map(l => [l.id, l]));
-
-  const balances = new Map<string, { warehouse_id:string; project_id:string; category_id:string; value_unit:string; weight:number; valueWeight:number }>();
-  const lotBalances = new Map<string, number>();
-  for (const m of visible) {
-    const key = [m.warehouse_id,m.project_id,m.category_id,m.value_unit].join("|");
-    const row = balances.get(key) ?? { warehouse_id:m.warehouse_id,project_id:m.project_id,category_id:m.category_id,value_unit:m.value_unit,weight:0,valueWeight:0 };
-    const sign = m.movement_type === "issue" || m.movement_type === "transfer_out" || m.movement_type === "sale_dispatch" || m.movement_type === "purchase_return" ? -1 : 1;
-    const kg = Number(m.weight_kg);
-    row.weight += sign*kg; row.valueWeight += sign*kg*Number(m.value);
-    balances.set(key,row);
-    if (m.lot_id) lotBalances.set(m.lot_id, (lotBalances.get(m.lot_id) ?? 0) + sign*kg);
-  }
-  const warehouseGroups = new Map<string, typeof balances extends Map<string,infer V> ? V[] : never>();
-  for (const row of balances.values()) {
-    if (row.weight <= 0.0001) continue;
-    const group = warehouseGroups.get(row.warehouse_id) ?? [];
-    group.push(row); warehouseGroups.set(row.warehouse_id,group);
-  }
-  const warehouses = [...warehouseGroups.entries()].map(([id,rows]) => {
-    const w = warehouseMap.get(id);
-    const projectLabels = [...new Set(rows.map(r => projectMap.get(r.project_id)).filter((project): project is NonNullable<typeof project> => Boolean(project)).map(project => `${project.code} · ${project.name}`))];
-    const total = rows.reduce((s,r)=>s+r.weight,0);
-    const valueUnits = [...new Set(rows.map(r=>r.value_unit))];
-    const averageValueUnit = valueUnits.length === 1 ? valueUnits[0] : null;
-    const averageValue = averageValueUnit && total > 0
-      ? rows.reduce((sum,r)=>sum+r.valueWeight,0)/total
-      : null;
-    return { id, code:w?.code ?? "GDG", name:w?.name ?? "Gudang", location:w?.location ?? null,
-      projectLabel:projectLabels.join(", "),
-      totalKg:total, averageValue, averageValueUnit,
-      categories: [...rows.reduce((map,r) => { const name=categoryMap.get(r.category_id)?.name ?? "Barang"; const key=name+"|"+r.value_unit; const item=map.get(key) ?? {name,weight:0,valueWeight:0,valueUnit:r.value_unit}; item.weight+=r.weight; item.valueWeight+=r.valueWeight; map.set(key,item); return map; },new Map<string,{name:string;weight:number;valueWeight:number;valueUnit:string}>()).values()].map(r=>({name:r.name,weight:r.weight,averageValue:r.weight?r.valueWeight/r.weight:0,valueUnit:r.valueUnit})).sort((a,b)=>a.name.localeCompare(b.name))
-    };
-  }).sort((a,b)=>a.name.localeCompare(b.name));
-
-  const lotGroups: Record<string, {id:string;code:string;inboundDate:string;category:string;supplier:string;initialWeight:number;availableWeight:number;gradeValue:number;gradeUnit:string;purchasePricePerKg:number;totalPurchaseCost:number}[]> = {};
-  for (const lot of visibleLots) {
-    const availableWeight = Math.max(0, lotBalances.get(lot.id) ?? 0);
-    if (availableWeight <= 0.0001) continue;
-    (lotGroups[lot.warehouse_id] ??= []).push({
-      id:lot.id,code:lot.code,inboundDate:lot.inbound_date,
-      category:categoryMap.get(lot.category_id)?.name ?? "Barang",
-      supplier:supplierMap.get(lot.supplier_id) ?? "Supplier",
-      initialWeight:Number(lot.initial_weight_kg),availableWeight,
-      gradeValue:Number(lot.grade_value),gradeUnit:lot.grade_unit,
-      purchasePricePerKg:Number(lot.purchase_price_per_kg),totalPurchaseCost:Number(lot.total_purchase_cost)
-    });
-  }
-  for (const rows of Object.values(lotGroups)) rows.sort((a,b)=>b.inboundDate.localeCompare(a.inboundDate)||a.code.localeCompare(b.code));
-
-  const movementGroups: Record<string, {id:string;type:string;date:string;category:string;weight:number;value:number;valueUnit:string;reason:string|null;reference:string;lotCode:string;projectCode:string;projectName:string}[]> = {};
-  for (const m of visible) {
-    const p=projectMap.get(m.project_id);
-    const lotCode=m.lot_id ? lotMap.get(m.lot_id)?.code ?? "" : "";
-    const receiptCode=m.receipt_id ? receiptMap.get(m.receipt_id) ?? "" : "";
-    (movementGroups[m.warehouse_id] ??= []).push({
-      id:m.id,type:m.movement_type,date:m.created_at,category:categoryMap.get(m.category_id)?.name ?? "Barang",
-      weight:Number(m.weight_kg),value:Number(m.value),valueUnit:m.value_unit,reason:m.reason,
-      reference:[receiptCode ? `Penerimaan ${receiptCode}` : "",lotCode].filter(Boolean).join(" · "),
-      lotCode,projectCode:p?.code ?? "",projectName:p?.name ?? ""
-    });
-  }
-  const totalKg=warehouses.reduce((s,w)=>s+w.totalKg,0);
-  const categoryCount=new Set(warehouses.flatMap(w=>w.categories.map(c=>c.name))).size;
-  return <InventoryClient warehouses={warehouses} lots={lotGroups} movements={movementGroups} totalKg={totalKg} movementCount={visible.length} categoryCount={categoryCount}/>;
+ const actor=await requireAnyRole(["Warehouse","Management","Finance","Cashier","Sales","Procurement"]);const admin=createAdminClient();
+ const broad=actor.tenantRole==="superadmin"||actor.roles.includes("Management")||actor.roles.includes("Finance"),cashier=actor.roles.includes("Cashier");
+ let warehouseIds:string[]|null=null,projectIds:string[]|null=null;
+ if(!broad){const pp=admin.from("tenant_user_work_scopes").select("scope_mode,resource_ids").eq("tenant_id",actor.tenantId).eq("user_id",actor.userId).eq("dimension","project").maybeSingle();const wp=cashier?Promise.resolve({data:null,error:null}):admin.from("tenant_user_work_scopes").select("scope_mode,resource_ids").eq("tenant_id",actor.tenantId).eq("user_id",actor.userId).eq("dimension","warehouse").maybeSingle();const [{data:ws,error:we},{data:ps,error:pe}]=await Promise.all([wp,pp]);if(pe||!ps)throw new Error("Area kerja Project belum dapat diverifikasi.");projectIds=ps.scope_mode==="all"?null:ps.scope_mode==="selected"?ps.resource_ids??[]:[];if(!cashier){if(we||!ws)throw new Error("Area kerja Warehouse belum dapat diverifikasi.");warehouseIds=ws.scope_mode==="all"?null:ws.scope_mode==="selected"?ws.resource_ids??[]:[];}}
+ const [{data:movements,error},{data:allWarehouses},{data:projects},{data:categories},{data:rawLots,error:lotError},{data:suppliers}]=await Promise.all([
+ admin.from("inventory_movements").select("id,movement_type,receipt_id,lot_id,project_id,warehouse_id,category_id,weight_kg,value,value_unit,reason,created_at").eq("tenant_id",actor.tenantId).order("created_at",{ascending:false}).limit(5000),
+ admin.from("warehouses").select("id,code,name,location").eq("tenant_id",actor.tenantId).order("name"),admin.from("projects").select("id,code,name").eq("tenant_id",actor.tenantId).order("name"),admin.from("purchase_categories").select("id,name").eq("tenant_id",actor.tenantId).order("name"),
+ admin.from("inventory_lots").select("id,code,source_receipt_id,purchase_request_id,supplier_id,inbound_date,project_id,warehouse_id,category_id,initial_weight_kg,grade_value,grade_unit,purchase_price_per_kg,total_purchase_cost,is_cancelled,is_returned,is_problematic,problematic_reason").eq("tenant_id",actor.tenantId).order("inbound_date",{ascending:false}).limit(5000),
+ admin.from("suppliers").select("id,name").eq("tenant_id",actor.tenantId).order("name")]);
+ if(error)throw new Error("Data pergerakan persediaan gagal dimuat.");if(lotError)throw new Error("Data Lot persediaan gagal dimuat.");
+ const scoped=(r:{warehouse_id:string;project_id:string})=>(warehouseIds===null||warehouseIds.includes(r.warehouse_id))&&(projectIds===null||projectIds.includes(r.project_id));
+ const lots=((rawLots??[]) as Lot[]).filter(l=>!l.is_cancelled&&scoped(l)),receiptIds=[...new Set(lots.map(l=>l.source_receipt_id))];
+ const [{data:receipts},{data:payments}]=await Promise.all([receiptIds.length?admin.from("purchase_receipts").select("id,code").eq("tenant_id",actor.tenantId).in("id",receiptIds):Promise.resolve({data:[]}),receiptIds.length?admin.from("purchase_payment_requests").select("receipt_id,status").eq("tenant_id",actor.tenantId).in("receipt_id",receiptIds):Promise.resolve({data:[]})]);
+ const receiptMap=new Map((receipts??[]).map(r=>[r.id,r.code])),paymentMap=new Map((payments??[]).map(p=>[p.receipt_id,p.status])),projectMap=new Map((projects??[]).map(p=>[p.id,p])),categoryMap=new Map((categories??[]).map(c=>[c.id,c])),warehouseMap=new Map((allWarehouses??[]).map(w=>[w.id,w])),supplierMap=new Map((suppliers??[]).map(s=>[s.id,s.name]));
+ const visibleMovements=((movements??[]) as Movement[]).filter(m=>scoped(m)&&(!m.lot_id||!((rawLots??[]) as Lot[]).find(l=>l.id===m.lot_id)?.is_cancelled)),balances=new Map<string,number>();
+ for(const m of visibleMovements){if(!m.lot_id)continue;const sign=["issue","transfer_out","sale_dispatch","purchase_return"].includes(m.movement_type)?-1:1;balances.set(m.lot_id,(balances.get(m.lot_id)??0)+sign*Number(m.weight_kg));}
+ const lotMap=new Map(lots.map(l=>[l.id,l])),whMap=new Map<string,any>(),lotsByWarehouse:Record<string,any[]>={},gradeMap=new Map<string,any>();
+ for(const lot of lots){const balance=Math.max(0,balances.get(lot.id)??0);if(balance<=.0001)continue;const category=categoryMap.get(lot.category_id)?.name??"Barang",paid=paymentMap.get(lot.source_receipt_id)==="Lunas",quarantine=Boolean(lot.is_problematic),ready=paid&&!quarantine&&!lot.is_returned,unpaid=!paid&&!quarantine,price=Number(lot.purchase_price_per_kg||0),stockValue=balance*price,grade=Number(lot.grade_value),unit=lot.grade_unit||"%",key=[lot.warehouse_id,lot.category_id,grade,unit].join("|");
+ const g=gradeMap.get(key)??{key,gradeValue:grade,gradeUnit:unit,category,weight:0,readyWeight:0,quarantineWeight:0,unpaidWeight:0,inventoryValue:0,lotCount:0};g.weight+=balance;g.readyWeight+=ready?balance:0;g.quarantineWeight+=quarantine?balance:0;g.unpaidWeight+=unpaid?balance:0;g.inventoryValue+=stockValue;g.lotCount++;gradeMap.set(key,g);
+ const w=warehouseMap.get(lot.warehouse_id),p=projectMap.get(lot.project_id),wh=whMap.get(lot.warehouse_id)??{id:lot.warehouse_id,code:w?.code??"GDG",name:w?.name??"Gudang",location:w?.location??null,projectLabel:"",totalKg:0,readyKg:0,quarantineKg:0,unpaidKg:0,inventoryValue:0,gradeCount:0,grades:[]};
+ wh.totalKg+=balance;wh.readyKg+=ready?balance:0;wh.quarantineKg+=quarantine?balance:0;wh.unpaidKg+=unpaid?balance:0;wh.inventoryValue+=stockValue;if(p){const labels=new Set(wh.projectLabel?wh.projectLabel.split(", "):[]);labels.add(p.code+" · "+p.name);wh.projectLabel=[...labels].join(", ");}whMap.set(lot.warehouse_id,wh);
+ (lotsByWarehouse[lot.warehouse_id]??=[]).push({id:lot.id,code:lot.code,inboundDate:lot.inbound_date,category,supplier:supplierMap.get(lot.supplier_id)??"Supplier",initialWeight:Number(lot.initial_weight_kg),availableWeight:balance,gradeValue:grade,gradeUnit:unit,purchasePricePerKg:price,inventoryValue:stockValue,isProblematic:quarantine,problematicReason:lot.problematic_reason,paymentStatus:paid?"Lunas":"Belum Lunas"});
+ }
+ for(const [key,g] of gradeMap){const warehouseId=key.split("|")[0],wh=whMap.get(warehouseId);if(wh)wh.grades.push(g);}
+ const warehouses=[...whMap.values()].map(w=>({...w,grades:w.grades.sort((a:any,b:any)=>a.gradeValue-b.gradeValue||a.category.localeCompare(b.category)),gradeCount:w.grades.length})).sort((a,b)=>a.name.localeCompare(b.name));
+ const movementsByWarehouse:Record<string,any[]>={};for(const m of visibleMovements){const p=projectMap.get(m.project_id),lot=m.lot_id?lotMap.get(m.lot_id):null,receiptCode=m.receipt_id?receiptMap.get(m.receipt_id):"";(movementsByWarehouse[m.warehouse_id]??=[]).push({id:m.id,lotId:m.lot_id,type:m.movement_type,date:m.created_at,category:categoryMap.get(m.category_id)?.name??"Barang",weight:Number(m.weight_kg),value:Number(m.value),valueUnit:m.value_unit,reason:m.reason,reference:[receiptCode?("Penerimaan "+receiptCode):"",lot?.code??""].filter(Boolean).join(" · "),lotCode:lot?.code??"",gradeValue:lot?Number(lot.grade_value):Number(m.value),gradeUnit:lot?.grade_unit??m.value_unit,projectCode:p?.code??"",projectName:p?.name??""});}
+ const totalKg=warehouses.reduce((s,w)=>s+w.totalKg,0),readyKg=warehouses.reduce((s,w)=>s+w.readyKg,0),quarantineKg=warehouses.reduce((s,w)=>s+w.quarantineKg,0),inventoryValue=warehouses.reduce((s,w)=>s+w.inventoryValue,0),gradeCount=new Set(warehouses.flatMap(w=>w.grades.map((g:any)=>g.category+"|"+g.gradeValue+"|"+g.gradeUnit))).size;
+ return <InventoryClient warehouses={warehouses} lots={lotsByWarehouse} movements={movementsByWarehouse} totalKg={totalKg} readyKg={readyKg} quarantineKg={quarantineKg} inventoryValue={inventoryValue} gradeCount={gradeCount} movementCount={visibleMovements.length}/>;
 }
