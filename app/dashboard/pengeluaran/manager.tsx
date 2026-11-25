@@ -29,7 +29,7 @@ export default function ExpenseManager({categories,projects,initialItems,balance
 }) {
   const router=useRouter();
   const [showForm,setShowForm]=useState(false),[saving,setSaving]=useState(false);
-  const [message,setMessage]=useState(""),[error,setError]=useState(""),[query,setQuery]=useState(""),[filter,setFilter]=useState("Semua"),[selectedStatus,setSelectedStatus]=useState<Expense["status"]|"">("");
+  const [message,setMessage]=useState(""),[error,setError]=useState(""),[query,setQuery]=useState(""),[filter,setFilter]=useState("Semua"),[selectedStatus,setSelectedStatus]=useState<Expense["status"]|"">(""),[selectedDetailId,setSelectedDetailId]=useState("");
   const [editId,setEditId]=useState(""),[dateValue,setDateValue]=useState(new Date().toLocaleDateString("en-CA"));
   const [projectId,setProjectId]=useState(projects[0]?.id??""),[categoryId,setCategoryId]=useState("");
   const [description,setDescription]=useState(""),[amount,setAmount]=useState("");
@@ -100,7 +100,7 @@ export default function ExpenseManager({categories,projects,initialItems,balance
         ["Menunggu Pembayaran","Menunggu Pembayaran","Menunggu tindakan Kasir"],
         ["Dibayar","Dibayar","Pembayaran selesai"],
         ["Dibatalkan","Dibatalkan","Riwayat pembatalan"]
-      ] as const).map(([status,label,description])=><button type="button" key={status} className={selectedStatus===status?styles.statusWidgetActive:styles.statusWidget} onClick={()=>{setSelectedStatus(status);setFilter("Semua");setQuery("");}}>
+      ] as const).map(([status,label,description])=><button type="button" key={status} className={selectedStatus===status?styles.statusWidgetActive:styles.statusWidget} onClick={()=>{setSelectedStatus(status);setSelectedDetailId("");setFilter("Semua");setQuery("");}}>
         <strong>{initialItems.filter(item=>item.status===status).length}</strong><span>{label}</span><small>{description}</small>
       </button>)}
     </section>
@@ -122,7 +122,7 @@ export default function ExpenseManager({categories,projects,initialItems,balance
     {canPay&&selectedStatus==="Menunggu Pembayaran"&&<section className={styles.panel}><div className={styles.listHead}><div><h2>Antrean Pembayaran Kasir</h2><p>{paymentQueue.length} voucher menunggu penyelesaian · pembayaran harus penuh</p></div></div>
       {!paymentQueue.length?<div className={styles.empty}><h3>Antrean pembayaran kosong</h3><p>Voucher yang sudah disubmit staf akan muncul di sini.</p></div>:<div className={styles.list}>{paymentQueue.map(item=><article className={styles.item} key={item.id}>
         <div className={styles.itemTop}><div><span className={styles.code}>{item.code}</span><span className={styles.pending}>Menunggu Pembayaran</span></div><time>{date(item.expense_date)}</time></div>
-        <div className={styles.itemMain}><div><h3>{item.description}</h3><p>{item.projects?item.projects.code+" · "+item.projects.name:"Project tidak tersedia"} · {item.expense_categories?.name??"Kategori tidak tersedia"}</p></div><strong className={styles.amount}>{money(Number(item.amount))}</strong></div>
+        <div className={styles.itemMain}><div><h3>{item.code} · {item.description}</h3><p>{item.projects?item.projects.code+" · "+item.projects.name:"Project tidak tersedia"} · {item.expense_categories?.name??"Kategori tidak tersedia"}</p></div><strong className={styles.amount}>{money(Number(item.amount))}</strong></div><div className={styles.itemActions}><button type="button" className={styles.primary} onClick={()=>setSelectedDetailId(item.id)}>Lihat Detail Pembayaran</button></div>{selectedDetailId===item.id&&<div className={styles.detailBody}><div className={styles.detailToolbar}><strong>Detail Pembayaran · {item.code}</strong><button type="button" onClick={()=>setSelectedDetailId("")}>Kembali ke Daftar</button></div>
         <section className={styles.settlementPanel}><div className={styles.settlementHeading}><span>SETTLEMENT KASIR</span><strong>Proses pembayaran voucher</strong></div><div className={styles.executeForm}>
           <p>Saldo Project saat ini: <strong>{money(item.project_id?balances[item.project_id]??0:0)}</strong></p>
           <label>Metode Pembayaran<select value={paymentMethods[item.id]??"Transfer"} onChange={e=>setPaymentMethods(v=>({...v,[item.id]:e.target.value}))}><option>Transfer</option><option>Tunai</option></select></label>
@@ -132,12 +132,12 @@ export default function ExpenseManager({categories,projects,initialItems,balance
           </div>}
           <button type="button" className={styles.primary} disabled={busyId===item.id||((paymentMethods[item.id]??"Transfer")==="Transfer"&&!(item.expense_payment_documents?.length))} onClick={()=>makePayment(item)}>{busyId===item.id?"Memproses...":"Konfirmasi Bayar Penuh"}</button>
         </div></section>
-      </article>)}</div>}
+      </div>}</article>)}</div>}
     </section>}
-    {selectedStatus!==""&&!(canPay&&selectedStatus==="Menunggu Pembayaran")&&<section className={styles.panel}><div className={styles.listHead}><div><h2>Daftar Voucher · {selectedStatus}</h2><p>{filtered.length} data ditampilkan · maksimal 300 terbaru</p></div><div className={styles.filters}><input placeholder="Cari kode, Project, keterangan..." value={query} onChange={e=>setQuery(e.target.value)}/><button type="button" onClick={()=>setSelectedStatus("")}>Kembali ke Status</button></div></div>
+    {selectedStatus!==""&&!(canPay&&selectedStatus==="Menunggu Pembayaran")&&<section className={styles.panel}><div className={styles.listHead}><div><h2>{selectedDetailId?"Detail Voucher":"Daftar Voucher · "+selectedStatus}</h2><p>{selectedDetailId?"Rincian dan tindakan voucher":"Pilih kartu untuk melihat detail · "+filtered.length+" data"}</p></div><div className={styles.filters}><input placeholder="Cari kode, Project, keterangan..." value={query} onChange={e=>setQuery(e.target.value)}/><button type="button" onClick={()=>{setSelectedDetailId("");setSelectedStatus("");}}>Kembali ke Status</button></div></div>
       {!filtered.length?<div className={styles.empty}><h3>Belum ada voucher Expenses</h3><p>Voucher baru akan tampil di sini setelah dibuat.</p></div>:<div className={styles.list}>{filtered.map(item=><article className={styles.item} key={item.id}>
         <div className={styles.itemTop}><div><span className={styles.code}>{item.code}</span><span className={item.status==="Dibayar"?styles.active:item.status==="Dibatalkan"?styles.cancelled:styles.pending}>{statusLabel(item.status)}</span></div><time>{date(item.expense_date)}</time></div>
-        <div className={styles.itemMain}><div><h3>{item.description}</h3><p>{item.projects?item.projects.code+" · "+item.projects.name:"Riwayat sebelum alur voucher"} · {item.expense_categories?.name??"Kategori tidak tersedia"}</p></div><strong className={styles.amount}>{money(Number(item.amount))}</strong></div>
+        <div className={styles.itemMain}><div><h3>{item.code} · {item.description}</h3><p>{item.projects?item.projects.code+" · "+item.projects.name:"Riwayat sebelum alur voucher"} · {item.expense_categories?.name??"Kategori tidak tersedia"}</p></div><strong className={styles.amount}>{money(Number(item.amount))}</strong></div><div className={styles.itemActions}><button type="button" className={styles.primary} onClick={()=>setSelectedDetailId(item.id)}>Lihat Detail</button></div>{selectedDetailId===item.id&&<div className={styles.detailBody}><div className={styles.detailToolbar}><strong>Detail {item.code}</strong><button type="button" onClick={()=>setSelectedDetailId("")}>Kembali ke Daftar</button></div>
         {item.status==="Dibayar"&&<p className={styles.note}>Dibayar penuh · {item.paid_method??item.payment_method} · {item.paid_at?dateTime(item.paid_at):"waktu tidak tersedia"}</p>}
         {item.status==="Dibatalkan"&&<p className={styles.cancelNote}>Dibatalkan: {item.cancellation_reason}</p>}
         {item.status==="Dibayar"&&!!item.expense_payment_documents?.length&&<div className={styles.docs}><strong>Bukti Pembayaran ({item.expense_payment_documents.length})</strong><div className={styles.docList}>{item.expense_payment_documents.map(d=><div className={styles.doc} key={d.id}><span className={styles.fileIcon}>{d.mime_type==="application/pdf"?"PDF":"IMG"}</span><span className={styles.fileName}><strong>{d.file_name}</strong><small>{bytes(Number(d.file_size))}</small></span><button type="button" onClick={()=>viewPaymentEvidence(d.id)}>Lihat</button></div>)}</div></div>}
@@ -148,7 +148,7 @@ export default function ExpenseManager({categories,projects,initialItems,balance
         </div>}
         {item.status!=="Draft"&&!!item.expense_documents?.length&&<div className={styles.docs}><strong>Dokumen Pengajuan ({item.expense_documents.length})</strong><div className={styles.docList}>{item.expense_documents.map(d=><div className={styles.doc} key={d.id}><span className={styles.fileIcon}>{d.mime_type==="application/pdf"?"PDF":"IMG"}</span><span className={styles.fileName}><strong>{d.file_name}</strong><small>{bytes(Number(d.file_size))}</small></span><button type="button" onClick={()=>viewDoc(d.id)}>Lihat</button></div>)}</div></div>}
         {canCancel&&(item.status==="Draft"||item.status==="Menunggu Pembayaran")&&<div className={styles.itemActions}>{cancelId===item.id?<form className={styles.cancelForm} onSubmit={e=>cancel(item.id,e)}><label>Alasan pembatalan *<textarea required rows={2} maxLength={500} value={cancelReason} onChange={e=>setCancelReason(e.target.value)}/></label><button className={styles.danger} disabled={busyId===item.id}>Konfirmasi Pembatalan</button><button type="button" onClick={()=>{setCancelId("");setCancelReason("");}}>Kembali</button></form>:<button type="button" className={styles.cancelButton} onClick={()=>setCancelId(item.id)}>Batalkan Voucher</button>}</div>}
-      </article>)}</div>}
+      </div>}</article>)}</div>}
     </section>}
     <p className={styles.note}>Draft dapat diubah. Setelah Submit, voucher terkunci dan menunggu Kasir. Pembayaran harus penuh; saldo tidak cukup berarti pembayaran diblokir. Voucher yang sudah dibayar tidak dapat dibatalkan.</p>
   </main>;
