@@ -40,9 +40,7 @@ export default function ExpenseManager({categories,projects,initialItems,balance
     const match=!q||[item.code,item.description,item.projects?.name,item.expense_categories?.name].some(v=>v?.toLowerCase().includes(q));
     return match&&(selectedStatus ? item.status===selectedStatus : filter==="Semua"||item.status===filter);
   }),[initialItems,query,filter]);
-  const active=initialItems.filter(i=>i.status!=="Dibatalkan");
   const paymentQueue=initialItems.filter(i=>i.status==="Menunggu Pembayaran");
-  const totalPaid=initialItems.filter(i=>i.status==="Dibayar").reduce((s,i)=>s+Number(i.paid_amount??i.amount),0);
   function clearForm(){setEditId("");setDateValue(new Date().toLocaleDateString("en-CA"));setProjectId(projects[0]?.id??"");setCategoryId("");setDescription("");setAmount("");}
   function startEdit(item:Expense){setEditId(item.id);setDateValue(item.expense_date);setProjectId(item.project_id??"");setCategoryId(item.expense_category_id);setDescription(item.description);setAmount(formatAmount(String(item.amount)));setShowForm(true);setError("");}
   async function saveDraft(e:FormEvent<HTMLFormElement>){
@@ -93,7 +91,7 @@ export default function ExpenseManager({categories,projects,initialItems,balance
     if(!result.ok){setError(result.error);return;}setMessage("Dokumen berhasil dihapus.");router.refresh();
   }
   return <main className={styles.page}>
-    <header className={styles.header}><div><p className={styles.eyebrow}>KAS & OPERASIONAL</p><h1>Pengeluaran / Expenses</h1><p>Staf membuat voucher. Kasir memeriksa dan membayar dari saldo Project.</p></div>
+    <header className={styles.header}><div><p className={styles.eyebrow}>KAS & OPERASIONAL</p><h1>Pengeluaran</h1><p>Pengajuan voucher, pemeriksaan, dan pembayaran berdasarkan Project.</p></div>
       {canCreate&&<button className={styles.primary} type="button" onClick={()=>{setShowForm(v=>!v);if(showForm)clearForm();setError("");}}>{showForm?"Tutup Form":"+ Buat Voucher Expenses"}</button>}
     </header>
     <section className={styles.statusGrid} aria-label="Status voucher">
