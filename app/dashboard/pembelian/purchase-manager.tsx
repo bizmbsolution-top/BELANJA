@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { createPurchaseRequest, recordPurchaseReceipt, uploadPurchasePaymentEvidence, payPurchasePayment } from "./actions";
+import { createPurchaseRequest, recordPurchaseReceipt, uploadPurchasePaymentEvidence, payPurchasePayment, setInventoryLotProblemStatus } from "./actions";
 import { createSupplier } from "../supplier/actions";
 import styles from "./purchase.module.css";
 
@@ -10,8 +10,9 @@ type Lookup = { id: string; code: string; name: string };
 type RequestRow = { id: string; code: string; request_date: string; project_id: string; supplier_id: string; warehouse_id: string; category_id: string; estimated_weight_kg: number; estimated_value: number | null; price_per_kg: number; notes: string | null; status: string; created_at: string };
 type ReceiptRow = { id: string; code: string; purchase_request_id: string; receipt_date: string; value: number; value_unit: string; weight: number; weight_unit: string; notes: string | null; status: string; decision_reason: string | null; completed_at: string | null };
 type PaymentRow = { id: string; code: string; receipt_id: string; amount: number; status: string; requested_at: string; paid_at: string | null; payment_method: string | null };
+type LotRow = { id: string; source_receipt_id: string; is_problematic: boolean; problematic_reason: string | null };
 type DocRow = { id: string; receipt_id?: string; payment_request_id?: string; evidence_type?: string; file_name: string; signed_url: string | null };
-export type PurchasePageData = { actorRoles: string[]; projects: Lookup[]; suppliers: Lookup[]; categories: Lookup[]; warehouses: Lookup[]; requests: RequestRow[]; receipts: ReceiptRow[]; payments: PaymentRow[]; receiptDocs: DocRow[]; paymentDocs: DocRow[]; warehouseProjects: { warehouse_id: string; project_id: string }[] };
+export type PurchasePageData = { actorRoles: string[]; projects: Lookup[]; suppliers: Lookup[]; categories: Lookup[]; warehouses: Lookup[]; requests: RequestRow[]; receipts: ReceiptRow[]; payments: PaymentRow[]; lots: LotRow[]; receiptDocs: DocRow[]; paymentDocs: DocRow[]; warehouseProjects: { warehouse_id: string; project_id: string }[] };
 
 const rupiah = (value: number) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(value);
 const dateLabel = (value: string) => new Date(value + (value.length === 10 ? "T00:00:00" : "")).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" });
@@ -38,6 +39,7 @@ export default function PurchaseManager({ data }: { data: PurchasePageData }) {
   const [error, setError] = useState("");
   const [selectedProject, setSelectedProject] = useState("");
   const [paymentBusy, setPaymentBusy] = useState<string | null>(null);
+  const [lotStatusBusy, setLotStatusBusy] = useState<string | null>(null);
   const [supplierId, setSupplierId] = useState("");
   const [supplierSearch, setSupplierSearch] = useState("");
   const [supplierDropdownOpen, setSupplierDropdownOpen] = useState(false);
@@ -156,6 +158,18 @@ export default function PurchaseManager({ data }: { data: PurchasePageData }) {
     setMessage("Pembayaran berhasil dicatat dan saldo Project diperbarui."); router.refresh();
   }
 
+  async function handleLotProblemStatus(lotId: string, isProblematic: boolean) {
+    const reason = window.prompt(isProblematic ? "Alasan menandai Purchase Lot sebagai Bermasalah:" : "Alasan pemulihan Purchase Lot menjadi Normal:");
+    if (reason === null) return;
+    if (reason.trim().length < 3) { setError("Alasan wajib diisi minimal 3 karakter."); return; }
+    setLotStatusBusy(lotId); setError(""); setMessage("");
+    const result = await setInventoryLotProblemStatus({ lotId, isProblematic, reason: reason.trim() });
+    setLotStatusBusy(null);
+    if (!result.ok) { setError(result.error); return; }
+    setMessage(isProblematic ? "Purchase Lot ditandai Bermasalah dan dikeluarkan dari listing Penjualan." : "Purchase Lot dipulihkan menjadi Normal dan dapat muncul kembali di listing Penjualan jika memenuhi syarat.");
+    router.refresh();
+  }
+
   function lookup(list: Lookup[], id: string) { return list.find(item => item.id === id); }
 
   return (
@@ -260,11 +274,19 @@ export default function PurchaseManager({ data }: { data: PurchasePageData }) {
             {request.notes && <p className={styles.note}>{request.notes}</p>}
             {receipts.length > 0 && <div className={styles.receipts}><h4>Riwayat Penerimaan</h4>{receipts.map(receipt => {
               const docs = data.receiptDocs.filter(d => d.receipt_id === receipt.id), payment = data.payments.find(p => p.receipt_id === receipt.id);
+              const lot = data.lots.find(l => l.source_receipt_id === receipt.id);
               return <div className={styles.receiptRow} key={receipt.id}>
                 <div><b>{receipt.code}</b><small>{dateLabel(receipt.receipt_date)} · {Number(receipt.weight).toLocaleString("id-ID")} {receipt.weight_unit} · Value {Number(receipt.value).toLocaleString("id-ID")} {receipt.value_unit}</small><span className={receipt.status === "Diterima" ? styles.good : receipt.status === "Ditolak" ? styles.bad : styles.pending}>{receipt.status}</span></div>
                 <div className={styles.docLinks}>{docs.map(doc => doc.signed_url && <a key={doc.id} href={doc.signed_url} target="_blank" rel="noreferrer">{doc.evidence_type === "weight" ? "Foto Timbangan" : "Foto Pengukuran"}: {doc.file_name}</a>)}</div>
                 {receipt.decision_reason && <small className={styles.note}>Alasan: {receipt.decision_reason}</small>}
                 {payment && <div className={styles.paymentLine}><b>{payment.code} · {rupiah(Number(payment.amount))}</b><span className={payment.status === "Lunas" ? styles.good : styles.pending}>{payment.status}</span></div>}
+                {payment?.status === "Lunas" && lot && <div className={styles.paymentLine}>
+                  <span className={lot.is_problematic ? styles.bad : styles.good}>{lot.is_problematic ? "Bermasalah" : "Normal"}</span>
+                  {isProcurement && <button type="button" className={styles.secondary} disabled={lotStatusBusy === lot.id} onClick={() => void handleLotProblemStatus(lot.id, !lot.is_problematic)}>
+                    {lotStatusBusy === lot.id ? "Memproses..." : lot.is_problematic ? "Pulihkan ke Normal" : "Tandai Bermasalah"}
+                  </button>}
+                  {lot.is_problematic && lot.problematic_reason && <small className={styles.note}>Alasan: {lot.problematic_reason}</small>}
+                </div>}
               </div>;
             })}</div>}
             </>}
