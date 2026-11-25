@@ -111,6 +111,6 @@ export default function InventoryClient({warehouses,lots,movements,totalKg,ready
     </>}
    </section>}
   </div>}
-  <p className={styles.footnote}>Saldo dihitung per Lot berdasarkan seluruh mutasi. Barang Reject/Ditolak tetap tercatat sebagai stok fisik, tetapi masuk Karantina dan tidak dapat dipilih pada Penjualan. Status pembayaran ditampilkan terpisah dari kelayakan penjualan.</p>
+  <p className={styles.footnote}>Saldo dihitung per Lot berdasarkan seluruh mutasi. Barang yang sudah diterima lalu dinyatakan bermasalah dipisahkan ke Karantina dan tidak dapat dipilih pada Penjualan. Barang yang ditolak saat pemeriksaan penerimaan tidak menjadi stok Lot. Status pembayaran ditampilkan terpisah dari kelayakan penjualan.</p>
  </main>;
 }
