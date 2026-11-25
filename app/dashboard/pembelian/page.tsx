@@ -67,7 +67,7 @@ export default async function PembelianPage() {
     ? await admin.from("inventory_movements").select("lot_id,weight_kg").eq("tenant_id", actor.tenantId).eq("movement_type", "purchase_return").in("lot_id", lotIds)
     : { data: [] };
   const returnedByLot = new Map<string, number>();
-  for (const movement of returnMovements ?? []) returnedByLot.set(movement.lot_id, (returnedByLot.get(movement.lot_id) ?? 0) + Number(movement.weight_kg));
+  for (const movement of returnMovements ?? []) { if (!movement.lot_id) continue; returnedByLot.set(movement.lot_id, (returnedByLot.get(movement.lot_id) ?? 0) + Number(movement.weight_kg)); }
 
   const paymentIds = (payments ?? []).map(row => row.id);
   const [{ data: receiptDocs }, { data: paymentDocs }] = await Promise.all([
