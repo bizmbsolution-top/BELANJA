@@ -10,7 +10,7 @@ type Lookup = { id: string; code: string; name: string };
 type RequestRow = { id: string; code: string; request_date: string; project_id: string; supplier_id: string; warehouse_id: string; category_id: string; estimated_weight_kg: number; estimated_value: number | null; price_per_kg: number; notes: string | null; status: string; created_at: string };
 type ReceiptRow = { id: string; code: string; purchase_request_id: string; receipt_date: string; value: number; value_unit: string; weight: number; weight_unit: string; notes: string | null; status: string; decision_reason: string | null; completed_at: string | null };
 type PaymentRow = { id: string; code: string; receipt_id: string; amount: number; status: string; requested_at: string; paid_at: string | null; payment_method: string | null };
-type LotRow = { id: string; source_receipt_id: string; is_problematic: boolean; problematic_reason: string | null; is_cancelled: boolean; cancellation_reason: string | null; is_returned: boolean };
+type LotRow = { id: string; source_receipt_id: string; is_problematic: boolean; problematic_reason: string | null; is_cancelled: boolean; cancellation_reason: string | null; is_returned: boolean; returned_weight_kg: number };
 type DocRow = { id: string; receipt_id?: string; payment_request_id?: string; evidence_type?: string; file_name: string; signed_url: string | null };
 export type PurchasePageData = { actorRoles: string[]; projects: Lookup[]; suppliers: Lookup[]; categories: Lookup[]; warehouses: Lookup[]; requests: RequestRow[]; receipts: ReceiptRow[]; payments: PaymentRow[]; lots: LotRow[]; receiptDocs: DocRow[]; paymentDocs: DocRow[]; warehouseProjects: { warehouse_id: string; project_id: string }[] };
 
@@ -333,7 +333,7 @@ export default function PurchaseManager({ data }: { data: PurchasePageData }) {
               {isProcurement && !lot.is_returned && <button type="button" className={styles.secondary} disabled={paymentBusy === lot.id} onClick={() => void handleReturnPurchaseLot(lot.id)}>
                 {paymentBusy === lot.id ? "Memproses..." : "Return ke Supplier"}
               </button>}
-              {lot.is_returned && <span className={styles.bad}>Return seluruhnya</span>}
+              {Number(lot.returned_weight_kg) > 0 && <span className={styles.bad}>{lot.is_returned ? "Return seluruhnya" : `Return sebagian · ${Number(lot.returned_weight_kg).toLocaleString("id-ID")} kg`}</span>}
               {lot.is_problematic && lot.problematic_reason && <small className={styles.note}>Alasan: {lot.problematic_reason}</small>}
             </div>}
             <div className={styles.cardQuickFacts}><span><small>Berat Aktual</small><b>{receipt ? (Number(receipt.weight) * (receipt.weight_unit === "ton" ? 1000 : 1)).toLocaleString("id-ID") + " kg" : "—"}</b></span><span><small>Kadar Aktual</small><b>{receipt ? Number(receipt.value).toLocaleString("id-ID") + " " + receipt.value_unit : "—"}</b></span><span><small>Estimasi Kadar</small><b>{request?.estimated_value == null ? "—" : Number(request.estimated_value).toLocaleString("id-ID") + " %"}</b></span></div>
