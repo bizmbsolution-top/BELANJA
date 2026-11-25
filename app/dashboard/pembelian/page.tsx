@@ -62,6 +62,13 @@ export default async function PembelianPage() {
       ? admin.from("inventory_lots").select("id,source_receipt_id,is_problematic,problematic_reason,is_cancelled,cancellation_reason,is_returned").eq("tenant_id", actor.tenantId).in("source_receipt_id", receiptIds)
       : Promise.resolve({ data: [] }),
   ]);
+  const lotIds = (lots ?? []).map(row => row.id);
+  const { data: returnMovements } = lotIds.length
+    ? await admin.from("inventory_movements").select("lot_id,weight_kg").eq("tenant_id", actor.tenantId).eq("movement_type", "purchase_return").in("lot_id", lotIds)
+    : { data: [] };
+  const returnedByLot = new Map<string, number>();
+  for (const movement of returnMovements ?? []) returnedByLot.set(movement.lot_id, (returnedByLot.get(movement.lot_id) ?? 0) + Number(movement.weight_kg));
+
   const paymentIds = (payments ?? []).map(row => row.id);
   const [{ data: receiptDocs }, { data: paymentDocs }] = await Promise.all([
     receiptIds.length ? admin.from("purchase_receipt_documents").select("*").eq("tenant_id", actor.tenantId).in("receipt_id", receiptIds) : Promise.resolve({ data: [] }),
@@ -79,7 +86,7 @@ export default async function PembelianPage() {
   const data: PurchasePageData = {
     actorRoles: actor.tenantRole === "superadmin" ? ["Superadmin"] : actor.activeRole ? [actor.activeRole] : [],
     projects: scopedProjects, suppliers: suppliers ?? [], categories: categories ?? [], warehouses: scopedWarehouses,
-    requests: requests ?? [], receipts: receipts ?? [], payments: payments ?? [], lots: lots ?? [],
+    requests: requests ?? [], receipts: receipts ?? [], payments: payments ?? [], lots: (lots ?? []).map(lot => ({ ...lot, returned_weight_kg: returnedByLot.get(lot.id) ?? 0 })),
     receiptDocs: signedReceiptDocs, paymentDocs: signedPaymentDocs, warehouseProjects: mappings ?? [],
   };
   return <PurchaseManager data={data} />;
