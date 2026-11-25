@@ -274,14 +274,15 @@ export default function PurchaseManager({ data }: { data: PurchasePageData }) {
           <label>Tanggal Penerimaan<input name="receiptDate" type="date" defaultValue={new Date().toISOString().slice(0,10)} required /></label>
           <label>Value<input name="value" type="number" min="0" step="0.0001" required placeholder="Contoh: 72.5" /></label>
           <label>Satuan Value<input name="valueUnit" defaultValue="%" maxLength={20} required /></label>
-          <label>Berat<input name="weight" type="number" min="0.001" step="0.001" required placeholder="Berat aktual" /></label>
+          <label>Berat Aktual Datang<input name="weight" type="number" min="0.001" step="0.001" required placeholder="Total berat saat ditimbang" /></label>
           <label>Satuan Berat<select name="weightUnit" defaultValue="kg"><option value="kg">kg</option><option value="ton">ton</option></select></label>
           <label className={styles.wide}>Keterangan<textarea name="notes" rows={2} maxLength={1000} placeholder="Keterangan hasil pemeriksaan" /></label>
           <label className={styles.wide}>Foto Timbangan <small>Wajib · JPG, PNG, WEBP · maksimal 10 MB per foto</small><input name="weightFiles" type="file" accept="image/jpeg,image/png,image/webp" multiple required /></label>
           <label className={styles.wide}>Foto Hasil Pengukuran <small>Wajib · JPG, PNG, WEBP · maksimal 10 MB per foto</small><input name="valueFiles" type="file" accept="image/jpeg,image/png,image/webp" multiple required /></label>
-          <label>Keputusan<select name="decision" defaultValue="Diterima"><option value="Diterima">Diterima — memenuhi standar</option><option value="Ditolak">Ditolak — tidak memenuhi standar</option></select></label>
-          <label>Alasan Penolakan<textarea name="reason" rows={2} maxLength={1000} placeholder="Wajib jika ditolak" /></label>
-          <p className={styles.notice}>Penerimaan yang diselesaikan tidak dapat diedit. Jika diterima, stok bertambah dan pengajuan pembayaran dibuat berdasarkan berat aktual.</p>
+          <label>Berat Diterima<input name="acceptedWeight" type="number" min="0" step="0.001" defaultValue="0" required placeholder="Berat yang masuk stok" /></label>
+          <label>Berat Ditolak<input name="rejectedWeight" type="number" min="0" step="0.001" defaultValue="0" required placeholder="Berat yang tidak masuk stok" /></label>
+          <label className={styles.wide}>Alasan Penolakan<textarea name="reason" rows={2} maxLength={1000} placeholder="Wajib jika ada berat ditolak" /></label>
+          <p className={styles.notice}>Jumlah Berat Diterima + Berat Ditolak harus sama dengan Berat Aktual Datang. Hanya Berat Diterima yang menjadi stok dan dasar pengajuan pembayaran. Barang yang ditolak dicatat dalam riwayat penerimaan dan tidak masuk Karantina.</p>
           <div className={styles.actions}><button type="button" className={styles.secondary} onClick={() => setReceiptFor(null)}>Batal</button><button type="submit" className={styles.primary} disabled={saving}>{saving ? "Menyimpan..." : "Selesaikan Penerimaan"}</button></div>
         </form>
       </section>}
