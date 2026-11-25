@@ -18,3 +18,11 @@
 :global([data-theme="dark"]) .filterPanel input,:global([data-theme="dark"]) .filterPanel select{background:#1c2b42;border-color:#43536c;color:#e5edf8}
 @media(max-width:900px){.filterPanel{grid-template-columns:repeat(2,minmax(0,1fr))}.filterPanel>input{grid-column:1/-1}.filterPanel>button{grid-column:1/-1}}
 @media(max-width:520px){.statusTile{padding:13px;min-height:106px}.statusTile strong{font-size:22px}.statusTile span{font-size:12px}.filterPanel{grid-template-columns:1fr}.filterPanel>input,.filterPanel>button{grid-column:auto}}
+
+.cardQuickFacts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin-top:13px;padding:11px;border-radius:10px;background:#f6f8fb}
+.cardQuickFacts span{display:grid;gap:4px;min-width:0}
+.cardQuickFacts small{font-size:10px;color:var(--muted,#62718a)}
+.cardQuickFacts b{font-size:12px;overflow-wrap:anywhere}
+:global([data-theme="dark"]) .cardQuickFacts{background:#1c2b42}
+:global([data-theme="dark"]) .cardQuickFacts small{color:#aab8cc}
+@media(max-width:520px){.cardQuickFacts{gap:6px;padding:9px}.cardQuickFacts b{font-size:11px}}
