@@ -274,19 +274,11 @@ export default function PurchaseManager({ data }: { data: PurchasePageData }) {
             {request.notes && <p className={styles.note}>{request.notes}</p>}
             {receipts.length > 0 && <div className={styles.receipts}><h4>Riwayat Penerimaan</h4>{receipts.map(receipt => {
               const docs = data.receiptDocs.filter(d => d.receipt_id === receipt.id), payment = data.payments.find(p => p.receipt_id === receipt.id);
-              const lot = data.lots.find(l => l.source_receipt_id === receipt.id);
               return <div className={styles.receiptRow} key={receipt.id}>
                 <div><b>{receipt.code}</b><small>{dateLabel(receipt.receipt_date)} · {Number(receipt.weight).toLocaleString("id-ID")} {receipt.weight_unit} · Value {Number(receipt.value).toLocaleString("id-ID")} {receipt.value_unit}</small><span className={receipt.status === "Diterima" ? styles.good : receipt.status === "Ditolak" ? styles.bad : styles.pending}>{receipt.status}</span></div>
                 <div className={styles.docLinks}>{docs.map(doc => doc.signed_url && <a key={doc.id} href={doc.signed_url} target="_blank" rel="noreferrer">{doc.evidence_type === "weight" ? "Foto Timbangan" : "Foto Pengukuran"}: {doc.file_name}</a>)}</div>
                 {receipt.decision_reason && <small className={styles.note}>Alasan: {receipt.decision_reason}</small>}
                 {payment && <div className={styles.paymentLine}><b>{payment.code} · {rupiah(Number(payment.amount))}</b><span className={payment.status === "Lunas" ? styles.good : styles.pending}>{payment.status}</span></div>}
-                {payment?.status === "Lunas" && lot && <div className={styles.paymentLine}>
-                  <span className={lot.is_problematic ? styles.bad : styles.good}>{lot.is_problematic ? "Bermasalah" : "Normal"}</span>
-                  {isProcurement && <button type="button" className={styles.secondary} disabled={lotStatusBusy === lot.id} onClick={() => void handleLotProblemStatus(lot.id, !lot.is_problematic)}>
-                    {lotStatusBusy === lot.id ? "Memproses..." : lot.is_problematic ? "Pulihkan ke Normal" : "Tandai Bermasalah"}
-                  </button>}
-                  {lot.is_problematic && lot.problematic_reason && <small className={styles.note}>Alasan: {lot.problematic_reason}</small>}
-                </div>}
               </div>;
             })}</div>}
             </>}
@@ -302,8 +294,16 @@ export default function PurchaseManager({ data }: { data: PurchasePageData }) {
           const supplier = request ? lookup(data.suppliers, request.supplier_id) : null;
           const warehouse = request ? lookup(data.warehouses, request.warehouse_id) : null;
           const docs = data.paymentDocs.filter(d => d.payment_request_id === payment.id);
+          const lot = receipt ? data.lots.find(l => l.source_receipt_id === receipt.id) : null;
           return <article className={styles.paymentCard} key={payment.id}>
             <div className={styles.cardTop}><div><span className={styles.code}>{payment.code}</span><span className={payment.status === "Lunas" ? styles.good : styles.pending}>{payment.status}</span><h3>{request?.code ?? "Permintaan"} · {receipt?.code ?? "Penerimaan"}</h3><p>{supplier?.name ?? "Supplier"} · {warehouse?.name ?? "Gudang"} · {project?.code} {project?.name}</p></div><strong className={styles.amount}>{rupiah(Number(payment.amount))}</strong></div>
+            {payment.status === "Lunas" && lot && <div className={styles.paymentLine}>
+              {lot.is_problematic && <span className={styles.bad}>Bermasalah</span>}
+              {isProcurement && <button type="button" className={styles.secondary} disabled={lotStatusBusy === lot.id} onClick={() => void handleLotProblemStatus(lot.id, !lot.is_problematic)}>
+                {lotStatusBusy === lot.id ? "Memproses..." : lot.is_problematic ? "Pulihkan ke Normal" : "Tandai Bermasalah"}
+              </button>}
+              {lot.is_problematic && lot.problematic_reason && <small className={styles.note}>Alasan: {lot.problematic_reason}</small>}
+            </div>}
             <div className={styles.cardQuickFacts}><span><small>Berat Aktual</small><b>{receipt ? (Number(receipt.weight) * (receipt.weight_unit === "ton" ? 1000 : 1)).toLocaleString("id-ID") + " kg" : "—"}</b></span><span><small>Kadar Aktual</small><b>{receipt ? Number(receipt.value).toLocaleString("id-ID") + " " + receipt.value_unit : "—"}</b></span><span><small>Estimasi Kadar</small><b>{request?.estimated_value == null ? "—" : Number(request.estimated_value).toLocaleString("id-ID") + " %"}</b></span></div>
             <button type="button" className={styles.detailToggle} aria-expanded={expandedPaymentId === payment.id} onClick={() => { const next = selectedPaymentId === payment.id ? null : payment.id; setSelectedPaymentId(next); setExpandedPaymentId(next); }}>{selectedPaymentId === payment.id ? "Kembali ke Daftar" : "Lihat Detail Pembayaran"} <span>{expandedPaymentId === payment.id ? "−" : "+"}</span></button>
             {expandedPaymentId === payment.id && <>
