@@ -275,3 +275,45 @@ export async function cancelReceivedPurchase(paymentRequestId: string, reason: s
     return { ok: false, error: error instanceof Error ? error.message : "Pembatalan penerimaan gagal." };
   }
 }
+
+
+export async function returnPurchaseLot(input: { lotId: string; weightKg: string; reason: string }): Promise<Result> {
+  try {
+    const actor = await requireAnyRole(["Procurement"]);
+    if (actor.tenantRole !== "superadmin" && actor.activeRole !== "Procurement") {
+      return { ok: false, error: "Pilih Mode Kerja Pembelian untuk melakukan Return." };
+    }
+    if (!(await hasPermission(actor.userId, "transaction.post_recognition", actor.tenantRole === "superadmin", actor.tenantId))) {
+      return { ok: false, error: "Permission Pembelian belum diberikan oleh Superadmin perusahaan." };
+    }
+    const weight = Number(input?.weightKg);
+    if (!uuid(input?.lotId ?? "") || !Number.isFinite(weight) || weight <= 0 ||
+      typeof input?.reason !== "string" || input.reason.trim().length < 3 || input.reason.trim().length > 1000) {
+      return { ok: false, error: "Lot, berat Return, dan alasan wajib diisi dengan benar." };
+    }
+    const admin = createAdminClient();
+    const { data: lot, error } = await admin.from("inventory_lots")
+      .select("id,project_id,warehouse_id,source_receipt_id,is_cancelled,is_returned")
+      .eq("tenant_id", actor.tenantId).eq("id", input.lotId).maybeSingle();
+    if (error || !lot || lot.is_cancelled || lot.is_returned) {
+      return { ok: false, error: "Purchase Lot tidak tersedia untuk Return." };
+    }
+    const { data: payment, error: paymentError } = await admin.from("purchase_payment_requests")
+      .select("id,status").eq("tenant_id", actor.tenantId).eq("receipt_id", lot.source_receipt_id).maybeSingle();
+    if (paymentError || payment?.status !== "Lunas") {
+      return { ok: false, error: "Return hanya dapat dilakukan setelah pembayaran lunas." };
+    }
+    await assertProjectAccess(actor.userId, lot.project_id, actor.tenantRole === "superadmin", actor.roles, actor.tenantId);
+    await assertWarehouseAccess(actor.userId, lot.project_id, lot.warehouse_id, actor.tenantRole === "superadmin", actor.roles, actor.tenantId);
+    const { error: returnError } = await admin.rpc("return_purchase_lot_with_audit", {
+      p_lot_id: lot.id, p_actor_user_id: actor.userId, p_weight_kg: weight, p_reason: input.reason.trim(),
+    });
+    if (returnError) return { ok: false, error: returnError.message || "Return Purchase Lot gagal diproses." };
+    revalidatePath("/dashboard/pembelian");
+    revalidatePath("/dashboard/penjualan");
+    revalidatePath("/dashboard/persediaan");
+    return { ok: true, id: lot.id };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Return Purchase Lot gagal diproses." };
+  }
+}
