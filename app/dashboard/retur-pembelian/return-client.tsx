@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { cancelPurchaseReturnDraft, createPurchaseReturnDraft, postPurchaseReturn } from "../pembelian/actions";
 
 type CaseRow={id:string;lotCode:string;lotId:string;quarantinedWeightKg:number;returnedWeightKg:number;releasedWeightKg:number;reservedWeightKg:number;availableWeightKg:number;reason:string;createdAt:string};
-type ReturnRow={id:string;code:string;status:string;return_date:string;reason:string;created_at:string;posted_at:string|null};
+type ReturnRow={id:string;code:string;status:string;return_date:string;reason:string;created_at:string;posted_at:string|null;purchase_return_items:{id:string;weight_kg:number;lot_id:string;inventory_lots:{code:string}|{code:string}[]|null}[]};
 const kg=(n:number)=>new Intl.NumberFormat("id-ID",{maximumFractionDigits:3}).format(n);
 export default function ReturnClient({cases,returns}:{cases:CaseRow[];returns:ReturnRow[]}){
  const router=useRouter();
@@ -70,7 +70,7 @@ export default function ReturnClient({cases,returns}:{cases:CaseRow[];returns:Re
    <h2 style={{fontSize:18,marginTop:0}}>Daftar Return & Riwayat</h2>
    <div style={{display:"grid",gap:10}}>
     {returns.map(r=><article key={r.id} style={{border:"1px solid var(--border,#ddd)",borderRadius:9,padding:13,display:"flex",justifyContent:"space-between",gap:12,flexWrap:"wrap"}}>
-     <div><strong>{r.code}</strong> · {r.status}<div style={{fontSize:13,opacity:.7}}>{r.return_date} · {r.reason}</div><div style={{fontSize:12,opacity:.6}}>Dibuat {new Date(r.created_at).toLocaleString("id-ID")}{r.posted_at?" · Posted "+new Date(r.posted_at).toLocaleString("id-ID"):""}</div></div>
+     <div><strong>{r.code}</strong> · {r.status}<div style={{fontSize:13,opacity:.7}}>{r.return_date} · {r.reason}</div><div style={{fontSize:12,marginTop:5}}>{(r.purchase_return_items??[]).map(item=>{const lot=Array.isArray(item.inventory_lots)?item.inventory_lots[0]:item.inventory_lots;return <span key={item.id} style={{marginRight:10}}>{lot?.code??"Lot"}: {kg(Number(item.weight_kg))}</span>;})}</div><div style={{fontSize:12,opacity:.6}}>Dibuat {new Date(r.created_at).toLocaleString("id-ID")}{r.posted_at?" · Posted "+new Date(r.posted_at).toLocaleString("id-ID"):""}</div></div>
      {r.status==="Draft"&&<div style={{display:"flex",gap:8,alignItems:"center"}}><button type="button" disabled={busy} onClick={()=>post(r.id)} style={{padding:"8px 12px",border:0,borderRadius:6,background:"#176342",color:"white"}}>Posted</button><button type="button" disabled={busy} onClick={()=>cancel(r.id)} style={{padding:"8px 12px",border:"1px solid var(--border,#bbb)",borderRadius:6,background:"transparent"}}>Batalkan</button></div>}
     </article>)}
     {!returns.length&&<p style={{opacity:.65}}>Belum ada dokumen Return.</p>}
