@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { createPurchaseRequest, recordPurchaseReceipt, uploadPurchasePaymentEvidence, payPurchasePayment, setInventoryLotProblemStatus, cancelReceivedPurchase, returnPurchaseLot } from "./actions";
+import Link from "next/link";
+import { createPurchaseRequest, recordPurchaseReceipt, uploadPurchasePaymentEvidence, payPurchasePayment, cancelReceivedPurchase } from "./actions";
 import { createSupplier } from "../supplier/actions";
 import styles from "./purchase.module.css";
 
@@ -170,34 +171,6 @@ export default function PurchaseManager({ data }: { data: PurchasePageData }) {
     router.refresh();
   }
 
-  async function handleLotProblemStatus(lotId: string, isProblematic: boolean) {
-    const reason = window.prompt(isProblematic ? "Alasan memasukkan Purchase Lot ke Karantina:" : "Alasan memulihkan Purchase Lot dari Karantina:");
-    if (reason === null) return;
-    if (reason.trim().length < 3) { setError("Alasan wajib diisi minimal 3 karakter."); return; }
-    setLotStatusBusy(lotId); setError(""); setMessage("");
-    const result = await setInventoryLotProblemStatus({ lotId, isProblematic, reason: reason.trim() });
-    setLotStatusBusy(null);
-    if (!result.ok) { setError(result.error); return; }
-    setMessage(isProblematic ? "Purchase Lot masuk Karantina dan diblokir dari Penjualan." : "Purchase Lot dipulihkan dari Karantina dan dapat dijual kembali jika memenuhi syarat.");
-    router.refresh();
-  }
-
-  async function handleReturnPurchaseLot(lotId: string) {
-    const weightText = window.prompt("Masukkan berat yang benar-benar dikembalikan ke Supplier (kg):");
-    if (weightText === null) return;
-    const weight = Number(weightText.replace(",", "."));
-    if (!Number.isFinite(weight) || weight <= 0) { setError("Berat Return harus lebih besar dari 0 kg."); return; }
-    const reason = window.prompt("Alasan Return ke Supplier:");
-    if (reason === null) return;
-    if (reason.trim().length < 3) { setError("Alasan Return wajib diisi minimal 3 karakter."); return; }
-    setPaymentBusy(lotId); setError(""); setMessage("");
-    const result = await returnPurchaseLot({ lotId, weightKg: String(weight), reason: reason.trim() });
-    setPaymentBusy(null);
-    if (!result.ok) { setError(result.error); return; }
-    setMessage("Return berhasil dicatat. Stok gudang berkurang sesuai berat yang dikembalikan.");
-    router.refresh();
-  }
-
   function lookup(list: Lookup[], id: string) { return list.find(item => item.id === id); }
 
   return (
@@ -326,17 +299,7 @@ export default function PurchaseManager({ data }: { data: PurchasePageData }) {
           const lot = receipt ? data.lots.find(l => l.source_receipt_id === receipt.id) : null;
           return <article className={styles.paymentCard} key={payment.id}>
             <div className={styles.cardTop}><div><span className={styles.code}>{payment.code}</span><span className={payment.status === "Lunas" ? styles.good : styles.pending}>{payment.status}</span><h3>{request?.code ?? "Permintaan"} · {receipt?.code ?? "Penerimaan"}</h3><p>{supplier?.name ?? "Supplier"} · {warehouse?.name ?? "Gudang"} · {project?.code} {project?.name}</p></div><strong className={styles.amount}>{rupiah(Number(payment.amount))}</strong></div>
-            {payment.status === "Lunas" && lot && <div className={styles.paymentLine}>
-              {lot.is_problematic && <span className={styles.bad}>Karantina</span>}{!lot.is_problematic && !lot.is_returned && <span className={styles.good}>Stok aktif untuk Penjualan</span>}
-              {isProcurement && <button type="button" className={styles.secondary} disabled={lotStatusBusy === lot.id} onClick={() => void handleLotProblemStatus(lot.id, !lot.is_problematic)}>
-                {lotStatusBusy === lot.id ? "Memproses..." : lot.is_problematic ? "Pulihkan dari Karantina" : "Masukkan Karantina"}
-              </button>}
-              {isProcurement && !lot.is_returned && <button type="button" className={styles.secondary} disabled={paymentBusy === lot.id} onClick={() => void handleReturnPurchaseLot(lot.id)}>
-                {paymentBusy === lot.id ? "Memproses..." : "Return ke Supplier"}
-              </button>}
-              {Number(lot.returned_weight_kg) > 0 && <span className={styles.bad}>{lot.is_returned ? "Return seluruhnya" : `Return sebagian · ${Number(lot.returned_weight_kg).toLocaleString("id-ID")} kg`}</span>}
-              {lot.is_problematic && lot.problematic_reason && <small className={styles.note}>Alasan: {lot.problematic_reason}</small>}
-            </div>}
+            {lot && <div className={styles.paymentLine}>\n              {lot.is_problematic ? <span className={styles.bad}>Karantina</span> : <span className={styles.good}>Stok aktif / dapat diperiksa di Persediaan</span>}\n              {Number(lot.returned_weight_kg)>0 && <span className={styles.bad}>{lot.is_returned?"Return seluruhnya":`Return lama · ${Number(lot.returned_weight_kg).toLocaleString("id-ID")} kg`}</span>}\n              {lot.is_problematic && lot.problematic_reason && <small className={styles.note}>{lot.problematic_reason}</small>}\n              {isProcurement && <Link href="/dashboard/retur-pembelian" className={styles.secondary}>Kelola Karantina & Return →</Link>}\n            </div>}
             <div className={styles.cardQuickFacts}><span><small>Berat Aktual</small><b>{receipt ? (Number(receipt.weight) * (receipt.weight_unit === "ton" ? 1000 : 1)).toLocaleString("id-ID") + " kg" : "—"}</b></span><span><small>Kadar Aktual</small><b>{receipt ? Number(receipt.value).toLocaleString("id-ID") + " " + receipt.value_unit : "—"}</b></span><span><small>Estimasi Kadar</small><b>{request?.estimated_value == null ? "—" : Number(request.estimated_value).toLocaleString("id-ID") + " %"}</b></span></div>
             <button type="button" className={styles.detailToggle} aria-expanded={expandedPaymentId === payment.id} onClick={() => { const next = selectedPaymentId === payment.id ? null : payment.id; setSelectedPaymentId(next); setExpandedPaymentId(next); }}>{selectedPaymentId === payment.id ? "Kembali ke Daftar" : "Lihat Detail Pembayaran"} <span>{expandedPaymentId === payment.id ? "−" : "+"}</span></button>
             {expandedPaymentId === payment.id && <>
