@@ -184,3 +184,52 @@ export async function payPurchasePayment(paymentRequestId: string): Promise<Resu
     revalidatePath("/dashboard/pembelian"); revalidatePath("/dashboard/permintaan-penggunaan-dana"); return {ok:true};
   }catch(error){return {ok:false,error:error instanceof Error?error.message:"Akses pembayaran ditolak."};}
 }
+
+export async function setInventoryLotProblemStatus(input: {
+  lotId: string;
+  isProblematic: boolean;
+  reason: string;
+}): Promise<Result> {
+  try {
+    const actor = await requireAnyRole(["Procurement"]);
+    if (actor.tenantRole !== "superadmin" && actor.activeRole !== "Procurement") {
+      return { ok: false, error: "Pilih Mode Kerja Pembelian untuk mengubah status Lot." };
+    }
+    if (!(await hasPermission(actor.userId, "transaction.post_recognition", actor.tenantRole === "superadmin", actor.tenantId))) {
+      return { ok: false, error: "Permission Pembelian belum diberikan oleh Superadmin perusahaan." };
+    }
+    if (!uuid(input?.lotId ?? "") || typeof input?.isProblematic !== "boolean" || (input?.reason ?? "").trim().length < 3 || input.reason.trim().length > 1000) {
+      return { ok: false, error: "Lot dan alasan perubahan status wajib diisi." };
+    }
+
+    const admin = createAdminClient();
+    const { data: lot, error: lotError } = await admin.from("inventory_lots")
+      .select("id,project_id,warehouse_id,source_receipt_id,is_problematic")
+      .eq("tenant_id", actor.tenantId).eq("id", input.lotId).maybeSingle();
+    if (lotError || !lot) return { ok: false, error: "Purchase Lot tidak ditemukan." };
+    if (lot.is_problematic === input.isProblematic) return { ok: false, error: "Status Lot sudah sesuai." };
+
+    const { data: payment, error: paymentError } = await admin.from("purchase_payment_requests")
+      .select("id,status").eq("tenant_id", actor.tenantId).eq("receipt_id", lot.source_receipt_id).maybeSingle();
+    if (paymentError || payment?.status !== "Lunas") {
+      return { ok: false, error: "Tag Bermasalah hanya dapat digunakan pada Purchase Lot yang sudah lunas." };
+    }
+
+    await assertProjectAccess(actor.userId, lot.project_id, actor.tenantRole === "superadmin", actor.roles, actor.tenantId);
+    await assertWarehouseAccess(actor.userId, lot.project_id, lot.warehouse_id, actor.tenantRole === "superadmin", actor.roles, actor.tenantId);
+
+    const { error } = await admin.rpc("set_inventory_lot_problem_status_with_audit", {
+      p_lot_id: lot.id,
+      p_actor_user_id: actor.userId,
+      p_is_problematic: input.isProblematic,
+      p_reason: input.reason.trim(),
+    });
+    if (error) return { ok: false, error: error.message || "Status Purchase Lot gagal diperbarui." };
+
+    revalidatePath("/dashboard/pembelian");
+    revalidatePath("/dashboard/penjualan");
+    return { ok: true, id: lot.id };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Perubahan status Purchase Lot gagal." };
+  }
+}
