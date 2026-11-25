@@ -290,14 +290,15 @@ export default function PurchaseManager({ data }: { data: PurchasePageData }) {
               <span><small>Berat Aktual Diterima</small><b>{receipt ? (Number(receipt.weight) * (receipt.weight_unit === "ton" ? 1000 : 1)).toLocaleString("id-ID") + " kg" : "Belum tersedia"}</b></span>
             </div>
             {docs.map(doc => doc.signed_url && <a className={styles.proof} key={doc.id} href={doc.signed_url} target="_blank" rel="noreferrer">Bukti Transfer: {doc.file_name}</a>)}
+            </>}
             {isCashier && payment.status === "Menunggu Pembayaran" && <div className={styles.cashierActions}>
               <form onSubmit={event => { event.preventDefault(); void handlePaymentUpload(payment.id, event.currentTarget); }}>
                 <label>Upload Bukti Transfer (TR)<input name="files" type="file" accept="application/pdf,image/jpeg,image/png" multiple required /></label>
                 <button className={styles.secondary} type="submit" disabled={paymentBusy === payment.id}>{paymentBusy === payment.id ? "Mengunggah..." : "Upload Bukti"}</button>
               </form>
               <button className={styles.primary} type="button" onClick={() => void handlePay(payment.id)} disabled={paymentBusy === payment.id || docs.length === 0}>{paymentBusy === payment.id ? "Memproses..." : "Bayar Lunas"}</button>
+              {docs.length === 0 && <small>Unggah bukti transfer terlebih dahulu sebelum pembayaran dapat dieksekusi.</small>}
             </div>}
-            </>}
           </article>;
         })}
       </section>}
