@@ -27,12 +27,12 @@ export async function createSalesDraft(input:{customerId:string;projectId:string
   if(allocations.some(a=>!uuid(a.lotId)||!Number.isFinite(a.weightKg)||a.weightKg<=0)||new Set(allocations.map(a=>a.lotId)).size!==allocations.length)return{ok:false,error:"Periksa pilihan Lot dan berat yang dialokasikan."};
   const admin=createAdminClient();
   const lotIds=allocations.map(a=>a.lotId);
-  const {data:lots,error}=await admin.from("inventory_lots").select("id,project_id,warehouse_id,source_receipt_id,is_problematic,is_cancelled").eq("tenant_id",actor.tenantId).in("id",lotIds);
+  const {data:lots,error}=await admin.from("inventory_lots").select("id,project_id,warehouse_id,source_receipt_id,is_problematic,is_cancelled,is_returned").eq("tenant_id",actor.tenantId).in("id",lotIds);
   if(error||!lots||lots.length!==lotIds.length)return{ok:false,error:"Data Lot tidak ditemukan."};
   const receiptIds=[...new Set(lots.map(l=>l.source_receipt_id))];
   const {data:paidPayments,error:paymentError}=await admin.from("purchase_payment_requests").select("receipt_id").eq("tenant_id",actor.tenantId).eq("status","Lunas").in("receipt_id",receiptIds);
   const paidReceiptIds=new Set((paidPayments??[]).map(p=>p.receipt_id));
-  if(paymentError||lots.some(l=>l.is_problematic||l.is_cancelled||!paidReceiptIds.has(l.source_receipt_id))) {
+  if(paymentError||lots.some(l=>l.is_problematic||l.is_cancelled||l.is_returned||!paidReceiptIds.has(l.source_receipt_id))) {
     return{ok:false,error:"Penjualan hanya dapat menggunakan Lot yang sudah lunas dan berstatus Normal. Muat ulang daftar Lot."};
   }
   const warehouseIds=[...new Set(lots.map(l=>l.warehouse_id))];
