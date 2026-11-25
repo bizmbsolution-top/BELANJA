@@ -44,7 +44,7 @@ export default async function PersediaanPage() {
     admin.from("warehouses").select("id,code,name,location").eq("tenant_id", actor.tenantId).order("name"),
     admin.from("projects").select("id,code,name").eq("tenant_id", actor.tenantId).order("name"),
     admin.from("purchase_categories").select("id,name").eq("tenant_id", actor.tenantId).order("name"),
-    admin.from("inventory_lots").select("id,code,source_receipt_id,purchase_request_id,supplier_id,inbound_date,project_id,warehouse_id,category_id,initial_weight_kg,grade_value,grade_unit,purchase_price_per_kg,total_purchase_cost").eq("tenant_id", actor.tenantId).order("inbound_date", { ascending: false }).limit(5000),
+    admin.from("inventory_lots").select("id,code,source_receipt_id,purchase_request_id,supplier_id,inbound_date,project_id,warehouse_id,category_id,initial_weight_kg,grade_value,grade_unit,purchase_price_per_kg,total_purchase_cost,is_cancelled").eq("tenant_id", actor.tenantId).order("inbound_date", { ascending: false }).limit(5000),
     admin.from("suppliers").select("id,name").eq("tenant_id", actor.tenantId).order("name"),
   ]);
   if (error) throw new Error("Data pergerakan persediaan gagal dimuat.");
