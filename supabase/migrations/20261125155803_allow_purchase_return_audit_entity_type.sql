@@ -1,0 +1,20 @@
+alter table public.audit_logs drop constraint audit_logs_entity_type_check;
+alter table public.audit_logs add constraint audit_logs_entity_type_check check (entity_type = any (array[
+'user_access','auth_user','supplier','purchase_category','warehouse','expense_category','uom',
+'expense','expense_document','expense_payment_document','project','fund_request','fund_request_document',
+'purchase_request','purchase_receipt','purchase_payment_request','purchase_receipt_document',
+'purchase_payment_document','inventory_lot','customer','sales_order','sales_expense_master',
+'sales_expense_closing','sales_order_settlement','sales_invoice_deduction_component','purchase_return'
+]::text[]));
+
+alter table public.audit_logs drop constraint audit_logs_action_check;
+alter table public.audit_logs add constraint audit_logs_action_check check (action = any (array[
+'user.created','user.access_updated','user.email_update_requested','user.email_updated','user.email_update_failed','user.password_reset_requested','user.password_reset','user.password_reset_failed',
+'supplier.created','supplier.updated','purchase_category.created','purchase_category.updated','warehouse.created','warehouse.updated','warehouse.projects_updated','expense_category.created','expense_category.updated','uom.created','uom.updated',
+'expense.created','expense.updated','expense.submitted','expense.paid','expense.cancelled','expense_document.uploaded','expense_document.deleted','expense.payment_evidence_uploaded',
+'project.created','project.updated','fund_request.created','fund_request.executed','fund_request.corrected','fund_request_document.uploaded',
+'purchase_request.created','purchase_receipt.created','purchase_receipt.updated','purchase_receipt.accepted','purchase_receipt.rejected','purchase_receipt.cancelled','purchase_payment.requested','purchase_payment.paid','purchase_payment.cancelled','purchase_receipt_document.uploaded','purchase_payment_document.uploaded',
+'lot.created','lot.marked_problematic','lot.restored_normal','lot.cancelled','lot.returned','lot.quarantined',
+'customer.created','customer.updated','sales_draft.created','sales.dispatched','sales.finalized','sales.ba_document_uploaded','sales_expense_master.created','sales_expense_master.updated','sales.expenses_generated','expense.sales_ba_draft_created','expense.sales_ba_submitted','sales_expense_period.closed','sales.settlement_received','sales.invoice_deduction_created','sales.invoice_deduction_updated',
+'purchase_return.draft_created','purchase_return.posted','purchase_return.cancelled'
+]::text[]));
