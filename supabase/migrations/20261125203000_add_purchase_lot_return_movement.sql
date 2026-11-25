@@ -61,12 +61,6 @@ begin
     raise exception 'Return hanya dapat dilakukan untuk Purchase Lot yang sudah lunas';
   end if;
 
-  if exists (
-    select 1 from public.sales_order_lot_allocations a
-    join public.sales_orders s on s.id=a.sales_order_id
-    where a.lot_id=v_lot.id and s.status='Draft'
-  ) then raise exception 'Lot sudah dialokasikan pada Draft Penjualan; selesaikan atau batalkan Draft terlebih dahulu'; end if;
-
   select coalesce(sum(
     case when movement_type in ('sale_dispatch','purchase_return') then -weight_kg else weight_kg end
   ),0) into v_available
