@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { createPurchaseRequest, recordPurchaseReceipt, uploadPurchasePaymentEvidence, payPurchasePayment, setInventoryLotProblemStatus, cancelReceivedPurchase } from "./actions";
+import { createPurchaseRequest, recordPurchaseReceipt, uploadPurchasePaymentEvidence, payPurchasePayment, setInventoryLotProblemStatus, cancelReceivedPurchase, returnPurchaseLot } from "./actions";
 import { createSupplier } from "../supplier/actions";
 import styles from "./purchase.module.css";
 
@@ -10,7 +10,7 @@ type Lookup = { id: string; code: string; name: string };
 type RequestRow = { id: string; code: string; request_date: string; project_id: string; supplier_id: string; warehouse_id: string; category_id: string; estimated_weight_kg: number; estimated_value: number | null; price_per_kg: number; notes: string | null; status: string; created_at: string };
 type ReceiptRow = { id: string; code: string; purchase_request_id: string; receipt_date: string; value: number; value_unit: string; weight: number; weight_unit: string; notes: string | null; status: string; decision_reason: string | null; completed_at: string | null };
 type PaymentRow = { id: string; code: string; receipt_id: string; amount: number; status: string; requested_at: string; paid_at: string | null; payment_method: string | null };
-type LotRow = { id: string; source_receipt_id: string; is_problematic: boolean; problematic_reason: string | null; is_cancelled: boolean; cancellation_reason: string | null };
+type LotRow = { id: string; source_receipt_id: string; is_problematic: boolean; problematic_reason: string | null; is_cancelled: boolean; cancellation_reason: string | null; is_returned: boolean };
 type DocRow = { id: string; receipt_id?: string; payment_request_id?: string; evidence_type?: string; file_name: string; signed_url: string | null };
 export type PurchasePageData = { actorRoles: string[]; projects: Lookup[]; suppliers: Lookup[]; categories: Lookup[]; warehouses: Lookup[]; requests: RequestRow[]; receipts: ReceiptRow[]; payments: PaymentRow[]; lots: LotRow[]; receiptDocs: DocRow[]; paymentDocs: DocRow[]; warehouseProjects: { warehouse_id: string; project_id: string }[] };
 
@@ -182,6 +182,22 @@ export default function PurchaseManager({ data }: { data: PurchasePageData }) {
     router.refresh();
   }
 
+  async function handleReturnPurchaseLot(lotId: string) {
+    const weightText = window.prompt("Masukkan berat yang benar-benar dikembalikan ke Supplier (kg):");
+    if (weightText === null) return;
+    const weight = Number(weightText.replace(",", "."));
+    if (!Number.isFinite(weight) || weight <= 0) { setError("Berat Return harus lebih besar dari 0 kg."); return; }
+    const reason = window.prompt("Alasan Return ke Supplier:");
+    if (reason === null) return;
+    if (reason.trim().length < 3) { setError("Alasan Return wajib diisi minimal 3 karakter."); return; }
+    setPaymentBusy(lotId); setError(""); setMessage("");
+    const result = await returnPurchaseLot({ lotId, weightKg: String(weight), reason: reason.trim() });
+    setPaymentBusy(null);
+    if (!result.ok) { setError(result.error); return; }
+    setMessage("Return berhasil dicatat. Stok gudang berkurang sesuai berat yang dikembalikan.");
+    router.refresh();
+  }
+
   function lookup(list: Lookup[], id: string) { return list.find(item => item.id === id); }
 
   return (
@@ -310,10 +326,14 @@ export default function PurchaseManager({ data }: { data: PurchasePageData }) {
           return <article className={styles.paymentCard} key={payment.id}>
             <div className={styles.cardTop}><div><span className={styles.code}>{payment.code}</span><span className={payment.status === "Lunas" ? styles.good : styles.pending}>{payment.status}</span><h3>{request?.code ?? "Permintaan"} · {receipt?.code ?? "Penerimaan"}</h3><p>{supplier?.name ?? "Supplier"} · {warehouse?.name ?? "Gudang"} · {project?.code} {project?.name}</p></div><strong className={styles.amount}>{rupiah(Number(payment.amount))}</strong></div>
             {payment.status === "Lunas" && lot && <div className={styles.paymentLine}>
-              {lot.is_problematic && <span className={styles.bad}>Bermasalah</span>}
+              {lot.is_problematic && <span className={styles.bad}>Karantina</span>}
               {isProcurement && <button type="button" className={styles.secondary} disabled={lotStatusBusy === lot.id} onClick={() => void handleLotProblemStatus(lot.id, !lot.is_problematic)}>
-                {lotStatusBusy === lot.id ? "Memproses..." : lot.is_problematic ? "Pulihkan ke Normal" : "Tandai Bermasalah"}
+                {lotStatusBusy === lot.id ? "Memproses..." : lot.is_problematic ? "Pulihkan dari Karantina" : "Masukkan Karantina"}
               </button>}
+              {isProcurement && !lot.is_returned && <button type="button" className={styles.secondary} disabled={paymentBusy === lot.id} onClick={() => void handleReturnPurchaseLot(lot.id)}>
+                {paymentBusy === lot.id ? "Memproses..." : "Return ke Supplier"}
+              </button>}
+              {lot.is_returned && <span className={styles.bad}>Return seluruhnya</span>}
               {lot.is_problematic && lot.problematic_reason && <small className={styles.note}>Alasan: {lot.problematic_reason}</small>}
             </div>}
             <div className={styles.cardQuickFacts}><span><small>Berat Aktual</small><b>{receipt ? (Number(receipt.weight) * (receipt.weight_unit === "ton" ? 1000 : 1)).toLocaleString("id-ID") + " kg" : "—"}</b></span><span><small>Kadar Aktual</small><b>{receipt ? Number(receipt.value).toLocaleString("id-ID") + " " + receipt.value_unit : "—"}</b></span><span><small>Estimasi Kadar</small><b>{request?.estimated_value == null ? "—" : Number(request.estimated_value).toLocaleString("id-ID") + " %"}</b></span></div>
@@ -343,7 +363,7 @@ export default function PurchaseManager({ data }: { data: PurchasePageData }) {
           </article>;
         })}
       </section>}
-      <p className={styles.footnote}>Stok bertambah setelah penerimaan dinyatakan diterima. Penerimaan yang belum lunas dapat dibatalkan dengan alasan; setelah lunas, gunakan status Bermasalah jika diperlukan.</p>
+      <p className={styles.footnote}>Stok fisik bertambah saat penerimaan dinyatakan diterima. Lot hanya dapat dijual setelah lunas dan tidak dalam Karantina. Return mengurangi stok sesuai berat yang benar-benar dikembalikan.</p>
     </main>
   );
 }
