@@ -46,16 +46,16 @@ export default function ReturnClient({cases,returns}:{cases:CaseRow[];returns:Re
   {error&&<p role="alert" style={{padding:12,background:"#fff0ef",borderRadius:8,color:"#a22"}}>{error}</p>}
   <section style={{border:"1px solid var(--border,#ddd)",borderRadius:12,padding:16,marginBottom:24}}>
    <h2 style={{fontSize:18,marginTop:0}}>Buat Draft Return</h2>
-   <p style={{fontSize:13,opacity:.7}}>Isi berat yang akan dikembalikan untuk setiap Karantina. Saldo karantina yang sudah dialokasikan pada Draft lain tidak bisa dipakai kembali.</p>
+   <p style={{fontSize:13,opacity:.7}}>Semua Karantina aktif tetap ditampilkan, termasuk yang seluruh kuantitasnya sudah dialokasikan pada Draft. Hanya saldo yang masih tersedia yang dapat dimasukkan ke Draft baru.</p>
    <div style={{overflowX:"auto"}}>
     <table style={{width:"100%",borderCollapse:"collapse",fontSize:13,minWidth:650}}>
      <thead><tr>{["Lot","Karantina","Sudah Return","Dialokasikan Draft","Tersedia untuk Return","Berat Return (kg)"].map(x=><th key={x} style={{textAlign:"left",padding:9,borderBottom:"1px solid var(--border,#ddd)"}}>{x}</th>)}</tr></thead>
      <tbody>{cases.map(c=><tr key={c.id}>
       <td style={{padding:9,borderBottom:"1px solid var(--border,#ddd)"}}><strong>{c.lotCode}</strong><div style={{opacity:.65}}>{c.reason}</div></td>
       <td style={{padding:9}}>{kg(c.quarantinedWeightKg)} kg</td><td style={{padding:9}}>{kg(c.returnedWeightKg)} kg</td><td style={{padding:9}}>{kg(c.reservedWeightKg)} kg</td><td style={{padding:9}}><strong>{kg(c.availableWeightKg)} kg</strong></td>
-      <td style={{padding:9}}><input aria-label={"Berat Return "+c.lotCode} type="number" min="0" max={c.availableWeightKg} step="0.001" value={weights[c.id]??""} onChange={e=>setWeights(v=>({...v,[c.id]:e.target.value}))} placeholder="0" style={{width:110,padding:8,border:"1px solid var(--border,#ccc)",borderRadius:6}}/></td>
+      <td style={{padding:9}}><input aria-label={"Berat Return "+c.lotCode} type="number" min="0" max={c.availableWeightKg} step="0.001" disabled={busy||c.availableWeightKg<=0.0001} value={weights[c.id]??""} onChange={e=>setWeights(v=>({...v,[c.id]:e.target.value}))} placeholder={c.availableWeightKg>0.0001?"0":"Sudah dialokasikan"} style={{width:110,padding:8,border:"1px solid var(--border,#ccc)",borderRadius:6}}/></td>
      </tr>)}
-     {!cases.length&&<tr><td colSpan={6} style={{padding:18,textAlign:"center",opacity:.65}}>Belum ada saldo Karantina yang tersedia untuk Return.</td></tr>}
+     {!cases.length&&<tr><td colSpan={6} style={{padding:18,textAlign:"center",opacity:.65}}>Belum ada data Karantina aktif.</td></tr>}
      </tbody>
     </table>
    </div>
