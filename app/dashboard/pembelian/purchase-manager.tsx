@@ -29,7 +29,9 @@ export default function PurchaseManager({ data }: { data: PurchasePageData }) {
   const [filterTo, setFilterTo] = useState("");
   const [filterSearch, setFilterSearch] = useState("");
   const [expandedRequestId, setExpandedRequestId] = useState<string | null>(null);
+  const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
   const [expandedPaymentId, setExpandedPaymentId] = useState<string | null>(null);
+  const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(null);
   const [receiptFor, setReceiptFor] = useState<RequestRow | null>(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -90,7 +92,7 @@ export default function PurchaseManager({ data }: { data: PurchasePageData }) {
   };
   const visibleRequests = data.requests.filter(request => {
     if (activeBucket === "receipt" && request.status !== "Menunggu Barang") return false;
-    return matchesRequest(request);
+    return matchesRequest(request) && (!selectedRequestId || request.id === selectedRequestId);
   });
   const visiblePayments = data.payments.filter(payment => {
     if (activeBucket === "payment" && payment.status !== "Menunggu Pembayaran") return false;
@@ -98,7 +100,7 @@ export default function PurchaseManager({ data }: { data: PurchasePageData }) {
     if (activeBucket !== "payment" && activeBucket !== "paid") return false;
     const receipt = data.receipts.find(row => row.id === payment.receipt_id);
     const request = receipt ? data.requests.find(row => row.id === receipt.purchase_request_id) ?? null : null;
-    return matchesRequest(request);
+    return matchesRequest(request) && (!selectedPaymentId || payment.id === selectedPaymentId);
   });
 
   async function handleRequestSubmit(event: FormEvent<HTMLFormElement>) {
@@ -163,16 +165,16 @@ export default function PurchaseManager({ data }: { data: PurchasePageData }) {
         {isProcurement && <button className={styles.primary} type="button" onClick={() => { setError(""); setSupplierId(""); setSupplierSearch(""); setSupplierFormOpen(false); setPricePerKgText(""); setShowRequest(true); }}>+ Buat Permintaan</button>}
       </header>
       {!activeBucket && <section className={styles.metrics}>
-        <button type="button" className={styles.statusTile} onClick={() => setActiveBucket("draft")}><strong>0</strong><span>Draft Pembelian</span><small>Belum disubmit</small></button>
-        <button type="button" className={styles.statusTile} onClick={() => setActiveBucket("receipt")}><strong>{data.requests.filter(r => r.status === "Menunggu Barang").length}</strong><span>Tunggu Penerimaan</span><small>Menunggu pemeriksaan barang</small></button>
-        <button type="button" className={styles.statusTile} onClick={() => setActiveBucket("payment")}><strong>{pendingPayments}</strong><span>Tunggu Pelunasan</span><small>Antrean pembayaran</small></button>
-        <button type="button" className={styles.statusTile} onClick={() => setActiveBucket("paid")}><strong>{paidPayments}</strong><span>Pembelian Lunas</span><small>Riwayat pembayaran</small></button>
+        <button type="button" className={styles.statusTile} onClick={() => { setActiveBucket("draft"); setSelectedRequestId(null); setSelectedPaymentId(null); }}><strong>0</strong><span>Draft Pembelian</span><small>Belum disubmit</small></button>
+        <button type="button" className={styles.statusTile} onClick={() => { setActiveBucket("receipt"); setSelectedRequestId(null); setSelectedPaymentId(null); }}><strong>{data.requests.filter(r => r.status === "Menunggu Barang").length}</strong><span>Tunggu Penerimaan</span><small>Menunggu pemeriksaan barang</small></button>
+        <button type="button" className={styles.statusTile} onClick={() => { setActiveBucket("payment"); setSelectedRequestId(null); setSelectedPaymentId(null); }}><strong>{pendingPayments}</strong><span>Tunggu Pelunasan</span><small>Antrean pembayaran</small></button>
+        <button type="button" className={styles.statusTile} onClick={() => { setActiveBucket("paid"); setSelectedRequestId(null); setSelectedPaymentId(null); }}><strong>{paidPayments}</strong><span>Pembelian Lunas</span><small>Riwayat pembayaran</small></button>
       </section>}
       {activeBucket && <section className={styles.section}>
         <div className={styles.sectionHeading}>
           <div><h2>{activeBucket === "draft" ? "Draft Pembelian" : activeBucket === "receipt" ? "Tunggu Penerimaan" : activeBucket === "payment" ? "Tunggu Pelunasan" : "Pembelian Lunas"}</h2>
           <p>{activeBucket === "draft" ? "Draft belum didukung pada alur penyimpanan saat ini." : activeBucket === "receipt" ? visibleRequests.length + " permintaan" : visiblePayments.length + " pengajuan pembayaran"}</p></div>
-          <button type="button" className={styles.secondary} onClick={() => { setActiveBucket(null); setFilterSupplier(""); setFilterWarehouse(""); setFilterFrom(""); setFilterTo(""); setFilterSearch(""); setExpandedRequestId(null); setExpandedPaymentId(null); }}>Kembali</button>
+          <button type="button" className={styles.secondary} onClick={() => { setActiveBucket(null); setFilterSupplier(""); setFilterWarehouse(""); setFilterFrom(""); setFilterTo(""); setFilterSearch(""); setExpandedRequestId(null); setExpandedPaymentId(null); setSelectedRequestId(null); setSelectedPaymentId(null); }}>Kembali ke Status</button>
         </div>
         {activeBucket !== "draft" && <div className={styles.filterPanel}>
           <input aria-label="Cari nomor order atau supplier" placeholder="Cari nomor order / supplier..." value={filterSearch} onChange={e => setFilterSearch(e.target.value)} />
@@ -252,7 +254,7 @@ export default function PurchaseManager({ data }: { data: PurchasePageData }) {
           return <article className={styles.requestCard} key={request.id}>
             <div className={styles.cardTop}><div><span className={styles.code}>{request.code}</span><span className={styles.pending}>{request.status}</span><h3>{supplier?.name ?? "Supplier"}</h3><p>{project?.code} · {project?.name} · {warehouse?.name}</p></div>{isProcurement && request.status === "Menunggu Barang" && <button type="button" className={styles.secondary} onClick={() => { setError(""); setReceiptFor(request); }}>+ Catat Penerimaan</button>}</div>
             <div className={styles.cardQuickFacts}><span><small>Estimasi Berat</small><b>{Number(request.estimated_weight_kg).toLocaleString("id-ID")} kg</b></span><span><small>Estimasi Kadar</small><b>{request.estimated_value == null ? "—" : Number(request.estimated_value).toLocaleString("id-ID") + " %"}</b></span><span><small>Tanggal</small><b>{dateLabel(request.request_date)}</b></span></div>
-            <button type="button" className={styles.detailToggle} aria-expanded={expandedRequestId === request.id} onClick={() => setExpandedRequestId(expandedRequestId === request.id ? null : request.id)}>{expandedRequestId === request.id ? "Tutup detail" : "Lihat detail order"} <span>{expandedRequestId === request.id ? "−" : "+"}</span></button>
+            <button type="button" className={styles.detailToggle} aria-expanded={expandedRequestId === request.id} onClick={() => { const next = selectedRequestId === request.id ? null : request.id; setSelectedRequestId(next); setExpandedRequestId(next); }}>{selectedRequestId === request.id ? "Kembali ke Daftar" : "Lihat Detail"} <span>{expandedRequestId === request.id ? "−" : "+"}</span></button>
             {expandedRequestId === request.id && <>
             <div className={styles.facts}><span><small>Kategori</small><b>{category?.name ?? "—"}</b></span><span><small>Estimasi Berat</small><b>{Number(request.estimated_weight_kg).toLocaleString("id-ID")} kg</b></span><span><small>Estimasi Kadar</small><b>{request.estimated_value == null ? "—" : Number(request.estimated_value).toLocaleString("id-ID") + " %"}</b></span><span><small>Sudah diterima</small><b>{receivedKg.toLocaleString("id-ID")} kg</b></span><span><small>Harga/kg</small><b>{rupiah(Number(request.price_per_kg))}</b></span></div>
             {request.notes && <p className={styles.note}>{request.notes}</p>}
@@ -281,7 +283,7 @@ export default function PurchaseManager({ data }: { data: PurchasePageData }) {
           return <article className={styles.paymentCard} key={payment.id}>
             <div className={styles.cardTop}><div><span className={styles.code}>{payment.code}</span><span className={payment.status === "Lunas" ? styles.good : styles.pending}>{payment.status}</span><h3>{request?.code ?? "Permintaan"} · {receipt?.code ?? "Penerimaan"}</h3><p>{supplier?.name ?? "Supplier"} · {warehouse?.name ?? "Gudang"} · {project?.code} {project?.name}</p></div><strong className={styles.amount}>{rupiah(Number(payment.amount))}</strong></div>
             <div className={styles.cardQuickFacts}><span><small>Berat Aktual</small><b>{receipt ? (Number(receipt.weight) * (receipt.weight_unit === "ton" ? 1000 : 1)).toLocaleString("id-ID") + " kg" : "—"}</b></span><span><small>Kadar Aktual</small><b>{receipt ? Number(receipt.value).toLocaleString("id-ID") + " " + receipt.value_unit : "—"}</b></span><span><small>Estimasi Kadar</small><b>{request?.estimated_value == null ? "—" : Number(request.estimated_value).toLocaleString("id-ID") + " %"}</b></span></div>
-            <button type="button" className={styles.detailToggle} aria-expanded={expandedPaymentId === payment.id} onClick={() => setExpandedPaymentId(expandedPaymentId === payment.id ? null : payment.id)}>{expandedPaymentId === payment.id ? "Tutup detail" : "Lihat detail pembayaran"} <span>{expandedPaymentId === payment.id ? "−" : "+"}</span></button>
+            <button type="button" className={styles.detailToggle} aria-expanded={expandedPaymentId === payment.id} onClick={() => { const next = selectedPaymentId === payment.id ? null : payment.id; setSelectedPaymentId(next); setExpandedPaymentId(next); }}>{selectedPaymentId === payment.id ? "Kembali ke Daftar" : "Lihat Detail Pembayaran"} <span>{expandedPaymentId === payment.id ? "−" : "+"}</span></button>
             {expandedPaymentId === payment.id && <>
             <div className={styles.facts}>
               <span><small>Estimasi Kadar</small><b>{request?.estimated_value == null ? "Belum tersedia" : Number(request.estimated_value).toLocaleString("id-ID") + " %"}</b></span>
