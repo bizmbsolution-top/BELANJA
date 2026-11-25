@@ -346,7 +346,7 @@ export async function createPurchaseReturnDraft(input: { returnDate: string; rea
     const actor=await requireAnyRole(["Procurement"]);
     if(actor.tenantRole!=="superadmin"&&actor.activeRole!=="Procurement")return {ok:false,error:"Pilih Mode Kerja Pembelian untuk membuat Draft Return."};
     if(!(await hasPermission(actor.userId,"transaction.post_recognition",actor.tenantRole==="superadmin",actor.tenantId)))return {ok:false,error:"Permission Pembelian belum diberikan."};
-    if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(input?.returnDate??"")||typeof input?.reason!=="string"||input.reason.trim().length<3||input.reason.trim().length>1000||!Array.isArray(input.items)||!input.items.length||input.items.length>100)return {ok:false,error:"Tanggal, alasan, dan minimal satu item Return wajib diisi."};
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(input?.returnDate??"")||typeof input?.reason!=="string"||input.reason.trim().length<3||input.reason.trim().length>1000||!Array.isArray(input.items)||!input.items.length||input.items.length>100)return {ok:false,error:"Tanggal, alasan, dan minimal satu item Return wajib diisi."};
     const items=input.items.map(i=>({quarantineId:i.quarantineId,weightKg:Number(i.weightKg)}));
     if(items.some(i=>!uuid(i.quarantineId)||!Number.isFinite(i.weightKg)||i.weightKg<=0)||new Set(items.map(i=>i.quarantineId)).size!==items.length)return {ok:false,error:"Periksa pilihan Karantina dan kuantitas Return."};
     const admin=createAdminClient();
