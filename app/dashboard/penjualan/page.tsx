@@ -18,18 +18,18 @@ export default async function PenjualanPage(){
  const scopedProjects=(projects??[]).filter(p=>projectIds===null||projectIds.includes(p.id));
  const scopedWarehouses=(warehouses??[]).filter(w=>(warehouseIds===null||warehouseIds.includes(w.id))&&(mappings??[]).some(m=>m.warehouse_id===w.id&&scopedProjects.some(p=>p.id===m.project_id)));
  const pids=scopedProjects.map(p=>p.id), wids=scopedWarehouses.map(w=>w.id);
- const {data:lots}=pids.length&&wids.length?await admin.from("inventory_lots").select("id,code,source_receipt_id,project_id,warehouse_id,category_id,supplier_id,initial_weight_kg,grade_value,grade_unit,purchase_price_per_kg,total_purchase_cost,inbound_date,is_problematic,is_cancelled").eq("tenant_id", actor.tenantId).in("project_id",pids).in("warehouse_id",wids).order("inbound_date",{ascending:true}):{data:[]};
+ const {data:lots}=pids.length&&wids.length?await admin.from("inventory_lots").select("id,code,source_receipt_id,project_id,warehouse_id,category_id,supplier_id,initial_weight_kg,grade_value,grade_unit,purchase_price_per_kg,total_purchase_cost,inbound_date,is_problematic,is_cancelled,is_returned").eq("tenant_id", actor.tenantId).in("project_id",pids).in("warehouse_id",wids).order("inbound_date",{ascending:true}):{data:[]};
  const receiptIds=[...new Set((lots??[]).map(l=>l.source_receipt_id))];
  const {data:paidPayments}=receiptIds.length?await admin.from("purchase_payment_requests").select("receipt_id").eq("tenant_id",actor.tenantId).eq("status","Lunas").in("receipt_id",receiptIds):{data:[]};
  const paidReceiptIds=new Set((paidPayments??[]).map(p=>p.receipt_id));
- const eligibleLots=(lots??[]).filter(l=>!l.is_problematic&&!l.is_cancelled&&paidReceiptIds.has(l.source_receipt_id));
+ const eligibleLots=(lots??[]).filter(l=>!l.is_problematic&&!l.is_cancelled&&!l.is_returned&&paidReceiptIds.has(l.source_receipt_id));
  const lotIds=eligibleLots.map(l=>l.id);
  const [{data:movements},{data:suppliers},{data:categories}]=await Promise.all([
   lotIds.length?admin.from("inventory_movements").select("lot_id,movement_type,weight_kg").eq("tenant_id", actor.tenantId).in("lot_id",lotIds):Promise.resolve({data:[]}),
   admin.from("suppliers").select("id,name").eq("tenant_id", actor.tenantId),
   admin.from("purchase_categories").select("id,name").eq("tenant_id", actor.tenantId)
  ]);
- const available=eligibleLots.map(l=>({...l,available_weight_kg:(movements??[]).filter(m=>m.lot_id===l.id).reduce((sum,m)=>sum+(["issue","transfer_out","sale_dispatch"].includes(m.movement_type)?-1:1)*Number(m.weight_kg),0)})).filter(l=>l.available_weight_kg>0.0001);
+ const available=eligibleLots.map(l=>({...l,available_weight_kg:(movements??[]).filter(m=>m.lot_id===l.id).reduce((sum,m)=>sum+(["issue","transfer_out","sale_dispatch","purchase_return"].includes(m.movement_type)?-1:1)*Number(m.weight_kg),0)})).filter(l=>l.available_weight_kg>0.0001);
  let orderQuery=admin.from("sales_orders").select("*").eq("tenant_id", actor.tenantId).order("created_at",{ascending:false}).limit(300);
  if(projectIds!==null)orderQuery=orderQuery.in("project_id",projectIds.length?projectIds:["00000000-0000-0000-0000-000000000000"]);
  const {data:orders}=await orderQuery;
