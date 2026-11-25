@@ -54,9 +54,14 @@ export default async function PembelianPage() {
     ? await admin.from("purchase_receipts").select("*").eq("tenant_id", actor.tenantId).in("purchase_request_id", requestIds).order("created_at", { ascending: false })
     : { data: [] };
   const receiptIds = (receipts ?? []).map(row => row.id);
-  const { data: payments } = receiptIds.length
-    ? await admin.from("purchase_payment_requests").select("*").eq("tenant_id", actor.tenantId).in("receipt_id", receiptIds).order("requested_at", { ascending: false })
-    : { data: [] };
+  const [{ data: payments }, { data: lots }] = await Promise.all([
+    receiptIds.length
+      ? admin.from("purchase_payment_requests").select("*").eq("tenant_id", actor.tenantId).in("receipt_id", receiptIds).order("requested_at", { ascending: false })
+      : Promise.resolve({ data: [] }),
+    receiptIds.length
+      ? admin.from("inventory_lots").select("id,source_receipt_id,is_problematic,problematic_reason").eq("tenant_id", actor.tenantId).in("source_receipt_id", receiptIds)
+      : Promise.resolve({ data: [] }),
+  ]);
   const paymentIds = (payments ?? []).map(row => row.id);
   const [{ data: receiptDocs }, { data: paymentDocs }] = await Promise.all([
     receiptIds.length ? admin.from("purchase_receipt_documents").select("*").eq("tenant_id", actor.tenantId).in("receipt_id", receiptIds) : Promise.resolve({ data: [] }),
@@ -74,7 +79,7 @@ export default async function PembelianPage() {
   const data: PurchasePageData = {
     actorRoles: actor.tenantRole === "superadmin" ? ["Superadmin"] : actor.activeRole ? [actor.activeRole] : [],
     projects: scopedProjects, suppliers: suppliers ?? [], categories: categories ?? [], warehouses: scopedWarehouses,
-    requests: requests ?? [], receipts: receipts ?? [], payments: payments ?? [],
+    requests: requests ?? [], receipts: receipts ?? [], payments: payments ?? [], lots: lots ?? [],
     receiptDocs: signedReceiptDocs, paymentDocs: signedPaymentDocs, warehouseProjects: mappings ?? [],
   };
   return <PurchaseManager data={data} />;
