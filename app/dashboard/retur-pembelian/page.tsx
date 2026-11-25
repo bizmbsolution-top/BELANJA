@@ -25,17 +25,17 @@ export default async function PurchaseReturnPage() {
       .select("id,code,status,return_date,reason,created_at,posted_at,purchase_return_items(id,quarantine_id,weight_kg,lot_id,inventory_lots(code))")
       .eq("tenant_id",actor.tenantId).order("created_at",{ascending:false}).limit(100),
     admin.from("purchase_return_items")
-      .select("quarantine_id,weight_kg,purchase_return_id,purchase_returns!inner(status),inventory_lots!inner(project_id,warehouse_id)")
+      .select("quarantine_id,weight_kg,purchase_return_id,inventory_lots!inner(project_id,warehouse_id)")
       .eq("tenant_id",actor.tenantId)
   ]);
   if(caseError||returnError||itemError) throw new Error("Data Karantina atau Return Pembelian gagal dimuat.");
   const allowed=(lot:{project_id:string;warehouse_id:string})=>(projectIds===null||projectIds.includes(lot.project_id))&&(warehouseIds===null||warehouseIds.includes(lot.warehouse_id));
   const allowedItems=(items??[]).filter(item=>{const lot=Array.isArray(item.inventory_lots)?item.inventory_lots[0]:item.inventory_lots;return Boolean(lot&&allowed(lot));});
   const allowedReturnIds=new Set(allowedItems.map(item=>item.purchase_return_id));
+  const returnStatusById=new Map((returns??[]).map(r=>[r.id,r.status]));
   const reserved = new Map<string,number>();
   for(const item of allowedItems) {
-    const header = Array.isArray(item.purchase_returns)?item.purchase_returns[0]:item.purchase_returns;
-    if(header?.status==="Draft") reserved.set(item.quarantine_id,(reserved.get(item.quarantine_id)??0)+Number(item.weight_kg));
+    if(returnStatusById.get(item.purchase_return_id)==="Draft") reserved.set(item.quarantine_id,(reserved.get(item.quarantine_id)??0)+Number(item.weight_kg));
   }
   const activeCases=(cases??[]).filter(q=>{const lot=Array.isArray(q.inventory_lots)?q.inventory_lots[0]:q.inventory_lots;return Boolean(lot&&allowed(lot));}).map(q=>{
     const lot=Array.isArray(q.inventory_lots)?q.inventory_lots[0]:q.inventory_lots;
