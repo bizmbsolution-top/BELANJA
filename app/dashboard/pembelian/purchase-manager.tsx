@@ -20,7 +20,7 @@ const formatRupiahInput = (value: string) => { const digits = value.replace(/\D/
 export default function PurchaseManager({ data }: { data: PurchasePageData }) {
   const router = useRouter();
   const isProcurement = data.actorRoles.includes("Procurement") || data.actorRoles.includes("Superadmin");
-  const isCashier = data.actorRoles.includes("Cashier") || data.actorRoles.includes("Superadmin");
+  const isCashier = data.actorRoles.includes("Cashier") && !data.actorRoles.includes("Procurement") && !data.actorRoles.includes("Superadmin");
   const [showRequest, setShowRequest] = useState(false);
   const [activeBucket, setActiveBucket] = useState<"receipt" | "payment" | "paid" | "draft" | null>(null);
   const [filterSupplier, setFilterSupplier] = useState("");
@@ -165,10 +165,12 @@ export default function PurchaseManager({ data }: { data: PurchasePageData }) {
       {!activeBucket && <section className={styles.metrics}>
         <button type="button" className={styles.statusTile} onClick={() => setActiveBucket("draft")}><strong>0</strong><span>Draft Pembelian</span><small>Belum disubmit</small></button>
         <button type="button" className={styles.statusTile} onClick={() => setActiveBucket("receipt")}><strong>{data.requests.filter(r => r.status === "Menunggu Barang").length}</strong><span>Tunggu Penerimaan</span><small>Menunggu pemeriksaan barang</small></button>
-        <button type="button" className={styles.statusTile} onClick={() => setActiveBucket("payment")}><strong>{pendingPayments}</strong><span>Tunggu Pelunasan</span><small>Menunggu pembayaran kasir</small></button>
-        <button type="button" className={styles.statusTile} onClick={() => setActiveBucket("paid")}><strong>{paidPayments}</strong><span>Pembelian Lunas</span><small>Sudah dibayar penuh</small></button>
+        {isCashier && <>
+          <button type="button" className={styles.statusTile} onClick={() => setActiveBucket("payment")}><strong>{pendingPayments}</strong><span>Tunggu Pelunasan</span><small>Antrean pembayaran Kasir</small></button>
+          <button type="button" className={styles.statusTile} onClick={() => setActiveBucket("paid")}><strong>{paidPayments}</strong><span>Pembelian Lunas</span><small>Riwayat pembayaran Kasir</small></button>
+        </>}
       </section>}
-      {activeBucket && <section className={styles.section}>
+      {activeBucket && (activeBucket === "receipt" || activeBucket === "draft" || isCashier) && <section className={styles.section}>
         <div className={styles.sectionHeading}>
           <div><h2>{activeBucket === "draft" ? "Draft Pembelian" : activeBucket === "receipt" ? "Tunggu Penerimaan" : activeBucket === "payment" ? "Tunggu Pelunasan" : "Pembelian Lunas"}</h2>
           <p>{activeBucket === "draft" ? "Draft belum didukung pada alur penyimpanan saat ini." : activeBucket === "receipt" ? visibleRequests.length + " permintaan" : visiblePayments.length + " pengajuan pembayaran"}</p></div>
@@ -270,7 +272,7 @@ export default function PurchaseManager({ data }: { data: PurchasePageData }) {
         })}
       </section>}
 
-      {(activeBucket === "payment" || activeBucket === "paid") && <section className={styles.section}>
+      {isCashier && (activeBucket === "payment" || activeBucket === "paid") && <section className={styles.section}>
         <div className={styles.sectionHeading}><div><h2>{activeBucket === "paid" ? "Riwayat Pembelian Lunas" : "Pengajuan Pembayaran"}</h2><p>Pembayaran dibuat otomatis dari penerimaan yang lolos pemeriksaan.</p></div></div>
         {visiblePayments.length === 0 ? <div className={styles.empty}><p>Belum ada pengajuan pembayaran.</p></div> : visiblePayments.map(payment => {
           const receipt = data.receipts.find(r => r.id === payment.receipt_id), request = receipt ? data.requests.find(r => r.id === receipt.purchase_request_id) : null;
