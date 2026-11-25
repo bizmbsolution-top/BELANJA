@@ -279,7 +279,8 @@ export default function PurchaseManager({ data }: { data: PurchasePageData }) {
               return <div className={styles.receiptRow} key={receipt.id}>
                 <div><b>{receipt.code}</b><small>{dateLabel(receipt.receipt_date)} · {Number(receipt.weight).toLocaleString("id-ID")} {receipt.weight_unit} · Value {Number(receipt.value).toLocaleString("id-ID")} {receipt.value_unit}</small><span className={receipt.status === "Diterima" ? styles.good : receipt.status === "Ditolak" ? styles.bad : styles.pending}>{receipt.status}</span></div>
                 <div className={styles.docLinks}>{docs.map(doc => doc.signed_url && <a key={doc.id} href={doc.signed_url} target="_blank" rel="noreferrer">{doc.evidence_type === "weight" ? "Foto Timbangan" : "Foto Pengukuran"}: {doc.file_name}</a>)}</div>
-                {receipt.decision_reason && <small className={styles.note}>Alasan: {receipt.decision_reason}</small>}
+                {receipt.accepted_weight_kg != null && <div className={styles.paymentLine}><span>Masuk stok: <b>{Number(receipt.accepted_weight_kg).toLocaleString("id-ID")} kg</b></span><span>Ditolak: <b>{Number(receipt.rejected_weight_kg??0).toLocaleString("id-ID")} kg</b></span></div>}
+                {(receipt.rejection_reason || receipt.decision_reason) && <small className={styles.note}>Alasan penolakan: {receipt.rejection_reason || receipt.decision_reason}</small>}
                 {payment && <div className={styles.paymentLine}><b>{payment.code} · {rupiah(Number(payment.amount))}</b><span className={payment.status === "Lunas" ? styles.good : payment.status === "Dibatalkan" ? styles.bad : styles.pending}>{payment.status}</span></div>}
               </div>;
             })}</div>}
