@@ -143,6 +143,7 @@ export async function recordPurchaseReceipt(formData: FormData): Promise<Result>
 export async function uploadPurchasePaymentEvidence(paymentRequestId: string, formData: FormData): Promise<Result> {
   try {
     const actor = await requireAnyRole(["Cashier"]);
+    if (actor.roles.includes("Procurement")) return { ok:false,error:"Akun Procurement tidak dapat mengunggah bukti pembayaran. Gunakan akun dengan Role Cashier." };
     if (!(await hasPermission(actor.userId,"payment.post",actor.tenantRole === "superadmin",actor.tenantId))) return { ok:false,error:"Permission pembayaran belum diberikan oleh Superadmin perusahaan." };
     if (!uuid(paymentRequestId)) return { ok:false,error:"Pengajuan pembayaran tidak valid." };
     const context = await getPaymentContext(paymentRequestId, actor.tenantId);
@@ -170,6 +171,7 @@ export async function uploadPurchasePaymentEvidence(paymentRequestId: string, fo
 export async function payPurchasePayment(paymentRequestId: string): Promise<Result> {
   try {
     const actor=await requireAnyRole(["Cashier"]);
+    if(actor.roles.includes("Procurement")) return {ok:false,error:"Akun Procurement tidak dapat melakukan pembayaran. Gunakan akun dengan Role Cashier."};
     if(!(await hasPermission(actor.userId,"payment.post",actor.tenantRole === "superadmin",actor.tenantId))) return {ok:false,error:"Permission pembayaran belum diberikan oleh Superadmin perusahaan."};
     if(!uuid(paymentRequestId)) return {ok:false,error:"Pengajuan pembayaran tidak valid."};
     const context=await getPaymentContext(paymentRequestId, actor.tenantId);
