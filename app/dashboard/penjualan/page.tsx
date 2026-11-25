@@ -20,9 +20,9 @@ export default async function PenjualanPage(){
  const pids=scopedProjects.map(p=>p.id), wids=scopedWarehouses.map(w=>w.id);
  const {data:lots}=pids.length&&wids.length?await admin.from("inventory_lots").select("id,code,source_receipt_id,project_id,warehouse_id,category_id,supplier_id,initial_weight_kg,grade_value,grade_unit,purchase_price_per_kg,total_purchase_cost,inbound_date,is_problematic,is_cancelled,is_returned").eq("tenant_id", actor.tenantId).in("project_id",pids).in("warehouse_id",wids).order("inbound_date",{ascending:true}):{data:[]};
  const receiptIds=[...new Set((lots??[]).map(l=>l.source_receipt_id))];
- const {data:paidPayments}=receiptIds.length?await admin.from("purchase_payment_requests").select("receipt_id").eq("tenant_id",actor.tenantId).eq("status","Lunas").in("receipt_id",receiptIds):{data:[]};
- const paidReceiptIds=new Set((paidPayments??[]).map(p=>p.receipt_id));
- const eligibleLots=(lots??[]).filter(l=>!l.is_problematic&&!l.is_cancelled&&!l.is_returned&&paidReceiptIds.has(l.source_receipt_id));
+ const {data:receipts}=receiptIds.length?await admin.from("purchase_receipts").select("id,status").eq("tenant_id",actor.tenantId).in("id",receiptIds):{data:[]};
+ const rejectedReceiptIds=new Set((receipts??[]).filter(r=>["Ditolak","Dibatalkan"].includes(r.status)).map(r=>r.id));
+ const eligibleLots=(lots??[]).filter(l=>!l.is_problematic&&!l.is_cancelled&&!l.is_returned&&!rejectedReceiptIds.has(l.source_receipt_id));
  const lotIds=eligibleLots.map(l=>l.id);
  const [{data:movements},{data:suppliers},{data:categories}]=await Promise.all([
   lotIds.length?admin.from("inventory_movements").select("lot_id,movement_type,weight_kg").eq("tenant_id", actor.tenantId).in("lot_id",lotIds):Promise.resolve({data:[]}),
