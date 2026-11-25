@@ -171,14 +171,14 @@ export default function PurchaseManager({ data }: { data: PurchasePageData }) {
   }
 
   async function handleLotProblemStatus(lotId: string, isProblematic: boolean) {
-    const reason = window.prompt(isProblematic ? "Alasan menandai Purchase Lot sebagai Bermasalah:" : "Alasan pemulihan Purchase Lot menjadi Normal:");
+    const reason = window.prompt(isProblematic ? "Alasan memasukkan Purchase Lot ke Karantina:" : "Alasan memulihkan Purchase Lot dari Karantina:");
     if (reason === null) return;
     if (reason.trim().length < 3) { setError("Alasan wajib diisi minimal 3 karakter."); return; }
     setLotStatusBusy(lotId); setError(""); setMessage("");
     const result = await setInventoryLotProblemStatus({ lotId, isProblematic, reason: reason.trim() });
     setLotStatusBusy(null);
     if (!result.ok) { setError(result.error); return; }
-    setMessage(isProblematic ? "Purchase Lot ditandai Bermasalah dan dikeluarkan dari listing Penjualan." : "Purchase Lot dipulihkan menjadi Normal dan dapat muncul kembali di listing Penjualan jika memenuhi syarat.");
+    setMessage(isProblematic ? "Purchase Lot masuk Karantina dan diblokir dari Penjualan." : "Purchase Lot dipulihkan dari Karantina dan dapat dijual kembali jika memenuhi syarat.");
     router.refresh();
   }
 
@@ -326,7 +326,7 @@ export default function PurchaseManager({ data }: { data: PurchasePageData }) {
           return <article className={styles.paymentCard} key={payment.id}>
             <div className={styles.cardTop}><div><span className={styles.code}>{payment.code}</span><span className={payment.status === "Lunas" ? styles.good : styles.pending}>{payment.status}</span><h3>{request?.code ?? "Permintaan"} · {receipt?.code ?? "Penerimaan"}</h3><p>{supplier?.name ?? "Supplier"} · {warehouse?.name ?? "Gudang"} · {project?.code} {project?.name}</p></div><strong className={styles.amount}>{rupiah(Number(payment.amount))}</strong></div>
             {payment.status === "Lunas" && lot && <div className={styles.paymentLine}>
-              {lot.is_problematic && <span className={styles.bad}>Karantina</span>}
+              {lot.is_problematic && <span className={styles.bad}>Karantina</span>}{!lot.is_problematic && !lot.is_returned && <span className={styles.good}>Stok aktif untuk Penjualan</span>}
               {isProcurement && <button type="button" className={styles.secondary} disabled={lotStatusBusy === lot.id} onClick={() => void handleLotProblemStatus(lot.id, !lot.is_problematic)}>
                 {lotStatusBusy === lot.id ? "Memproses..." : lot.is_problematic ? "Pulihkan dari Karantina" : "Masukkan Karantina"}
               </button>}
