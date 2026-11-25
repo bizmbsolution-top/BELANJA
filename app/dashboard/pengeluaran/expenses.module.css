@@ -9,3 +9,19 @@
 :global([data-theme="dark"]) .balances{background:#142238;border-color:#293b56}
 :global([data-theme="dark"]) .executeForm{border-color:#34445c}
 :global([data-theme="dark"]) .executeForm select{background:#1c2b42;border-color:#43536c;color:#e5edf8}
+
+.settlementPanel{margin-top:16px;padding:16px;border:1px solid #b9c9e3;border-radius:12px;background:#f6f8fc;display:grid;gap:12px;min-width:0}
+.settlementHeading{display:grid;gap:4px}.settlementHeading span{font-size:10px;letter-spacing:.12em;font-weight:900;color:#155eef}.settlementHeading strong{font-size:14px}
+.executeForm{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:12px;margin:0;padding:0;border:0;background:transparent;min-width:0}
+.executeForm>p{grid-column:1/-1;padding:10px 12px;border-radius:8px;background:#eaf0fb}
+.executeForm>label{display:flex;align-items:center;justify-content:space-between;gap:12px;min-width:0}
+.executeForm>label select{min-width:150px}
+.executeForm>.docs{grid-column:1/-1;width:100%;min-width:0;margin:0;padding:12px;border:1px solid var(--line,#e5eaf2);border-radius:9px;background:var(--surface,#fff)}
+.executeForm>.primary{grid-column:1/-1;width:100%;min-height:44px}
+.executeForm .docs form{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:10px}
+.executeForm .fileButton{max-width:100%;min-height:36px;align-items:center}
+.executeForm .docList{width:100%}
+:global([data-theme="dark"]) .settlementPanel{background:#172942;border-color:#405879}
+:global([data-theme="dark"]) .settlementHeading strong{color:#e5edf8}
+:global([data-theme="dark"]) .executeForm>p{background:#203653}
+@media(max-width:700px){.settlementPanel{padding:12px}.executeForm{grid-template-columns:1fr}.executeForm>p,.executeForm>.docs,.executeForm>.primary{grid-column:1}.executeForm>label{align-items:stretch;flex-direction:column}.executeForm>label select{width:100%}.executeForm .docs form{align-items:stretch;flex-direction:column}.executeForm .docs form button{width:100%;min-height:38px}}
