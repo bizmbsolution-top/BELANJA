@@ -43,6 +43,7 @@ create index if not exists inventory_lot_quarantines_lot_idx
   on public.inventory_lot_quarantines(tenant_id, lot_id, status);
 alter table public.inventory_lot_quarantines enable row level security;
 
+create sequence if not exists public.purchase_return_code_seq;
 create table if not exists public.purchase_returns (
   id uuid primary key default gen_random_uuid(),
   code text not null unique default ('RTB-' || lpad(nextval('purchase_return_code_seq')::text,6,'0')),
@@ -58,7 +59,6 @@ create table if not exists public.purchase_returns (
   cancelled_at timestamptz,
   cancelled_by uuid references auth.users(id)
 );
-create sequence if not exists public.purchase_return_code_seq;
 create table if not exists public.purchase_return_items (
   id uuid primary key default gen_random_uuid(),
   tenant_id uuid not null references public.tenants(id),
