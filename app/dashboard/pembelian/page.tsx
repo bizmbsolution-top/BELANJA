@@ -72,7 +72,7 @@ export default async function PembelianPage() {
   }));
 
   const data: PurchasePageData = {
-    actorRoles: actor.tenantRole === "superadmin" ? ["Superadmin"] : actor.roles,
+    actorRoles: actor.tenantRole === "superadmin" ? ["Superadmin"] : actor.activeRole ? [actor.activeRole] : [],
     projects: scopedProjects, suppliers: suppliers ?? [], categories: categories ?? [], warehouses: scopedWarehouses,
     requests: requests ?? [], receipts: receipts ?? [], payments: payments ?? [],
     receiptDocs: signedReceiptDocs, paymentDocs: signedPaymentDocs, warehouseProjects: mappings ?? [],
