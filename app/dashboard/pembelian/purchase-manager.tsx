@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { createPurchaseRequest, recordPurchaseReceipt, uploadPurchasePaymentEvidence, payPurchasePayment, setInventoryLotProblemStatus } from "./actions";
+import { createPurchaseRequest, recordPurchaseReceipt, uploadPurchasePaymentEvidence, payPurchasePayment, setInventoryLotProblemStatus, cancelReceivedPurchase } from "./actions";
 import { createSupplier } from "../supplier/actions";
 import styles from "./purchase.module.css";
 
@@ -10,7 +10,7 @@ type Lookup = { id: string; code: string; name: string };
 type RequestRow = { id: string; code: string; request_date: string; project_id: string; supplier_id: string; warehouse_id: string; category_id: string; estimated_weight_kg: number; estimated_value: number | null; price_per_kg: number; notes: string | null; status: string; created_at: string };
 type ReceiptRow = { id: string; code: string; purchase_request_id: string; receipt_date: string; value: number; value_unit: string; weight: number; weight_unit: string; notes: string | null; status: string; decision_reason: string | null; completed_at: string | null };
 type PaymentRow = { id: string; code: string; receipt_id: string; amount: number; status: string; requested_at: string; paid_at: string | null; payment_method: string | null };
-type LotRow = { id: string; source_receipt_id: string; is_problematic: boolean; problematic_reason: string | null };
+type LotRow = { id: string; source_receipt_id: string; is_problematic: boolean; problematic_reason: string | null; is_cancelled: boolean; cancellation_reason: string | null };
 type DocRow = { id: string; receipt_id?: string; payment_request_id?: string; evidence_type?: string; file_name: string; signed_url: string | null };
 export type PurchasePageData = { actorRoles: string[]; projects: Lookup[]; suppliers: Lookup[]; categories: Lookup[]; warehouses: Lookup[]; requests: RequestRow[]; receipts: ReceiptRow[]; payments: PaymentRow[]; lots: LotRow[]; receiptDocs: DocRow[]; paymentDocs: DocRow[]; warehouseProjects: { warehouse_id: string; project_id: string }[] };
 
@@ -98,7 +98,7 @@ export default function PurchaseManager({ data }: { data: PurchasePageData }) {
   });
   const visiblePayments = data.payments.filter(payment => {
     if (activeBucket === "payment" && payment.status !== "Menunggu Pembayaran") return false;
-    if (activeBucket === "paid" && payment.status !== "Lunas") return false;
+    if (activeBucket === "paid" && !["Lunas","Dibatalkan"].includes(payment.status)) return false;
     if (activeBucket !== "payment" && activeBucket !== "paid") return false;
     const receipt = data.receipts.find(row => row.id === payment.receipt_id);
     const request = receipt ? data.requests.find(row => row.id === receipt.purchase_request_id) ?? null : null;
@@ -156,6 +156,18 @@ export default function PurchaseManager({ data }: { data: PurchasePageData }) {
     setPaymentBusy(null);
     if (!result.ok) { setError(result.error); return; }
     setMessage("Pembayaran berhasil dicatat dan saldo Project diperbarui."); router.refresh();
+  }
+
+  async function handleCancelReceivedPurchase(paymentId: string) {
+    const reason = window.prompt("Alasan pembatalan penerimaan (wajib):");
+    if (reason === null) return;
+    if (reason.trim().length < 3) { setError("Alasan pembatalan wajib diisi minimal 3 karakter."); return; }
+    setPaymentBusy(paymentId); setError(""); setMessage("");
+    const result = await cancelReceivedPurchase(paymentId, reason.trim());
+    setPaymentBusy(null);
+    if (!result.ok) { setError(result.error); return; }
+    setMessage("Penerimaan dibatalkan. Pengajuan pembayaran dihentikan dan Lot dikeluarkan dari stok tersedia. Riwayat tetap tersimpan.");
+    router.refresh();
   }
 
   async function handleLotProblemStatus(lotId: string, isProblematic: boolean) {
@@ -278,7 +290,7 @@ export default function PurchaseManager({ data }: { data: PurchasePageData }) {
                 <div><b>{receipt.code}</b><small>{dateLabel(receipt.receipt_date)} · {Number(receipt.weight).toLocaleString("id-ID")} {receipt.weight_unit} · Value {Number(receipt.value).toLocaleString("id-ID")} {receipt.value_unit}</small><span className={receipt.status === "Diterima" ? styles.good : receipt.status === "Ditolak" ? styles.bad : styles.pending}>{receipt.status}</span></div>
                 <div className={styles.docLinks}>{docs.map(doc => doc.signed_url && <a key={doc.id} href={doc.signed_url} target="_blank" rel="noreferrer">{doc.evidence_type === "weight" ? "Foto Timbangan" : "Foto Pengukuran"}: {doc.file_name}</a>)}</div>
                 {receipt.decision_reason && <small className={styles.note}>Alasan: {receipt.decision_reason}</small>}
-                {payment && <div className={styles.paymentLine}><b>{payment.code} · {rupiah(Number(payment.amount))}</b><span className={payment.status === "Lunas" ? styles.good : styles.pending}>{payment.status}</span></div>}
+                {payment && <div className={styles.paymentLine}><b>{payment.code} · {rupiah(Number(payment.amount))}</b><span className={payment.status === "Lunas" ? styles.good : payment.status === "Dibatalkan" ? styles.bad : styles.pending}>{payment.status}</span></div>}
               </div>;
             })}</div>}
             </>}
@@ -287,7 +299,7 @@ export default function PurchaseManager({ data }: { data: PurchasePageData }) {
       </section>}
 
       {(activeBucket === "payment" || activeBucket === "paid") && <section className={styles.section}>
-        <div className={styles.sectionHeading}><div><h2>{activeBucket === "paid" ? "Riwayat Pembelian Lunas" : "Pengajuan Pembayaran"}</h2><p>Pembayaran dibuat otomatis dari penerimaan yang lolos pemeriksaan.</p></div></div>
+        <div className={styles.sectionHeading}><div><h2>{activeBucket === "paid" ? "Riwayat Pembayaran" : "Pengajuan Pembayaran"}</h2><p>Pembayaran dibuat otomatis dari penerimaan yang lolos pemeriksaan.</p></div></div>
         {visiblePayments.length === 0 ? <div className={styles.empty}><p>Belum ada pengajuan pembayaran.</p></div> : visiblePayments.map(payment => {
           const receipt = data.receipts.find(r => r.id === payment.receipt_id), request = receipt ? data.requests.find(r => r.id === receipt.purchase_request_id) : null;
           const project = request ? lookup(data.projects, request.project_id) : null;
@@ -315,6 +327,11 @@ export default function PurchaseManager({ data }: { data: PurchasePageData }) {
             </div>
             {docs.map(doc => doc.signed_url && <a className={styles.proof} key={doc.id} href={doc.signed_url} target="_blank" rel="noreferrer">Bukti Transfer: {doc.file_name}</a>)}
             </>}
+            {isProcurement && payment.status === "Menunggu Pembayaran" && <div className={styles.paymentLine}>
+              <button type="button" className={styles.secondary} disabled={paymentBusy === payment.id} onClick={() => void handleCancelReceivedPurchase(payment.id)}>
+                {paymentBusy === payment.id ? "Memproses..." : "Batalkan Penerimaan"}
+              </button>
+            </div>}
             {isCashier && payment.status === "Menunggu Pembayaran" && <div className={styles.cashierActions}>
               <form onSubmit={event => { event.preventDefault(); void handlePaymentUpload(payment.id, event.currentTarget); }}>
                 <label>Upload Bukti Transfer (TR)<input name="files" type="file" accept="application/pdf,image/jpeg,image/png" multiple required /></label>
@@ -326,7 +343,7 @@ export default function PurchaseManager({ data }: { data: PurchasePageData }) {
           </article>;
         })}
       </section>}
-      <p className={styles.footnote}>Stok bertambah hanya setelah penerimaan dinyatakan diterima. Pembayaran wajib lunas 100% dan dilengkapi bukti Transfer.</p>
+      <p className={styles.footnote}>Stok bertambah setelah penerimaan dinyatakan diterima. Penerimaan yang belum lunas dapat dibatalkan dengan alasan; setelah lunas, gunakan status Bermasalah jika diperlukan.</p>
     </main>
   );
 }
