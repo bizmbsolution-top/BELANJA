@@ -81,6 +81,7 @@ export async function recordPurchaseReceipt(formData: FormData): Promise<Result>
   const uploadedPaths: string[] = [];
   try {
     const actor = await requireAnyRole(["Procurement"]);
+    if (actor.activeRole !== "Procurement" && actor.tenantRole !== "superadmin") return { ok: false, error: "Pilih Mode Kerja Pembelian untuk melakukan tindakan ini." };
     cleanupContext.tenantId = actor.tenantId;
     if (!(await hasPermission(actor.userId, "transaction.post_recognition", actor.tenantRole === "superadmin", actor.tenantId))) return { ok: false, error: "Permission transaksi belum diberikan oleh Superadmin perusahaan." };
     const requestId = String(formData.get("requestId") ?? "");
