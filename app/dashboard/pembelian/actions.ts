@@ -96,8 +96,9 @@ export async function recordPurchaseReceipt(formData: FormData): Promise<Result>
     const acceptedInput=Number(formData.get("acceptedWeight")??0),rejectedInput=Number(formData.get("rejectedWeight")??0),reason=String(formData.get("reason")??"").trim();\n    const unitFactor=weightUnit==="ton"?1000:1,acceptedWeightKg=acceptedInput*unitFactor,rejectedWeightKg=rejectedInput*unitFactor,totalWeightKg=weight*unitFactor;
     if (!/^\d{4}-\d{2}-\d{2}$/.test(receiptDate) || !Number.isFinite(value) || value < 0 ||
       !valueUnit || valueUnit.length > 20 || !Number.isFinite(weight) || weight <= 0 ||
-      !["kg","ton"].includes(weightUnit) || !["Diterima","Ditolak"].includes(decision) ||
-      notes.length > 1000 || (decision === "Ditolak" && reason.length < 3)) return { ok: false, error: "Pastikan berat diterima + ditolak sama dengan berat aktual. Alasan wajib jika ada barang ditolak." };
+      !["kg","ton"].includes(weightUnit) || !Number.isFinite(acceptedInput) || acceptedInput < 0 ||
+      !Number.isFinite(rejectedInput) || rejectedInput < 0 || Math.abs(totalWeightKg-acceptedWeightKg-rejectedWeightKg)>0.0001 ||
+      acceptedWeightKg+rejectedWeightKg<=0 || notes.length > 1000 || (rejectedWeightKg>0 && reason.length < 3)) return { ok: false, error: "Pastikan berat diterima + ditolak sama dengan berat aktual. Alasan wajib jika ada barang ditolak." };
     const weightFiles = formData.getAll("weightFiles").filter((v): v is File => v instanceof File && v.size > 0);
     const valueFiles = formData.getAll("valueFiles").filter((v): v is File => v instanceof File && v.size > 0);
     const files = [...weightFiles, ...valueFiles];
