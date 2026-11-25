@@ -15,7 +15,7 @@ export type PurchasePageData = { actorRoles: string[]; projects: Lookup[]; suppl
 
 const rupiah = (value: number) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(value);
 const dateLabel = (value: string) => new Date(value + (value.length === 10 ? "T00:00:00" : "")).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" });
-const formatRupiahInput = (value: string) => { const digits = value.replace(/\\D/g, ""); return digits ? new Intl.NumberFormat("id-ID", { maximumFractionDigits: 0 }).format(Number(digits)) : ""; };
+const formatRupiahInput = (value: string) => { const digits = value.replace(/\D/g, ""); return digits ? new Intl.NumberFormat("id-ID", { maximumFractionDigits: 0 }).format(Number(digits)) : ""; };
 
 export default function PurchaseManager({ data }: { data: PurchasePageData }) {
   const router = useRouter();
@@ -45,6 +45,15 @@ export default function PurchaseManager({ data }: { data: PurchasePageData }) {
   }, [data.suppliers, supplierSearch]);
 
   useEffect(() => {
+    if (!supplierDropdownOpen) return;
+    const closeOnOutsideClick = (event: PointerEvent) => {
+      if (supplierFieldRef.current && !supplierFieldRef.current.contains(event.target as Node)) setSupplierDropdownOpen(false);
+    };
+    document.addEventListener("pointerdown", closeOnOutsideClick);
+    return () => document.removeEventListener("pointerdown", closeOnOutsideClick);
+  }, [supplierDropdownOpen]);
+
+  useEffect(() => {
     if (!pendingSupplierName) return;
     const created = data.suppliers.find(s => s.name.trim().toLowerCase() === pendingSupplierName.trim().toLowerCase());
     if (created) {
@@ -66,7 +75,7 @@ export default function PurchaseManager({ data }: { data: PurchasePageData }) {
       requestDate: String(form.get("requestDate") ?? ""), projectId: String(form.get("projectId") ?? ""),
       supplierId: String(form.get("supplierId") ?? ""), warehouseId: String(form.get("warehouseId") ?? ""),
       categoryId: String(form.get("categoryId") ?? ""), estimatedWeightKg: String(form.get("estimatedWeightKg") ?? ""),
-      pricePerKg: String(form.get("pricePerKg") ?? "").replace(/\\./g, ""), notes: String(form.get("notes") ?? ""),
+      pricePerKg: String(form.get("pricePerKg") ?? "").replace(/\./g, ""), notes: String(form.get("notes") ?? ""),
     });
     setSaving(false);
     if (!result.ok) { setError(result.error); return; }
