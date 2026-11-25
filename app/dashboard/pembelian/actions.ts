@@ -383,7 +383,11 @@ export async function cancelPurchaseReturnDraft(returnId: string): Promise<Resul
     if(actor.tenantRole!=="superadmin"&&actor.activeRole!=="Procurement")return {ok:false,error:"Pilih Mode Kerja Pembelian untuk membatalkan Draft Return."};
     if(!(await hasPermission(actor.userId,"transaction.post_recognition",actor.tenantRole==="superadmin",actor.tenantId)))return {ok:false,error:"Permission Pembelian belum diberikan."};
     if(!uuid(returnId))return {ok:false,error:"Dokumen Return tidak valid."};
-    const {data,error}=await createAdminClient().rpc("cancel_purchase_return_draft_with_audit",{p_return_id:returnId,p_actor_user_id:actor.userId,p_tenant_id:actor.tenantId});
+    const admin=createAdminClient();
+    const {data:items,error:itemError}=await admin.from("purchase_return_items").select("lot_id,inventory_lots(project_id,warehouse_id)").eq("tenant_id",actor.tenantId).eq("purchase_return_id",returnId);
+    if(itemError||!items?.length)return {ok:false,error:"Item Draft Return tidak ditemukan."};
+    for(const item of items){const lot=Array.isArray(item.inventory_lots)?item.inventory_lots[0]:item.inventory_lots;if(!lot)return {ok:false,error:"Lot Return tidak ditemukan."};await assertProjectAccess(actor.userId,lot.project_id,actor.tenantRole==="superadmin",actor.roles,actor.tenantId);await assertWarehouseAccess(actor.userId,lot.project_id,lot.warehouse_id,actor.tenantRole==="superadmin",actor.roles,actor.tenantId);}
+    const {data,error}=await admin.rpc("cancel_purchase_return_draft_with_audit",{p_return_id:returnId,p_actor_user_id:actor.userId,p_tenant_id:actor.tenantId});
     if(error||!data)return {ok:false,error:error?.message??"Pembatalan Draft Return gagal."};
     revalidatePath("/dashboard/pembelian");return {ok:true,id:data as string};
   }catch(error){return {ok:false,error:error instanceof Error?error.message:"Pembatalan Draft Return gagal."};}
