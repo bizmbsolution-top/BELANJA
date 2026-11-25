@@ -30,10 +30,10 @@ export async function createSalesDraft(input:{customerId:string;projectId:string
   const {data:lots,error}=await admin.from("inventory_lots").select("id,project_id,warehouse_id,source_receipt_id,is_problematic,is_cancelled,is_returned").eq("tenant_id",actor.tenantId).in("id",lotIds);
   if(error||!lots||lots.length!==lotIds.length)return{ok:false,error:"Data Lot tidak ditemukan."};
   const receiptIds=[...new Set(lots.map(l=>l.source_receipt_id))];
-  const {data:paidPayments,error:paymentError}=await admin.from("purchase_payment_requests").select("receipt_id").eq("tenant_id",actor.tenantId).eq("status","Lunas").in("receipt_id",receiptIds);
-  const paidReceiptIds=new Set((paidPayments??[]).map(p=>p.receipt_id));
-  if(paymentError||lots.some(l=>l.is_problematic||l.is_cancelled||l.is_returned||!paidReceiptIds.has(l.source_receipt_id))) {
-    return{ok:false,error:"Penjualan hanya dapat menggunakan Lot yang sudah lunas dan berstatus Normal. Muat ulang daftar Lot."};
+  const {data:receipts,error:receiptError}=await admin.from("purchase_receipts").select("id,status").eq("tenant_id",actor.tenantId).in("id",receiptIds);
+  const rejectedReceiptIds=new Set((receipts??[]).filter(r=>["Ditolak","Dibatalkan"].includes(r.status)).map(r=>r.id));
+  if(receiptError||lots.some(l=>l.is_problematic||l.is_cancelled||l.is_returned||rejectedReceiptIds.has(l.source_receipt_id))) {
+    return{ok:false,error:"Lot berstatus Karantina/Reject, Dibatalkan, atau sudah di-Return tidak dapat ditambahkan ke Penjualan. Muat ulang daftar Lot."};
   }
   const warehouseIds=[...new Set(lots.map(l=>l.warehouse_id))];
   if(lots.some(l=>l.project_id!==input.projectId))return{ok:false,error:"Semua Lot harus berasal dari Project yang sama."};
