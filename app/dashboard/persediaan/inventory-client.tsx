@@ -5,7 +5,7 @@ import styles from "./inventory.module.css";
 
 type WarehouseItem = { id: string; code: string; name: string; location: string | null; projectLabel: string; totalKg: number; averageValue: number | null; averageValueUnit: string | null; categories: { name: string; weight: number; averageValue: number; valueUnit: string }[] };
 type LotItem = { id: string; code: string; inboundDate: string; category: string; supplier: string; initialWeight: number; availableWeight: number; gradeValue: number; gradeUnit: string; purchasePricePerKg: number; totalPurchaseCost: number };
-type MovementItem = { id: string; type: string; date: string; category: string; weight: number; value: number; valueUnit: string; reference: string; lotCode: string; projectCode: string; projectName: string };
+type MovementItem = { id: string; type: string; date: string; category: string; weight: number; value: number; valueUnit: string; reason: string | null; reference: string; lotCode: string; projectCode: string; projectName: string };
 type Props = { warehouses: WarehouseItem[]; lots: Record<string, LotItem[]>; movements: Record<string, MovementItem[]>; totalKg: number; movementCount: number; categoryCount: number };
 
 const qty = (n: number) => `${Number(n).toLocaleString("id-ID", { maximumFractionDigits: 3 })} kg`;
