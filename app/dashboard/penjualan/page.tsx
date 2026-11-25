@@ -4,7 +4,7 @@ import SalesManager, { type SalesPageData } from "./sales-manager";
 export default async function PenjualanPage(){
  const actor=await requireAnyRole(["Sales","Warehouse","Management"]);
  const admin=createAdminClient();
- const broad=actor.tenantRole === "superadmin"||actor.roles.includes("Management");
+ const broad=actor.tenantRole === "superadmin"||actor.activeRole==="Management";
  let projectIds:string[]|null=null;
  if(!broad){const {data:s}=await admin.from("tenant_user_work_scopes").select("scope_mode,resource_ids").eq("tenant_id", actor.tenantId).eq("user_id",actor.userId).eq("dimension","project").maybeSingle();if(!s)projectIds=[];else if(s.scope_mode==="all")projectIds=null;else if(s.scope_mode==="selected")projectIds=s.resource_ids??[];else projectIds=[];}
  let warehouseIds:string[]|null=null;
@@ -36,6 +36,6 @@ export default async function PenjualanPage(){
  const {data:documents}=visibleOrders.length?await admin.from("sales_order_documents").select("*").eq("tenant_id", actor.tenantId).in("sales_order_id",visibleOrders.map(o=>o.id)): {data:[]};
  const signedDocuments=await Promise.all((documents??[]).map(async doc=>{const {data}=await admin.storage.from("sales-buyer-ba-evidence").createSignedUrl(doc.storage_path,3600);return {...doc,signed_url:data?.signedUrl??null};}));
 
- const data:SalesPageData={actorRoles:actor.tenantRole === "superadmin"?["Superadmin"]:actor.roles,projects:scopedProjects,warehouses:scopedWarehouses,warehouseProjects:mappings??[],customers:(customers??[]).map(c=>({...c,warehouse_addresses:(c.customer_warehouse_addresses??[]).filter(a=>a.is_active)})),lots:(lots??[]).map(l=>({...l,available_weight_kg:available.find(a=>a.id===l.id)?.available_weight_kg??0,category_name:(categories??[]).find(c=>c.id===l.category_id)?.name??"—",supplier_name:(suppliers??[]).find(s=>s.id===l.supplier_id)?.name??"—"})),orders:visibleOrders,allocations:(allocations??[]).filter(a=>visibleOrderIds.has(a.sales_order_id)),documents:signedDocuments,categories:categories??[],suppliers:suppliers??[]};
+ const data:SalesPageData={actorRoles:actor.tenantRole === "superadmin"?["Superadmin"]:actor.activeRole?[actor.activeRole]:[],projects:scopedProjects,warehouses:scopedWarehouses,warehouseProjects:mappings??[],customers:(customers??[]).map(c=>({...c,warehouse_addresses:(c.customer_warehouse_addresses??[]).filter(a=>a.is_active)})),lots:(lots??[]).map(l=>({...l,available_weight_kg:available.find(a=>a.id===l.id)?.available_weight_kg??0,category_name:(categories??[]).find(c=>c.id===l.category_id)?.name??"—",supplier_name:(suppliers??[]).find(s=>s.id===l.supplier_id)?.name??"—"})),orders:visibleOrders,allocations:(allocations??[]).filter(a=>visibleOrderIds.has(a.sales_order_id)),documents:signedDocuments,categories:categories??[],suppliers:suppliers??[]};
  return <SalesManager data={data}/>;
 }
