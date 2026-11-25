@@ -22,6 +22,13 @@ export default function PurchaseManager({ data }: { data: PurchasePageData }) {
   const isProcurement = data.actorRoles.includes("Procurement") || data.actorRoles.includes("Superadmin");
   const isCashier = data.actorRoles.includes("Cashier") || data.actorRoles.includes("Superadmin");
   const [showRequest, setShowRequest] = useState(false);
+  const [activeBucket, setActiveBucket] = useState<"receipt" | "payment" | "paid" | "draft" | null>(null);
+  const [filterSupplier, setFilterSupplier] = useState("");
+  const [filterWarehouse, setFilterWarehouse] = useState("");
+  const [filterFrom, setFilterFrom] = useState("");
+  const [filterTo, setFilterTo] = useState("");
+  const [filterSearch, setFilterSearch] = useState("");
+  const [expandedRequestId, setExpandedRequestId] = useState<string | null>(null);
   const [receiptFor, setReceiptFor] = useState<RequestRow | null>(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -67,6 +74,30 @@ export default function PurchaseManager({ data }: { data: PurchasePageData }) {
   const pendingPayments = data.payments.filter(p => p.status === "Menunggu Pembayaran").length;
   const paidPayments = data.payments.filter(p => p.status === "Lunas").length;
   const acceptedReceipts = data.receipts.filter(r => r.status === "Diterima").length;
+  const matchesRequest = (request: RequestRow | null) => {
+    if (!request) return false;
+    const supplier = lookup(data.suppliers, request.supplier_id);
+    const warehouse = lookup(data.warehouses, request.warehouse_id);
+    const term = filterSearch.trim().toLowerCase();
+    const haystack = [request.code, supplier?.name, supplier?.code].filter(Boolean).join(" ").toLowerCase();
+    return (!term || haystack.includes(term)) &&
+      (!filterSupplier || request.supplier_id === filterSupplier) &&
+      (!filterWarehouse || request.warehouse_id === filterWarehouse) &&
+      (!filterFrom || request.request_date >= filterFrom) &&
+      (!filterTo || request.request_date <= filterTo);
+  };
+  const visibleRequests = data.requests.filter(request => {
+    if (activeBucket === "receipt" && request.status !== "Menunggu Barang") return false;
+    return matchesRequest(request);
+  });
+  const visiblePayments = data.payments.filter(payment => {
+    if (activeBucket === "payment" && payment.status !== "Menunggu Pembayaran") return false;
+    if (activeBucket === "paid" && payment.status !== "Lunas") return false;
+    if (activeBucket !== "payment" && activeBucket !== "paid") return false;
+    const receipt = data.receipts.find(row => row.id === payment.receipt_id);
+    const request = receipt ? data.requests.find(row => row.id === receipt.purchase_request_id) ?? null : null;
+    return matchesRequest(request);
+  });
 
   async function handleRequestSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setSaving(true); setError(""); setMessage("");
@@ -129,12 +160,30 @@ export default function PurchaseManager({ data }: { data: PurchasePageData }) {
         <div><p className={styles.eyebrow}>OPERASIONAL</p><h1>Pembelian</h1><p>Permintaan pembelian, pemeriksaan penerimaan, dan pembayaran berdasarkan barang yang diterima.</p></div>
         {isProcurement && <button className={styles.primary} type="button" onClick={() => { setError(""); setSupplierId(""); setSupplierSearch(""); setSupplierFormOpen(false); setPricePerKgText(""); setShowRequest(true); }}>+ Buat Permintaan</button>}
       </header>
-      <section className={styles.metrics}>
-        <article><strong>{data.requests.length}</strong><span>Permintaan Pembelian</span></article>
-        <article><strong>{acceptedReceipts}</strong><span>Penerimaan Diterima</span></article>
-        <article><strong>{pendingPayments}</strong><span>Menunggu Pembayaran</span></article>
-        <article><strong>{paidPayments}</strong><span>Pembayaran Lunas</span></article>
-      </section>
+      {!activeBucket && <section className={styles.metrics}>
+        <button type="button" className={styles.statusTile} onClick={() => setActiveBucket("draft")}><strong>0</strong><span>Draft Pembelian</span><small>Belum disubmit</small></button>
+        <button type="button" className={styles.statusTile} onClick={() => setActiveBucket("receipt")}><strong>{data.requests.filter(r => r.status === "Menunggu Barang").length}</strong><span>Tunggu Penerimaan</span><small>Menunggu pemeriksaan barang</small></button>
+        <button type="button" className={styles.statusTile} onClick={() => setActiveBucket("payment")}><strong>{pendingPayments}</strong><span>Tunggu Pelunasan</span><small>Menunggu pembayaran kasir</small></button>
+        <button type="button" className={styles.statusTile} onClick={() => setActiveBucket("paid")}><strong>{paidPayments}</strong><span>Pembelian Lunas</span><small>Sudah dibayar penuh</small></button>
+      </section>}
+      {activeBucket && <section className={styles.section}>
+        <div className={styles.sectionHeading}>
+          <div><h2>{activeBucket === "draft" ? "Draft Pembelian" : activeBucket === "receipt" ? "Tunggu Penerimaan" : activeBucket === "payment" ? "Tunggu Pelunasan" : "Pembelian Lunas"}</h2>
+          <p>{activeBucket === "draft" ? "Draft belum didukung pada alur penyimpanan saat ini." : activeBucket === "receipt" ? visibleRequests.length + " permintaan" : visiblePayments.length + " pengajuan pembayaran"}</p></div>
+          <button type="button" className={styles.secondary} onClick={() => { setActiveBucket(null); setFilterSupplier(""); setFilterWarehouse(""); setFilterFrom(""); setFilterTo(""); setFilterSearch(""); setExpandedRequestId(null); }}>Kembali</button>
+        </div>
+        {activeBucket !== "draft" && <div className={styles.filterPanel}>
+          <input aria-label="Cari nomor order atau supplier" placeholder="Cari nomor order / supplier..." value={filterSearch} onChange={e => setFilterSearch(e.target.value)} />
+          <select aria-label="Filter supplier" value={filterSupplier} onChange={e => setFilterSupplier(e.target.value)}><option value="">Semua Supplier</option>{data.suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select>
+          <select aria-label="Filter gudang" value={filterWarehouse} onChange={e => setFilterWarehouse(e.target.value)}><option value="">Semua Gudang</option>{data.warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</select>
+          <label>Dari tanggal<input type="date" value={filterFrom} onChange={e => setFilterFrom(e.target.value)} /></label>
+          <label>Sampai tanggal<input type="date" value={filterTo} onChange={e => setFilterTo(e.target.value)} /></label>
+          <button type="button" className={styles.secondary} onClick={() => { setFilterSupplier(""); setFilterWarehouse(""); setFilterFrom(""); setFilterTo(""); setFilterSearch(""); }}>Reset Filter</button>
+        </div>}
+        {activeBucket === "draft" && <div className={styles.empty}><h3>Belum ada draft pembelian</h3><p>Alur saat ini langsung menyimpan permintaan sebagai pengajuan. Fitur simpan draft memerlukan dukungan proses penyimpanan tersendiri.</p></div>}
+        {activeBucket === "receipt" && visibleRequests.length === 0 && <div className={styles.empty}><h3>Tidak ada permintaan menunggu penerimaan</h3><p>Coba ubah filter pencarian atau periode.</p></div>}
+        {(activeBucket === "payment" || activeBucket === "paid") && visiblePayments.length === 0 && <div className={styles.empty}><h3>Tidak ada data pembayaran</h3><p>Coba ubah filter supplier, gudang, atau tanggal.</p></div>}
+      </section>}
       {(message || error) && <p className={error ? styles.error : styles.success} role={error ? "alert" : "status"}>{error || message}</p>}
 
       {showRequest && <section className={styles.formCard}>
@@ -191,9 +240,9 @@ export default function PurchaseManager({ data }: { data: PurchasePageData }) {
         </form>
       </section>}
 
-      <section className={styles.section}>
-        <div className={styles.sectionHeading}><div><h2>Daftar Permintaan Pembelian</h2><p>{data.requests.length} permintaan ditampilkan</p></div></div>
-        {data.requests.length === 0 ? <div className={styles.empty}><h3>Belum ada permintaan pembelian</h3><p>Buat permintaan untuk memulai proses pembelian.</p></div> : data.requests.map(request => {
+      {activeBucket === "receipt" && <section className={styles.section}>
+        <div className={styles.sectionHeading}><div><h2>Daftar Order</h2><p>{visibleRequests.length} order ditampilkan</p></div></div>
+        {visibleRequests.length === 0 ? <div className={styles.empty}><h3>Belum ada permintaan pembelian</h3><p>Buat permintaan untuk memulai proses pembelian.</p></div> : visibleRequests.map(request => {
           const project = lookup(data.projects, request.project_id), supplier = lookup(data.suppliers, request.supplier_id);
           const warehouse = lookup(data.warehouses, request.warehouse_id), category = lookup(data.categories, request.category_id);
           const receipts = data.receipts.filter(r => r.purchase_request_id === request.id);
@@ -213,11 +262,11 @@ export default function PurchaseManager({ data }: { data: PurchasePageData }) {
             })}</div>}
           </article>;
         })}
-      </section>
+      </section>}
 
-      <section className={styles.section}>
-        <div className={styles.sectionHeading}><div><h2>Pengajuan Pembayaran</h2><p>Pembayaran dibuat otomatis dari penerimaan yang lolos pemeriksaan.</p></div></div>
-        {data.payments.length === 0 ? <div className={styles.empty}><p>Belum ada pengajuan pembayaran.</p></div> : data.payments.map(payment => {
+      {(activeBucket === "payment" || activeBucket === "paid") && <section className={styles.section}>
+        <div className={styles.sectionHeading}><div><h2>{activeBucket === "paid" ? "Riwayat Pembelian Lunas" : "Pengajuan Pembayaran"}</h2><p>Pembayaran dibuat otomatis dari penerimaan yang lolos pemeriksaan.</p></div></div>
+        {visiblePayments.length === 0 ? <div className={styles.empty}><p>Belum ada pengajuan pembayaran.</p></div> : visiblePayments.map(payment => {
           const receipt = data.receipts.find(r => r.id === payment.receipt_id), request = receipt ? data.requests.find(r => r.id === receipt.purchase_request_id) : null;
           const project = request ? lookup(data.projects, request.project_id) : null, docs = data.paymentDocs.filter(d => d.payment_request_id === payment.id);
           return <article className={styles.paymentCard} key={payment.id}>
@@ -238,7 +287,7 @@ export default function PurchaseManager({ data }: { data: PurchasePageData }) {
             </div>}
           </article>;
         })}
-      </section>
+      </section>}
       <p className={styles.footnote}>Stok bertambah hanya setelah penerimaan dinyatakan diterima. Pembayaran wajib lunas 100% dan dilengkapi bukti Transfer.</p>
     </main>
   );
