@@ -11,7 +11,7 @@ type Movement = {
   value_unit: string; created_at: string;
 };
 type Lot = {
-  id: string; code: string; source_receipt_id: string; purchase_request_id: string;
+  id: string; code: string; source_receipt_id: string; purchase_request_id: string; is_cancelled: boolean;
   supplier_id: string; inbound_date: string; project_id: string; warehouse_id: string;
   category_id: string; initial_weight_kg: number; grade_value: number; grade_unit: string;
   purchase_price_per_kg: number; total_purchase_cost: number;
@@ -50,11 +50,14 @@ export default async function PersediaanPage() {
   if (error) throw new Error("Data pergerakan persediaan gagal dimuat.");
   if (lotError) throw new Error("Data Lot persediaan gagal dimuat.");
 
+  const cancelledLotIds = new Set(((rawLots ?? []) as Lot[]).filter(l => l.is_cancelled).map(l => l.id));
   const visible = ((movements ?? []) as Movement[]).filter(m =>
+    (!m.lot_id || !cancelledLotIds.has(m.lot_id)) &&
     (warehouseIds === null || warehouseIds.includes(m.warehouse_id)) &&
     (projectIds === null || projectIds.includes(m.project_id))
   );
   const visibleLots = ((rawLots ?? []) as Lot[]).filter(l =>
+    !l.is_cancelled &&
     (warehouseIds === null || warehouseIds.includes(l.warehouse_id)) &&
     (projectIds === null || projectIds.includes(l.project_id))
   );
