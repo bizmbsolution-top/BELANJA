@@ -44,6 +44,6 @@ export default async function PurchaseReturnPage() {
       releasedWeightKg:Number(q.released_weight_kg),reservedWeightKg:reserved.get(q.id)??0,
       availableWeightKg:Math.max(0,Number(q.quarantined_weight_kg)-Number(q.returned_weight_kg)-Number(q.released_weight_kg)-(reserved.get(q.id)??0)),
       reason:q.reason,createdAt:q.created_at};
-  }).filter(q=>q.availableWeightKg>0.0001);
+  });
   return <ReturnClient cases={activeCases} returns={(returns??[]).filter(r=>allowedReturnIds.has(r.id)).map(r=>({...r,purchase_return_items:(r.purchase_return_items??[]).filter(item=>allowedItems.some(ai=>ai.purchase_return_id===r.id&&ai.quarantine_id===item.quarantine_id))}))} />;
 }
