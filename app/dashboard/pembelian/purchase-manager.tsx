@@ -20,7 +20,7 @@ const formatRupiahInput = (value: string) => { const digits = value.replace(/\D/
 export default function PurchaseManager({ data }: { data: PurchasePageData }) {
   const router = useRouter();
   const isProcurement = data.actorRoles.includes("Procurement") || data.actorRoles.includes("Superadmin");
-  const isCashier = data.actorRoles.includes("Cashier") && !data.actorRoles.includes("Procurement") && !data.actorRoles.includes("Superadmin");
+  const isCashier = data.actorRoles.includes("Cashier");
   const [showRequest, setShowRequest] = useState(false);
   const [activeBucket, setActiveBucket] = useState<"receipt" | "payment" | "paid" | "draft" | null>(null);
   const [filterSupplier, setFilterSupplier] = useState("");
