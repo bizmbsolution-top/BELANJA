@@ -29,7 +29,7 @@ export default function ExpenseManager({categories,projects,initialItems,balance
 }) {
   const router=useRouter();
   const [showForm,setShowForm]=useState(false),[saving,setSaving]=useState(false);
-  const [message,setMessage]=useState(""),[error,setError]=useState(""),[query,setQuery]=useState(""),[filter,setFilter]=useState("Semua");
+  const [message,setMessage]=useState(""),[error,setError]=useState(""),[query,setQuery]=useState(""),[filter,setFilter]=useState("Semua"),[selectedStatus,setSelectedStatus]=useState<Expense["status"]|"">("");
   const [editId,setEditId]=useState(""),[dateValue,setDateValue]=useState(new Date().toLocaleDateString("en-CA"));
   const [projectId,setProjectId]=useState(projects[0]?.id??""),[categoryId,setCategoryId]=useState("");
   const [description,setDescription]=useState(""),[amount,setAmount]=useState("");
@@ -38,7 +38,7 @@ export default function ExpenseManager({categories,projects,initialItems,balance
   const filtered=useMemo(()=>initialItems.filter(item=>{
     const q=query.trim().toLowerCase();
     const match=!q||[item.code,item.description,item.projects?.name,item.expense_categories?.name].some(v=>v?.toLowerCase().includes(q));
-    return match&&(filter==="Semua"||item.status===filter);
+    return match&&(selectedStatus ? item.status===selectedStatus : filter==="Semua"||item.status===filter);
   }),[initialItems,query,filter]);
   const active=initialItems.filter(i=>i.status!=="Dibatalkan");
   const paymentQueue=initialItems.filter(i=>i.status==="Menunggu Pembayaran");
@@ -96,7 +96,16 @@ export default function ExpenseManager({categories,projects,initialItems,balance
     <header className={styles.header}><div><p className={styles.eyebrow}>KAS & OPERASIONAL</p><h1>Pengeluaran / Expenses</h1><p>Staf membuat voucher. Kasir memeriksa dan membayar dari saldo Project.</p></div>
       {canCreate&&<button className={styles.primary} type="button" onClick={()=>{setShowForm(v=>!v);if(showForm)clearForm();setError("");}}>{showForm?"Tutup Form":"+ Buat Voucher Expenses"}</button>}
     </header>
-    <section className={styles.summary}><div><strong>{initialItems.length}</strong><span>Total voucher & riwayat</span></div><div><strong>{active.length}</strong><span>Belum dibatalkan</span></div><div><strong>{money(totalPaid)}</strong><span>Total sudah dibayar</span></div></section>
+    <section className={styles.statusGrid} aria-label="Status voucher">
+      {([
+        ["Draft","Draft","Voucher belum disubmit"],
+        ["Menunggu Pembayaran","Menunggu Pembayaran","Menunggu tindakan Kasir"],
+        ["Dibayar","Dibayar","Pembayaran selesai"],
+        ["Dibatalkan","Dibatalkan","Riwayat pembatalan"]
+      ] as const).map(([status,label,description])=><button type="button" key={status} className={selectedStatus===status?styles.statusWidgetActive:styles.statusWidget} onClick={()=>{setSelectedStatus(status);setFilter("Semua");setQuery("");}}>
+        <strong>{initialItems.filter(item=>item.status===status).length}</strong><span>{label}</span><small>{description}</small>
+      </button>)}
+    </section>
     {message&&<p className={styles.success} role="status">{message}</p>}{error&&<p className={styles.error} role="alert">{error}</p>}
     {showForm&&canCreate&&<section className={styles.panel}><h2>{editId?"Ubah Draft Voucher":"Buat Draft Voucher"}</h2><p>Draft dapat diubah. Setelah dikirim, voucher masuk ke antrean Kasir dan tidak dapat diedit staf.</p>
       <form className={styles.form} onSubmit={saveDraft}>
@@ -112,7 +121,7 @@ export default function ExpenseManager({categories,projects,initialItems,balance
     {canViewBalances&&<section className={styles.balances??styles.panel}><div className={styles.listHead}><div><h2>Saldo Kasir per Project</h2><p>Saldo bersama Project. Berkurang hanya setelah pembayaran voucher berhasil.</p></div></div>
       <div className={styles.summary}>{projects.map(p=><div key={p.id}><strong>{money(balances[p.id]??0)}</strong><span>{p.code} · {p.name}</span></div>)}</div>
     </section>}
-    {canPay&&<section className={styles.panel}><div className={styles.listHead}><div><h2>Antrean Pembayaran Kasir</h2><p>{paymentQueue.length} voucher menunggu penyelesaian · pembayaran harus penuh</p></div></div>
+    {canPay&&selectedStatus==="Menunggu Pembayaran"&&<section className={styles.panel}><div className={styles.listHead}><div><h2>Antrean Pembayaran Kasir</h2><p>{paymentQueue.length} voucher menunggu penyelesaian · pembayaran harus penuh</p></div></div>
       {!paymentQueue.length?<div className={styles.empty}><h3>Antrean pembayaran kosong</h3><p>Voucher yang sudah disubmit staf akan muncul di sini.</p></div>:<div className={styles.list}>{paymentQueue.map(item=><article className={styles.item} key={item.id}>
         <div className={styles.itemTop}><div><span className={styles.code}>{item.code}</span><span className={styles.pending}>Menunggu Pembayaran</span></div><time>{date(item.expense_date)}</time></div>
         <div className={styles.itemMain}><div><h3>{item.description}</h3><p>{item.projects?item.projects.code+" · "+item.projects.name:"Project tidak tersedia"} · {item.expense_categories?.name??"Kategori tidak tersedia"}</p></div><strong className={styles.amount}>{money(Number(item.amount))}</strong></div>
@@ -127,7 +136,7 @@ export default function ExpenseManager({categories,projects,initialItems,balance
         </div></section>
       </article>)}</div>}
     </section>}
-    <section className={styles.panel}><div className={styles.listHead}><div><h2>Daftar Voucher Expenses</h2><p>{filtered.length} data ditampilkan · maksimal 300 terbaru</p></div><div className={styles.filters}><input placeholder="Cari kode, Project, keterangan..." value={query} onChange={e=>setQuery(e.target.value)}/><select value={filter} onChange={e=>setFilter(e.target.value)}><option>Semua</option><option>Draft</option><option>Menunggu Pembayaran</option><option>Dibayar</option><option>Dibatalkan</option></select></div></div>
+    {selectedStatus!==""&&!(canPay&&selectedStatus==="Menunggu Pembayaran")&&<section className={styles.panel}><div className={styles.listHead}><div><h2>Daftar Voucher · {selectedStatus}</h2><p>{filtered.length} data ditampilkan · maksimal 300 terbaru</p></div><div className={styles.filters}><input placeholder="Cari kode, Project, keterangan..." value={query} onChange={e=>setQuery(e.target.value)}/><button type="button" onClick={()=>setSelectedStatus("")}>Kembali ke Status</button></div></div>
       {!filtered.length?<div className={styles.empty}><h3>Belum ada voucher Expenses</h3><p>Voucher baru akan tampil di sini setelah dibuat.</p></div>:<div className={styles.list}>{filtered.map(item=><article className={styles.item} key={item.id}>
         <div className={styles.itemTop}><div><span className={styles.code}>{item.code}</span><span className={item.status==="Dibayar"?styles.active:item.status==="Dibatalkan"?styles.cancelled:styles.pending}>{statusLabel(item.status)}</span></div><time>{date(item.expense_date)}</time></div>
         <div className={styles.itemMain}><div><h3>{item.description}</h3><p>{item.projects?item.projects.code+" · "+item.projects.name:"Riwayat sebelum alur voucher"} · {item.expense_categories?.name??"Kategori tidak tersedia"}</p></div><strong className={styles.amount}>{money(Number(item.amount))}</strong></div>
@@ -142,7 +151,7 @@ export default function ExpenseManager({categories,projects,initialItems,balance
         {item.status!=="Draft"&&!!item.expense_documents?.length&&<div className={styles.docs}><strong>Dokumen Pengajuan ({item.expense_documents.length})</strong><div className={styles.docList}>{item.expense_documents.map(d=><div className={styles.doc} key={d.id}><span className={styles.fileIcon}>{d.mime_type==="application/pdf"?"PDF":"IMG"}</span><span className={styles.fileName}><strong>{d.file_name}</strong><small>{bytes(Number(d.file_size))}</small></span><button type="button" onClick={()=>viewDoc(d.id)}>Lihat</button></div>)}</div></div>}
         {canCancel&&(item.status==="Draft"||item.status==="Menunggu Pembayaran")&&<div className={styles.itemActions}>{cancelId===item.id?<form className={styles.cancelForm} onSubmit={e=>cancel(item.id,e)}><label>Alasan pembatalan *<textarea required rows={2} maxLength={500} value={cancelReason} onChange={e=>setCancelReason(e.target.value)}/></label><button className={styles.danger} disabled={busyId===item.id}>Konfirmasi Pembatalan</button><button type="button" onClick={()=>{setCancelId("");setCancelReason("");}}>Kembali</button></form>:<button type="button" className={styles.cancelButton} onClick={()=>setCancelId(item.id)}>Batalkan Voucher</button>}</div>}
       </article>)}</div>}
-    </section>
+    </section>}
     <p className={styles.note}>Draft dapat diubah. Setelah Submit, voucher terkunci dan menunggu Kasir. Pembayaran harus penuh; saldo tidak cukup berarti pembayaran diblokir. Voucher yang sudah dibayar tidak dapat dibatalkan.</p>
   </main>;
 }
