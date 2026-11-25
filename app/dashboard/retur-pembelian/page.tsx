@@ -13,7 +13,7 @@ export default async function PurchaseReturnPage() {
       .select("id,lot_id,quarantined_weight_kg,returned_weight_kg,released_weight_kg,reason,created_at,inventory_lots!inner(code,project_id,warehouse_id,tenant_id)")
       .eq("tenant_id",actor.tenantId).eq("status","Active").order("created_at",{ascending:false}),
     admin.from("purchase_returns")
-      .select("id,code,status,return_date,reason,created_at,posted_at")
+      .select("id,code,status,return_date,reason,created_at,posted_at,purchase_return_items(id,weight_kg,lot_id,inventory_lots(code))")
       .eq("tenant_id",actor.tenantId).order("created_at",{ascending:false}).limit(100),
     admin.from("purchase_return_items")
       .select("quarantine_id,weight_kg,purchase_return_id,purchase_returns!inner(status)")
