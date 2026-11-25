@@ -93,7 +93,8 @@ export async function recordPurchaseReceipt(formData: FormData): Promise<Result>
     const receiptDate = String(formData.get("receiptDate") ?? ""), value = Number(formData.get("value"));
     const valueUnit = String(formData.get("valueUnit") ?? "%").trim(), weight = Number(formData.get("weight"));
     const weightUnit = String(formData.get("weightUnit") ?? "kg"), notes = String(formData.get("notes") ?? "").trim();
-    const acceptedInput=Number(formData.get("acceptedWeight")??0),rejectedInput=Number(formData.get("rejectedWeight")??0),reason=String(formData.get("reason")??"").trim();\n    const unitFactor=weightUnit==="ton"?1000:1,acceptedWeightKg=acceptedInput*unitFactor,rejectedWeightKg=rejectedInput*unitFactor,totalWeightKg=weight*unitFactor;
+    const acceptedInput=Number(formData.get("acceptedWeight")??0),rejectedInput=Number(formData.get("rejectedWeight")??0),reason=String(formData.get("reason")??"").trim();
+    const unitFactor=weightUnit==="ton"?1000:1,acceptedWeightKg=acceptedInput*unitFactor,rejectedWeightKg=rejectedInput*unitFactor,totalWeightKg=weight*unitFactor;
     if (!/^\d{4}-\d{2}-\d{2}$/.test(receiptDate) || !Number.isFinite(value) || value < 0 ||
       !valueUnit || valueUnit.length > 20 || !Number.isFinite(weight) || weight <= 0 ||
       !["kg","ton"].includes(weightUnit) || !Number.isFinite(acceptedInput) || acceptedInput < 0 ||
@@ -127,8 +128,9 @@ export async function recordPurchaseReceipt(formData: FormData): Promise<Result>
         if (recordError) throw new Error("Pencatatan foto " + file.name + " gagal.");
       }
     }
-    const { error: completeError } = await admin.rpc("complete_purchase_receipt_with_audit", {
-      p_receipt_id: receiptId, p_actor_user_id: actor.userId, p_decision: decision, p_reason: reason || null,
+    const { error: completeError } = await admin.rpc("complete_purchase_receipt_with_split_with_audit", {
+      p_receipt_id: receiptId, p_actor_user_id: actor.userId, p_accepted_weight_kg: acceptedWeightKg,
+      p_rejected_weight_kg: rejectedWeightKg, p_rejection_reason: reason || null,
     });
     if (completeError) throw new Error("Penerimaan gagal diselesaikan. Pastikan bukti foto lengkap dan permintaan masih terbuka.");
     revalidatePath("/dashboard/pembelian"); return { ok: true, id: receiptId };
