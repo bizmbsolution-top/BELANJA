@@ -59,22 +59,48 @@ export default async function PurchaseReturnPage() {
     returnItemsById.set(item.purchase_return_id, current);
   }
   const supplierNameById = new Map((creditSuppliers ?? []).map(supplier => [supplier.id, { code: supplier.code, name: supplier.name }]));
-  const creditByItemId = new Map((credits ?? []).map(credit => [credit.purchase_return_item_id, credit]));
+  type ReturnCredit = {
+    id: string;
+    supplier_id: string;
+    returned_weight_kg: number;
+    unit_price_per_kg: number;
+    credit_amount: number;
+    remaining_amount: number;
+    decision: string;
+    status: string;
+  };
+  // Normalize generated Supabase row types at the server boundary. The DB columns
+  // are present for every credit row, although generated types may mark them optional.
+  const creditByItemId = new Map<string, ReturnCredit>(
+    (credits ?? []).map(credit => [String(credit.purchase_return_item_id), {
+      id: String(credit.id),
+      supplier_id: String(credit.supplier_id),
+      returned_weight_kg: Number(credit.returned_weight_kg ?? 0),
+      unit_price_per_kg: Number(credit.unit_price_per_kg ?? 0),
+      credit_amount: Number(credit.credit_amount ?? 0),
+      remaining_amount: Number(credit.remaining_amount ?? 0),
+      decision: String(credit.decision ?? "pending"),
+      status: String(credit.status ?? "pending_decision")
+    }])
+  );
   const visibleReturns = (returns ?? [])
     .filter(returnHeader => allowedReturnIds.has(returnHeader.id))
     .map(returnHeader => ({
       ...returnHeader,
-      purchase_return_items: (returnItemsById.get(returnHeader.id) ?? []).map(item => ({
-        id: item.id,
-        quarantine_id: item.quarantine_id,
-        weight_kg: item.weight_kg,
-        lot_id: item.lot_id,
-        inventory_lots: item.inventory_lots,
-        credit: creditByItemId.get(item.id) ? {
-          ...creditByItemId.get(item.id),
-          supplier: supplierNameById.get(creditByItemId.get(item.id)!.supplier_id) ?? null
-        } : null
-      }))
+      purchase_return_items: (returnItemsById.get(returnHeader.id) ?? []).map(item => {
+        const credit = creditByItemId.get(item.id);
+        return {
+          id: item.id,
+          quarantine_id: item.quarantine_id,
+          weight_kg: item.weight_kg,
+          lot_id: item.lot_id,
+          inventory_lots: item.inventory_lots,
+          credit: credit ? {
+            ...credit,
+            supplier: supplierNameById.get(credit.supplier_id) ?? null
+          } : null
+        };
+      })
     }));
 
   const reserved = new Map<string, number>();
