@@ -136,7 +136,7 @@ export async function recordPurchaseReceipt(formData: FormData): Promise<Result>
       p_rejected_weight_kg: rejectedWeightKg, p_rejection_reason: reason || null,
       p_supplier_credit_id: supplierCreditId || null,
     });
-    if (completeError) throw new Error("Penerimaan gagal diselesaikan. Pastikan bukti foto lengkap dan permintaan masih terbuka.");
+    if (completeError) throw new Error("Penerimaan gagal diselesaikan: " + completeError.message);
     revalidatePath("/dashboard/pembelian"); return { ok: true, id: receiptId };
   } catch (error) {
     if (receiptId) {
