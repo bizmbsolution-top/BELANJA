@@ -15,30 +15,26 @@ export async function saveSalesExpenseMaster(input:{id?:string;name:string;categ
   if(input.id){const {data:existing,error:lookupError}=await createAdminClient().from("sales_expense_masters").select("id").eq("tenant_id",actor.tenantId).eq("id",input.id).maybeSingle();if(lookupError||!existing)return{ok:false,error:"Master biaya tidak ditemukan pada perusahaan aktif."};}
   const {error}=await createAdminClient().rpc("save_sales_expense_master_with_audit",{p_master_id:input.id||null,p_actor_user_id:actor.userId,p_tenant_id:actor.tenantId,p_name:input.name.trim(),p_expense_category_id:input.categoryId||null,p_expense_type:input.expenseType,p_calculation_method:input.method,p_calculation_basis:input.basis,p_rate:rate,p_recipient_name:input.recipient.trim()||null,p_description:input.description.trim()||null,p_is_active:input.active});
   if(error)return{ok:false,error:error.message.includes("sudah digunakan")?error.message:"Master Biaya Penjualan gagal disimpan."};
-  revalidatePath("/dashboard/kategori-expenses");revalidatePath("/dashboard/biaya-penjualan");return{ok:true};
+  revalidatePath("/dashboard/kategori-expenses");revalidatePath("/dashboard/biaya-penjualan");revalidatePath("/dashboard/penerimaan-penjualan");return{ok:true};
  }catch(e){return{ok:false,error:e instanceof Error?e.message:"Akses Manajemen diperlukan."};}
 }
 export async function generateSalesExpenseVouchers(salesOrderId:string):Promise<Result>{
  try{
-  const actor=await requireAnyRole(["Management"]);
+  const actor=await requireAnyRole(["Finance","Management"]);
   if(!uuid(salesOrderId))return{ok:false,error:"Transaksi penjualan tidak valid."};
   const admin=createAdminClient();
-  const {data:order,error:orderError}=await admin.from("sales_orders")
-   .select("id,project_id,status").eq("tenant_id",actor.tenantId).eq("id",salesOrderId).maybeSingle();
+  const {data:order,error:orderError}=await admin.from("sales_orders").select("id,project_id,status").eq("tenant_id",actor.tenantId).eq("id",salesOrderId).maybeSingle();
   if(orderError||!order||order.status!=="Selesai")return{ok:false,error:"BA final tidak ditemukan pada perusahaan aktif."};
   if(actor.tenantRole!=="superadmin"){
-   const {data:project,error:projectError}=await admin.from("projects").select("id,is_active")
-    .eq("tenant_id",actor.tenantId).eq("id",order.project_id).maybeSingle();
+   const {data:project,error:projectError}=await admin.from("projects").select("id,is_active").eq("tenant_id",actor.tenantId).eq("id",order.project_id).maybeSingle();
    if(projectError||!project?.is_active)return{ok:false,error:"Project tidak aktif atau tidak ditemukan."};
-   const {data:scope,error:scopeError}=await admin.from("tenant_user_work_scopes").select("scope_mode,resource_ids")
-    .eq("tenant_id",actor.tenantId).eq("user_id",actor.userId).eq("dimension","project").maybeSingle();
+   const {data:scope,error:scopeError}=await admin.from("tenant_user_work_scopes").select("scope_mode,resource_ids").eq("tenant_id",actor.tenantId).eq("user_id",actor.userId).eq("dimension","project").maybeSingle();
    if(scopeError||!scope)return{ok:false,error:"Area kerja Project belum diatur oleh Superadmin perusahaan."};
-   if(scope.scope_mode!=="all"&&!(scope.scope_mode==="selected"&&scope.resource_ids?.includes(order.project_id)))
-    return{ok:false,error:"Project di luar area kerja akun Anda."};
+   if(scope.scope_mode!=="all"&&!(scope.scope_mode==="selected"&&scope.resource_ids?.includes(order.project_id)))return{ok:false,error:"Project di luar area kerja akun Anda."};
   }
   const {data,error}=await admin.rpc("create_sales_expense_vouchers_from_ba",{p_sales_order_id:salesOrderId,p_actor_user_id:actor.userId});
   if(error)return{ok:false,error:error.message.includes("sudah pernah")?error.message:"Biaya BA gagal dihitung. Pastikan BA sudah final dan Master Biaya aktif."};
-  revalidatePath("/dashboard/kategori-expenses");revalidatePath("/dashboard/biaya-penjualan");revalidatePath("/dashboard/pengeluaran");revalidatePath("/dashboard/laporan-penjualan");
+  revalidatePath("/dashboard/kategori-expenses");revalidatePath("/dashboard/biaya-penjualan");revalidatePath("/dashboard/pengeluaran");revalidatePath("/dashboard/laporan-penjualan");revalidatePath("/dashboard/penerimaan-penjualan");
   return{ok:true,items:Number(data?.items_created??0),vouchers:Number(data?.vouchers_created??0)};
- }catch(e){return{ok:false,error:e instanceof Error?e.message:"Akses Manajemen diperlukan."};}
+ }catch(e){return{ok:false,error:e instanceof Error?e.message:"Akses Finance atau Management diperlukan."};}
 }
