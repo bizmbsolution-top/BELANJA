@@ -85,7 +85,9 @@ export async function recordPurchaseReceipt(formData: FormData): Promise<Result>
     cleanupContext.tenantId = actor.tenantId;
     if (!(await hasPermission(actor.userId, "transaction.post_recognition", actor.tenantRole === "superadmin", actor.tenantId))) return { ok: false, error: "Permission transaksi belum diberikan oleh Superadmin perusahaan." };
     const requestId = String(formData.get("requestId") ?? "");
+    const supplierCreditId = String(formData.get("supplierCreditId") ?? "").trim();
     if (!uuid(requestId)) return { ok: false, error: "Permintaan pembelian tidak valid." };
+    if (supplierCreditId && !uuid(supplierCreditId)) return { ok: false, error: "Kredit Return yang dipilih tidak valid." };
     const { data: request } = await getRequest(requestId, actor.tenantId);
     if (!request || request.status !== "Menunggu Barang") return { ok: false, error: "Permintaan tidak tersedia untuk penerimaan." };
     await assertProjectAccess(actor.userId, request.project_id, actor.tenantRole === "superadmin", actor.roles, actor.tenantId);
@@ -128,8 +130,6 @@ export async function recordPurchaseReceipt(formData: FormData): Promise<Result>
         if (recordError) throw new Error("Pencatatan foto " + file.name + " gagal.");
       }
     }
-    const supplierCreditId = String(formData.get("supplierCreditId") ?? "").trim();
-    if (supplierCreditId && !uuid(supplierCreditId)) return { ok: false, error: "Kredit Return yang dipilih tidak valid." };
     const { error: completeError } = await admin.rpc("complete_purchase_receipt_with_supplier_credit_and_split_with_audit", {
       p_receipt_id: receiptId, p_actor_user_id: actor.userId, p_accepted_weight_kg: acceptedWeightKg,
       p_rejected_weight_kg: rejectedWeightKg, p_rejection_reason: reason || null,
