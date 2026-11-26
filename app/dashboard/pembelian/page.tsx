@@ -62,6 +62,12 @@ export default async function PembelianPage() {
       ? admin.from("inventory_lots").select("id,source_receipt_id,is_problematic,problematic_reason,is_cancelled,cancellation_reason,is_returned").eq("tenant_id", actor.tenantId).in("source_receipt_id", receiptIds)
       : Promise.resolve({ data: [] }),
   ]);
+  const { data: supplierCredits, error: creditError } = await admin.from("purchase_return_supplier_credits")
+    .select("id,supplier_id,returned_weight_kg,unit_price_per_kg,credit_amount,remaining_amount,status,purchase_returns!inner(code)")
+    .eq("tenant_id", actor.tenantId).in("status", ["available", "partially_used"])
+    .order("created_at", { ascending: true });
+  if (creditError) throw new Error("Data Kredit Return Supplier gagal dimuat.");
+
   const lotIds = (lots ?? []).map(row => row.id);
   const { data: returnMovements } = lotIds.length
     ? await admin.from("inventory_movements").select("lot_id,weight_kg").eq("tenant_id", actor.tenantId).eq("movement_type", "purchase_return").in("lot_id", lotIds)
@@ -88,6 +94,10 @@ export default async function PembelianPage() {
     projects: scopedProjects, suppliers: suppliers ?? [], categories: categories ?? [], warehouses: scopedWarehouses,
     requests: requests ?? [], receipts: receipts ?? [], payments: payments ?? [], lots: (lots ?? []).map(lot => ({ ...lot, returned_weight_kg: returnedByLot.get(lot.id) ?? 0 })),
     receiptDocs: signedReceiptDocs, paymentDocs: signedPaymentDocs, warehouseProjects: mappings ?? [],
+    supplierCredits: (supplierCredits ?? []).map(credit => ({
+      ...credit,
+      return_code: Array.isArray(credit.purchase_returns) ? credit.purchase_returns[0]?.code ?? "Return" : credit.purchase_returns?.code ?? "Return",
+    })),
   };
   return <PurchaseManager data={data} />;
 }
