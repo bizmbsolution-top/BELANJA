@@ -128,9 +128,12 @@ export async function recordPurchaseReceipt(formData: FormData): Promise<Result>
         if (recordError) throw new Error("Pencatatan foto " + file.name + " gagal.");
       }
     }
-    const { error: completeError } = await admin.rpc("complete_purchase_receipt_with_split_with_audit", {
+    const supplierCreditId = String(formData.get("supplierCreditId") ?? "").trim();
+    if (supplierCreditId && !uuid(supplierCreditId)) return { ok: false, error: "Kredit Return yang dipilih tidak valid." };
+    const { error: completeError } = await admin.rpc("complete_purchase_receipt_with_supplier_credit_and_split_with_audit", {
       p_receipt_id: receiptId, p_actor_user_id: actor.userId, p_accepted_weight_kg: acceptedWeightKg,
       p_rejected_weight_kg: rejectedWeightKg, p_rejection_reason: reason || null,
+      p_supplier_credit_id: supplierCreditId || null,
     });
     if (completeError) throw new Error("Penerimaan gagal diselesaikan. Pastikan bukti foto lengkap dan permintaan masih terbuka.");
     revalidatePath("/dashboard/pembelian"); return { ok: true, id: receiptId };
@@ -399,4 +402,29 @@ export async function cancelPurchaseReturnDraft(returnId: string): Promise<Resul
     if(error||!data)return {ok:false,error:error?.message??"Pembatalan Draft Return gagal."};
     revalidatePath("/dashboard/pembelian");return {ok:true,id:data as string};
   }catch(error){return {ok:false,error:error instanceof Error?error.message:"Pembatalan Draft Return gagal."};}
+}
+
+
+export async function setPurchaseReturnCreditDecision(creditId: string, decision: "replacement" | "refund"): Promise<Result> {
+  try {
+    const actor = await requireAnyRole(["Procurement"]);
+    if (actor.activeRole !== "Procurement" && actor.tenantRole !== "superadmin") {
+      return { ok: false, error: "Pilih Mode Kerja Pembelian untuk menentukan penyelesaian Return." };
+    }
+    if (!(await hasPermission(actor.userId, "transaction.post_recognition", actor.tenantRole === "superadmin", actor.tenantId))) {
+      return { ok: false, error: "Permission Pembelian belum diberikan oleh Superadmin perusahaan." };
+    }
+    if (!uuid(creditId) || !["replacement", "refund"].includes(decision)) {
+      return { ok: false, error: "Pilihan penyelesaian Return tidak valid." };
+    }
+    const { data, error } = await createAdminClient().rpc("set_purchase_return_supplier_credit_decision_with_audit", {
+      p_credit_id: creditId, p_decision: decision, p_actor_user_id: actor.userId, p_tenant_id: actor.tenantId,
+    });
+    if (error || !data) return { ok: false, error: error?.message || "Keputusan penyelesaian Return gagal disimpan." };
+    revalidatePath("/dashboard/retur-pembelian");
+    revalidatePath("/dashboard/pembelian");
+    return { ok: true, id: data as string };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Keputusan penyelesaian Return gagal." };
+  }
 }
