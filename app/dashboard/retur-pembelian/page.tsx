@@ -45,50 +45,8 @@ export default async function PurchaseReturnPage() {
     return Boolean(lot && allowed(lot));
   });
 
-  // Use the same already-loaded item rows that power Return history.
-  // This guarantees Draft reservation totals use the exact rows visible below.
-  const draftReturnIds = new Set((returns ?? [])
-    .filter(returnHeader => returnHeader.status === "Draft")
-    .map(returnHeader => returnHeader.id));
-  const allowedQuarantineIds = new Set((cases ?? [])
-    .filter(q => {
-      const lot = Array.isArray(q.inventory_lots) ? q.inventory_lots[0] : q.inventory_lots;
-      return Boolean(lot && allowed(lot));
-    })
-    .map(q => q.id));
-
-  const reserved = new Map<string, number>();
-  for (const item of allowedItems) {
-    if (draftReturnIds.has(item.purchase_return_id) && allowedQuarantineIds.has(item.quarantine_id)) {
-      reserved.set(item.quarantine_id, (reserved.get(item.quarantine_id) ?? 0) + Number(item.weight_kg));
-    }
-  }
-
-  const activeCases = (cases ?? [])
-    .filter(q => {
-      const lot = Array.isArray(q.inventory_lots) ? q.inventory_lots[0] : q.inventory_lots;
-      return Boolean(lot && allowed(lot));
-    })
-    .map(q => {
-      const lot = Array.isArray(q.inventory_lots) ? q.inventory_lots[0] : q.inventory_lots;
-      return {
-        id: q.id,
-        lotCode: lot?.code ?? "Lot",
-        lotId: q.lot_id,
-        projectId: lot?.project_id,
-        warehouseId: lot?.warehouse_id,
-        quarantinedWeightKg: Number(q.quarantined_weight_kg),
-        returnedWeightKg: Number(q.returned_weight_kg),
-        releasedWeightKg: Number(q.released_weight_kg),
-        reservedWeightKg: reserved.get(q.id) ?? 0,
-        availableWeightKg: Math.max(0,
-          Number(q.quarantined_weight_kg) - Number(q.returned_weight_kg) -
-          Number(q.released_weight_kg) - (reserved.get(q.id) ?? 0)),
-        reason: q.reason,
-        createdAt: q.created_at
-      };
-    });
-
+  // Build the visible history first, then calculate reservations from those exact
+  // Draft rows. This keeps the balance table consistent with the Draft list below.
   const allowedReturnIds = new Set(allowedItems.map(item => item.purchase_return_id));
   const returnItemsById = new Map<string, typeof allowedItems>();
   for (const item of allowedItems) {
@@ -108,6 +66,43 @@ export default async function PurchaseReturnPage() {
         inventory_lots: item.inventory_lots
       }))
     }));
+
+  const reserved = new Map<string, number>();
+  for (const returnHeader of visibleReturns) {
+    if (returnHeader.status !== "Draft") continue;
+    for (const item of returnHeader.purchase_return_items) {
+      reserved.set(
+        item.quarantine_id,
+        (reserved.get(item.quarantine_id) ?? 0) + Number(item.weight_kg)
+      );
+    }
+  }
+
+  const activeCases = (cases ?? [])
+    .filter(q => {
+      const lot = Array.isArray(q.inventory_lots) ? q.inventory_lots[0] : q.inventory_lots;
+      return Boolean(lot && allowed(lot));
+    })
+    .map(q => {
+      const lot = Array.isArray(q.inventory_lots) ? q.inventory_lots[0] : q.inventory_lots;
+      const reservedWeightKg = reserved.get(q.id) ?? 0;
+      return {
+        id: q.id,
+        lotCode: lot?.code ?? "Lot",
+        lotId: q.lot_id,
+        projectId: lot?.project_id,
+        warehouseId: lot?.warehouse_id,
+        quarantinedWeightKg: Number(q.quarantined_weight_kg),
+        returnedWeightKg: Number(q.returned_weight_kg),
+        releasedWeightKg: Number(q.released_weight_kg),
+        reservedWeightKg,
+        availableWeightKg: Math.max(0,
+          Number(q.quarantined_weight_kg) - Number(q.returned_weight_kg) -
+          Number(q.released_weight_kg) - reservedWeightKg),
+        reason: q.reason,
+        createdAt: q.created_at
+      };
+    });
 
   return <ReturnClient cases={activeCases} returns={visibleReturns} />;
 }
