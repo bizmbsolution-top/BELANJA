@@ -23,8 +23,6 @@ export default function InventoryClient({quarantineDocuments,warehouses,lots,mov
  const [page,setPage]=useState(0);
  const [categoryFilter,setCategoryFilter]=useState("all");
  const [gradeFilter,setGradeFilter]=useState("all");
- const [quarantineBusy,setQuarantineBusy]=useState(false);
- const [actionMessage,setActionMessage]=useState("");
  const active=warehouses.find(w=>w.id===selected)??null;
  const activeLots=selected?lots[selected]??[]:[];
  const activeMoves=selected?movements[selected]??[]:[];
@@ -100,7 +98,6 @@ export default function InventoryClient({quarantineDocuments,warehouses,lots,mov
     </div>
     {lot.isProblematic&&<p className={styles.reasonText}>Alasan karantina: {lot.problematicReason||"Status penolakan/karantina aktif."}</p>}
     {!!lotEvidence.length&&<div className={styles.milestoneList}><div><b>📷</b><span><strong>Bukti Foto Karantina ({lotEvidence.length})</strong><small>Dokumentasi saat barang dimasukkan ke karantina</small></span></div><div style={{display:"flex",gap:10,flexWrap:"wrap"}}>{lotEvidence.map(doc=><a key={doc.id} href={doc.signedUrl} target="_blank" rel="noreferrer" style={{display:"grid",gap:4,width:110}}><img src={doc.signedUrl} alt={doc.fileName} style={{width:110,height:88,objectFit:"cover",borderRadius:8}}/><small>{doc.fileName}</small></a>)}</div></div>}
-    {actionMessage&&<p role="status" className={styles.reasonText}>{actionMessage}</p>}
     <div style={{display:"flex",gap:10,flexWrap:"wrap",margin:"12px 0"}}>
      {canManageQuarantine&&lot.normalWeight>0.0001&&<QuarantineEvidenceForm lotId={lot.id} maxWeight={lot.normalWeight}/> }
      {canManageQuarantine&&<Link href="/dashboard/retur-pembelian" className={styles.stockCardButton}>Buka Return Pembelian →</Link>}
