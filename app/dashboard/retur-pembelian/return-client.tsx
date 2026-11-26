@@ -8,6 +8,7 @@ type CaseRow={id:string;lotCode:string;lotId:string;quarantinedWeightKg:number;r
 type CreditRow={id:string;supplier_id:string;returned_weight_kg:number;unit_price_per_kg:number;credit_amount:number;remaining_amount:number;decision:string;status:string;supplier:{code:string;name:string}|null};
 type ReturnRow={id:string;code:string;status:string;return_date:string;reason:string;created_at:string;posted_at:string|null;purchase_return_items:{id:string;weight_kg:number;lot_id:string;inventory_lots:{code:string}|{code:string}[]|null;credit:CreditRow|null}[]};
 const kg=(n:number)=>new Intl.NumberFormat("id-ID",{maximumFractionDigits:3}).format(n);
+const rupiah=(n:number)=>new Intl.NumberFormat("id-ID",{style:"currency",currency:"IDR",maximumFractionDigits:0}).format(n);
 export default function ReturnClient({cases,returns}:{cases:CaseRow[];returns:ReturnRow[]}){
  const router=useRouter();
  const [date,setDate]=useState(new Date().toISOString().slice(0,10));
