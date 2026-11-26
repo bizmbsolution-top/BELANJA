@@ -1,0 +1,1 @@
+create index if not exists inventory_lot_quarantine_documents_quarantine_id_idx on public.inventory_lot_quarantine_documents(quarantine_id);
