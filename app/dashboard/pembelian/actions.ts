@@ -131,7 +131,7 @@ export async function recordPurchaseReceipt(formData: FormData): Promise<Result>
         if (recordError) throw new Error("Pencatatan foto " + file.name + " gagal.");
       }
     }
-    const { error: completeError } = await admin.rpc("complete_purchase_receipt_with_supplier_credit_and_split_with_audit", {
+    const { error: completeError } = await admin.rpc("complete_purchase_receipt_with_supplier_credit_and_split_with_a", {
       p_receipt_id: receiptId, p_actor_user_id: actor.userId, p_accepted_weight_kg: acceptedWeightKg,
       p_rejected_weight_kg: rejectedWeightKg, p_rejection_reason: reason || null,
       p_supplier_credit_id: supplierCreditId || null,
