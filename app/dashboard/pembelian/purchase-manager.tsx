@@ -10,7 +10,7 @@ import styles from "./purchase.module.css";
 type Lookup = { id: string; code: string; name: string };
 type RequestRow = { id: string; code: string; request_date: string; project_id: string; supplier_id: string; warehouse_id: string; category_id: string; estimated_weight_kg: number; estimated_value: number | null; price_per_kg: number; notes: string | null; status: string; created_at: string };
 type ReceiptRow = { id: string; code: string; purchase_request_id: string; receipt_date: string; value: number; value_unit: string; weight: number; weight_unit: string; accepted_weight_kg: number | null; rejected_weight_kg: number | null; received_weight_kg: number | null; rejection_reason: string | null; notes: string | null; status: string; decision_reason: string | null; completed_at: string | null; gross_purchase_amount?: number | null; supplier_credit_amount?: number | null; net_purchase_amount?: number | null };
-type PaymentRow = { id: string; code: string; receipt_id: string; amount: number; status: string; requested_at: string; paid_at: string | null; payment_method: string | null };
+type PaymentRow = { id: string; code: string; receipt_id: string; amount: number; status: string; requested_at: string; paid_at: string | null; payment_method: string | null; paid_amount?: number | null };
 type LotRow = { id: string; source_receipt_id: string; is_problematic: boolean; problematic_reason: string | null; is_cancelled: boolean; cancellation_reason: string | null; is_returned: boolean; returned_weight_kg: number };
 type DocRow = { id: string; receipt_id?: string; payment_request_id?: string; evidence_type?: string; file_name: string; signed_url: string | null };
 type SupplierCreditRow = { id: string; supplier_id: string; returned_weight_kg: number; unit_price_per_kg: number; credit_amount: number; remaining_amount: number; status: string; return_code: string };
@@ -332,7 +332,7 @@ export default function PurchaseManager({ data }: { data: PurchasePageData }) {
             </div>
             {docs.map(doc => doc.signed_url && <a className={styles.proof} key={doc.id} href={doc.signed_url} target="_blank" rel="noreferrer">Bukti Transfer: {doc.file_name}</a>)}
             </>}
-            {isProcurement && payment.status === "Menunggu Pembayaran" && <div className={styles.paymentLine}>
+            {isProcurement && (payment.status === "Menunggu Pembayaran" || (payment.status === "Lunas" && payment.payment_method === "Supplier Credit" && Number(payment.paid_amount ?? 0) === 0)) && <div className={styles.paymentLine}>
               <button type="button" className={styles.secondary} disabled={paymentBusy === payment.id} onClick={() => void handleCancelReceivedPurchase(payment.id)}>
                 {paymentBusy === payment.id ? "Memproses..." : "Batalkan Penerimaan"}
               </button>
