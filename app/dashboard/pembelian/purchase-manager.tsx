@@ -6,6 +6,7 @@ import Link from "next/link";
 import { createPurchaseRequest, recordPurchaseReceipt, uploadPurchasePaymentEvidence, payPurchasePayment, cancelReceivedPurchase } from "./actions";
 import { createSupplier } from "../supplier/actions";
 import styles from "./purchase.module.css";
+import PhotoEvidenceInput from "@/components/photo-evidence-input";
 
 type Lookup = { id: string; code: string; name: string };
 type RequestRow = { id: string; code: string; request_date: string; project_id: string; supplier_id: string; warehouse_id: string; category_id: string; estimated_weight_kg: number; estimated_value: number | null; price_per_kg: number; notes: string | null; status: string; created_at: string };
@@ -251,8 +252,8 @@ export default function PurchaseManager({ data }: { data: PurchasePageData }) {
           <label>Berat Aktual Datang<input name="weight" type="number" min="0.001" step="0.001" required placeholder="Total berat saat ditimbang" /></label>
           <label>Satuan Berat<select name="weightUnit" defaultValue="kg"><option value="kg">kg</option><option value="ton">ton</option></select></label>
           <label className={styles.wide}>Keterangan<textarea name="notes" rows={2} maxLength={1000} placeholder="Keterangan hasil pemeriksaan" /></label>
-          <label className={styles.wide}>Foto Timbangan <small>Wajib · JPG, PNG, WEBP · maksimal 10 MB per foto</small><input name="weightFiles" type="file" accept="image/jpeg,image/png,image/webp" multiple required /></label>
-          <label className={styles.wide}>Foto Hasil Pengukuran <small>Wajib · JPG, PNG, WEBP · maksimal 10 MB per foto</small><input name="valueFiles" type="file" accept="image/jpeg,image/png,image/webp" multiple required /></label>
+          <div className={styles.wide}><PhotoEvidenceInput name="weightFiles" label="Foto Timbangan · Wajib" multiple required /></div>
+          <div className={styles.wide}><PhotoEvidenceInput name="valueFiles" label="Foto Hasil Pengukuran · Wajib" multiple required /></div>
           <label className={styles.wide}>Kredit Return Supplier (opsional)
             <select name="supplierCreditId" defaultValue="">
               <option value="">Tanpa menggunakan kredit Return</option>
