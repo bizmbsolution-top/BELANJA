@@ -327,23 +327,43 @@ export async function returnPurchaseLot(input: { lotId: string; weightKg: string
 }
 
 
-export async function quarantineInventoryLot(input: { lotId: string; weightKg: string; reason: string }): Promise<Result> {
+export async function quarantineInventoryLot(formData: FormData): Promise<Result> {
+  const uploadedPaths: string[] = [];
   try {
     const actor = await requireAnyRole(["Procurement"]);
     if (actor.tenantRole !== "superadmin" && actor.activeRole !== "Procurement") return { ok:false,error:"Pilih Mode Kerja Pembelian untuk mengarantina barang." };
     if (!(await hasPermission(actor.userId,"transaction.post_recognition",actor.tenantRole === "superadmin",actor.tenantId))) return { ok:false,error:"Permission Pembelian belum diberikan." };
-    const weight=Number(input?.weightKg);
-    if (!uuid(input?.lotId ?? "") || !Number.isFinite(weight) || weight<=0 || typeof input?.reason!=="string" || input.reason.trim().length<3 || input.reason.trim().length>1000) return {ok:false,error:"Lot, kuantitas karantina, dan alasan wajib valid."};
+    const lotId=String(formData.get("lotId")??"");
+    const weight=Number(formData.get("weightKg"));
+    const reason=String(formData.get("reason")??"").trim();
+    const files=formData.getAll("files").filter((v):v is File=>v instanceof File&&v.size>0);
+    if(!uuid(lotId)||!Number.isFinite(weight)||weight<=0||reason.length<3||reason.length>1000)return{ok:false,error:"Lot, kuantitas karantina, dan alasan wajib valid."};
+    if(!files.length||files.length>15||files.reduce((sum,file)=>sum+file.size,0)>20*1024*1024)return{ok:false,error:"Lampirkan 1–15 foto dengan total maksimal 20 MB."};
+    for(const file of files)if(file.size>MAX_FILE||!["image/jpeg","image/png","image/webp"].includes(file.type))return{ok:false,error:"Foto harus JPG, PNG, atau WEBP dan maksimal 10 MB per file."};
     const admin=createAdminClient();
-    const {data:lot,error}=await admin.from("inventory_lots").select("id,project_id,warehouse_id").eq("tenant_id",actor.tenantId).eq("id",input.lotId).maybeSingle();
-    if(error||!lot)return {ok:false,error:"Purchase Lot tidak ditemukan."};
+    const {data:lot,error}=await admin.from("inventory_lots").select("id,project_id,warehouse_id").eq("tenant_id",actor.tenantId).eq("id",lotId).maybeSingle();
+    if(error||!lot)return{ok:false,error:"Purchase Lot tidak ditemukan."};
     await assertProjectAccess(actor.userId,lot.project_id,actor.tenantRole==="superadmin",actor.roles,actor.tenantId);
     await assertWarehouseAccess(actor.userId,lot.project_id,lot.warehouse_id,actor.tenantRole==="superadmin",actor.roles,actor.tenantId);
-    const {data,error:rpcError}=await admin.rpc("quarantine_inventory_lot_with_audit",{p_lot_id:lot.id,p_actor_user_id:actor.userId,p_weight_kg:weight,p_reason:input.reason.trim()});
-    if(rpcError||!data)return {ok:false,error:rpcError?.message??"Karantina gagal dicatat."};
+    const prefix=actor.tenantId+"/"+lot.id+"/"+crypto.randomUUID();
+    for(const file of files){
+      const safeName=file.name.normalize("NFKD").replace(/[^a-zA-Z0-9._-]+/g,"_").slice(-100)||"quarantine";
+      const storagePath=prefix+"/"+crypto.randomUUID()+"_"+safeName;
+      const {error:uploadError}=await admin.storage.from("inventory-lot-quarantine-evidence").upload(storagePath,file,{contentType:file.type,upsert:false});
+      if(uploadError)throw new Error("Foto "+file.name+" gagal diunggah.");
+      uploadedPaths.push(storagePath);
+    }
+    const {data:quarantineId,error:rpcError}=await admin.rpc("quarantine_inventory_lot_with_audit",{p_lot_id:lot.id,p_actor_user_id:actor.userId,p_weight_kg:weight,p_reason:reason});
+    if(rpcError||!quarantineId)throw new Error(rpcError?.message??"Karantina gagal dicatat.");
+    const rows=files.map((file,index)=>({tenant_id:actor.tenantId,quarantine_id:quarantineId,storage_path:uploadedPaths[index],file_name:file.name.slice(0,255),mime_type:file.type,file_size:file.size,created_by:actor.userId}));
+    const {error:recordError}=await admin.from("inventory_lot_quarantine_documents").insert(rows);
+    if(recordError)throw new Error("Karantina tercatat, tetapi metadata foto gagal disimpan. Hubungi Superadmin sebelum mengulangi tindakan.");
     revalidatePath("/dashboard/pembelian");revalidatePath("/dashboard/persediaan");revalidatePath("/dashboard/penjualan");
-    return {ok:true,id:data as string};
-  } catch(error) { return {ok:false,error:error instanceof Error?error.message:"Karantina gagal dicatat."}; }
+    return{ok:true,id:quarantineId as string};
+  }catch(error){
+    if(uploadedPaths.length)await createAdminClient().storage.from("inventory-lot-quarantine-evidence").remove(uploadedPaths);
+    return{ok:false,error:error instanceof Error?error.message:"Karantina gagal dicatat."};
+  }
 }
 
 export async function createPurchaseReturnDraft(input: { returnDate?: string; reason?: string; notes?: string; items?: { quarantineId: string; weightKg: string | number }[] }): Promise<Result> {
