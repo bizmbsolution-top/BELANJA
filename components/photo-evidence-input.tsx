@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ChangeEvent } from "react";
+import { useEffect, useMemo, useState, type ChangeEvent, type CSSProperties } from "react";
 
 type Props = {
   name: string;
@@ -12,7 +12,7 @@ type Props = {
   capture?: boolean;
 };
 
-const pickerLabelStyle: React.CSSProperties = {
+const pickerLabelStyle: CSSProperties = {
   position: "relative",
   display: "inline-flex",
   alignItems: "center",
@@ -30,7 +30,7 @@ const pickerLabelStyle: React.CSSProperties = {
   overflow: "hidden",
 };
 
-const overlayInputStyle: React.CSSProperties = {
+const overlayInputStyle: CSSProperties = {
   position: "absolute",
   inset: 0,
   width: "100%",
@@ -65,8 +65,7 @@ export default function PhotoEvidenceInput({
   const addFiles = (event: ChangeEvent<HTMLInputElement>) => {
     const selected = Array.from(event.currentTarget.files ?? []);
     if (selected.length) setFiles((current) => [...current, ...selected]);
-    // Allow the same file to be selected again after removing/retrying a choice.
-    event.currentTarget.value = "";
+    // Keep the native input value intact: the server reads these files from FormData.
   };
 
   return (
@@ -79,7 +78,7 @@ export default function PhotoEvidenceInput({
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
         {capture && (
           <label style={pickerLabelStyle}>
-            <span aria-hidden="true">▧</span>
+            <span aria-hidden="true">🖼️</span>
             <span>Foto</span>
             <input
               name={name}
