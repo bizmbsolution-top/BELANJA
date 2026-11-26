@@ -22,7 +22,7 @@ export default async function PurchaseReturnPage() {
     warehouseIds = warehouseScope?.scope_mode === "all" ? null : warehouseScope?.scope_mode === "selected" ? warehouseScope.resource_ids ?? [] : [];
   }
 
-  const [{ data: cases, error: caseError }, { data: returns, error: returnError }, { data: items, error: itemError }] = await Promise.all([
+  const [{ data: cases, error: caseError }, { data: returns, error: returnError }, { data: items, error: itemError }, { data: credits, error: creditError }] = await Promise.all([
     admin.from("inventory_lot_quarantines")
       .select("id,lot_id,quarantined_weight_kg,returned_weight_kg,released_weight_kg,reason,created_at,inventory_lots!inner(code,project_id,warehouse_id,tenant_id)")
       .eq("tenant_id", actor.tenantId).eq("status", "Active").order("created_at", { ascending: false }),
@@ -32,10 +32,13 @@ export default async function PurchaseReturnPage() {
       .eq("tenant_id", actor.tenantId).order("created_at", { ascending: false }).limit(100),
     admin.from("purchase_return_items")
       .select("id,quarantine_id,weight_kg,purchase_return_id,lot_id,inventory_lots!inner(code,project_id,warehouse_id)")
+      .eq("tenant_id", actor.tenantId),
+    admin.from("purchase_return_supplier_credits")
+      .select("id,purchase_return_item_id,supplier_id,returned_weight_kg,unit_price_per_kg,credit_amount,remaining_amount,decision,status,suppliers!inner(code,name)")
       .eq("tenant_id", actor.tenantId)
   ]);
 
-  if (caseError || returnError || itemError) throw new Error("Data Karantina atau Return Pembelian gagal dimuat.");
+  if (caseError || returnError || itemError || creditError) throw new Error("Data Karantina, Return, atau Kredit Supplier gagal dimuat.");
 
   const allowed = (lot: { project_id: string; warehouse_id: string }) =>
     (projectIds === null || projectIds.includes(lot.project_id)) &&
@@ -54,6 +57,7 @@ export default async function PurchaseReturnPage() {
     current.push(item);
     returnItemsById.set(item.purchase_return_id, current);
   }
+  const creditByItemId = new Map((credits ?? []).map(credit => [credit.purchase_return_item_id, credit]));
   const visibleReturns = (returns ?? [])
     .filter(returnHeader => allowedReturnIds.has(returnHeader.id))
     .map(returnHeader => ({
@@ -63,7 +67,13 @@ export default async function PurchaseReturnPage() {
         quarantine_id: item.quarantine_id,
         weight_kg: item.weight_kg,
         lot_id: item.lot_id,
-        inventory_lots: item.inventory_lots
+        inventory_lots: item.inventory_lots,
+        credit: creditByItemId.get(item.id) ? {
+          ...creditByItemId.get(item.id),
+          supplier: Array.isArray(creditByItemId.get(item.id)?.suppliers)
+            ? creditByItemId.get(item.id)?.suppliers[0]
+            : creditByItemId.get(item.id)?.suppliers
+        } : null
       }))
     }));
 
