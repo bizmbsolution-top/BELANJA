@@ -7,14 +7,15 @@ type Grade={key:string;gradeValue:number;gradeUnit:string;category:string;weight
 type Warehouse={id:string;code:string;name:string;location:string|null;projectLabel:string;totalKg:number;readyKg:number;quarantineKg:number;unpaidKg:number;inventoryValue:number;gradeCount:number;grades:Grade[]};
 type Lot={id:string;code:string;inboundDate:string;category:string;supplier:string;initialWeight:number;availableWeight:number;normalWeight:number;quarantineWeight:number;gradeValue:number;gradeUnit:string;purchasePricePerKg:number;inventoryValue:number;isProblematic:boolean;problematicReason:string|null;problematicAt:string|null;paymentStatus:string;paidAt:string|null};
 type Movement={id:string;lotId:string|null;type:string;date:string;category:string;weight:number;value:number;valueUnit:string;reason:string|null;reference:string;lotCode:string;gradeValue:number;gradeUnit:string;projectCode:string;projectName:string};
-type Props={warehouses:Warehouse[];lots:Record<string,Lot[]>;movements:Record<string,Movement[]>;totalKg:number;readyKg:number;quarantineKg:number;inventoryValue:number;gradeCount:number;movementCount:number;canManageQuarantine:boolean};
+type QuarantineDocument={id:string;lotId:string;fileName:string;signedUrl:string;createdAt:string};
+type Props={quarantineDocuments:QuarantineDocument[];warehouses:Warehouse[];lots:Record<string,Lot[]>;movements:Record<string,Movement[]>;totalKg:number;readyKg:number;quarantineKg:number;inventoryValue:number;gradeCount:number;movementCount:number;canManageQuarantine:boolean};
 const qty=(n:number)=>Number(n).toLocaleString("id-ID",{maximumFractionDigits:3})+" kg";
 const money=(n:number)=>new Intl.NumberFormat("id-ID",{style:"currency",currency:"IDR",maximumFractionDigits:0}).format(n);
 const date=(s:string)=>new Date(s).toLocaleString("id-ID",{dateStyle:"medium",timeStyle:"short"});
 const day=(s:string)=>new Date(s+"T00:00:00").toLocaleDateString("id-ID",{dateStyle:"medium"});
 const movementLabel:Record<string,string>={receipt:"Penerimaan",issue:"Stok keluar",sale_dispatch:"Penjualan keluar",purchase_return:"Return supplier",transfer_in:"Transfer masuk",transfer_out:"Transfer keluar"};
 const outgoing=(type:string)=>["issue","transfer_out","sale_dispatch","purchase_return"].includes(type);
-export default function InventoryClient({warehouses,lots,movements,totalKg,readyKg,quarantineKg,inventoryValue,gradeCount,movementCount,canManageQuarantine}:Props){
+export default function InventoryClient({quarantineDocuments,warehouses,lots,movements,totalKg,readyKg,quarantineKg,inventoryValue,gradeCount,movementCount,canManageQuarantine}:Props){
  const [selected,setSelected]=useState<string|null>(null);
  const [selectedGrade,setSelectedGrade]=useState<string|null>(null);
  const [selectedLot,setSelectedLot]=useState<string|null>(null);
@@ -33,6 +34,7 @@ export default function InventoryClient({warehouses,lots,movements,totalKg,ready
  const filteredGrades=(active?.grades??[]).filter(g=>(categoryFilter==="all"||g.category===categoryFilter)&&(gradeFilter==="all"||(g.gradeValue+"|"+g.gradeUnit)===gradeFilter));
  const lot=activeLots.find(l=>l.id===selectedLot)??null;
  const gradeLots=grade?activeLots.filter(l=>l.category===grade.category&&l.gradeValue===grade.gradeValue&&l.gradeUnit===grade.gradeUnit):[];
+ const lotEvidence=quarantineDocuments.filter(doc=>doc.lotId===selectedLot);
  const rows=useMemo(()=>activeMoves.filter(m=>(type==="all"||m.type===type)&&(!selectedLot||m.lotId===selectedLot)),[activeMoves,type,selectedLot]);
  const pageSize=12,pageCount=Math.max(1,Math.ceil(rows.length/pageSize)),pageRows=rows.slice(page*pageSize,(page+1)*pageSize);
  const open=(id:string)=>{setSelected(id);setSelectedGrade(null);setSelectedLot(null);setCategoryFilter("all");setGradeFilter("all");setType("all");setPage(0);};
@@ -97,6 +99,7 @@ export default function InventoryClient({warehouses,lots,movements,totalKg,ready
      <div><span>Saldo fisik tersisa</span><strong>{qty(lot.availableWeight)}</strong></div><div><span>Berat awal diterima</span><strong>{qty(lot.initialWeight)}</strong></div><div><span>Stok normal / siap dijual</span><strong>{qty(lot.normalWeight)}</strong></div><div><span>Stok karantina</span><strong>{qty(lot.quarantineWeight)}</strong></div><div><span>Status pembayaran</span><strong>{lot.paymentStatus}</strong></div>
     </div>
     {lot.isProblematic&&<p className={styles.reasonText}>Alasan karantina: {lot.problematicReason||"Status penolakan/karantina aktif."}</p>}
+    {!!lotEvidence.length&&<div className={styles.milestoneList}><div><b>📷</b><span><strong>Bukti Foto Karantina ({lotEvidence.length})</strong><small>Dokumentasi saat barang dimasukkan ke karantina</small></span></div><div style={{display:"flex",gap:10,flexWrap:"wrap"}}>{lotEvidence.map(doc=><a key={doc.id} href={doc.signedUrl} target="_blank" rel="noreferrer" style={{display:"grid",gap:4,width:110}}><img src={doc.signedUrl} alt={doc.fileName} style={{width:110,height:88,objectFit:"cover",borderRadius:8}}/><small>{doc.fileName}</small></a>)}</div></div>}
     {actionMessage&&<p role="status" className={styles.reasonText}>{actionMessage}</p>}
     <div style={{display:"flex",gap:10,flexWrap:"wrap",margin:"12px 0"}}>
      {canManageQuarantine&&lot.normalWeight>0.0001&&<QuarantineEvidenceForm lotId={lot.id} maxWeight={lot.normalWeight}/> }
