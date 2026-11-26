@@ -1,7 +1,7 @@
 "use client";
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { quarantineInventoryLot } from "../pembelian/actions";
+import QuarantineEvidenceForm from "./quarantine-evidence-form";
 import styles from "./inventory.module.css";
 type Grade={key:string;gradeValue:number;gradeUnit:string;category:string;weight:number;readyWeight:number;quarantineWeight:number;unpaidWeight:number;inventoryValue:number;lotCount:number};
 type Warehouse={id:string;code:string;name:string;location:string|null;projectLabel:string;totalKg:number;readyKg:number;quarantineKg:number;unpaidKg:number;inventoryValue:number;gradeCount:number;grades:Grade[]};
@@ -99,9 +99,7 @@ export default function InventoryClient({warehouses,lots,movements,totalKg,ready
     {lot.isProblematic&&<p className={styles.reasonText}>Alasan karantina: {lot.problematicReason||"Status penolakan/karantina aktif."}</p>}
     {actionMessage&&<p role="status" className={styles.reasonText}>{actionMessage}</p>}
     <div style={{display:"flex",gap:10,flexWrap:"wrap",margin:"12px 0"}}>
-     {canManageQuarantine&&lot.normalWeight>0.0001&&<button type="button" className={styles.stockCardButton} disabled={quarantineBusy} onClick={async()=>{const w=window.prompt("Berapa kg yang dimasukkan ke Karantina?");if(w===null)return;const n=Number(w.replace(",","."));if(!Number.isFinite(n)||n<=0||n>lot.normalWeight){setActionMessage("Berat harus lebih besar dari 0 dan tidak melebihi stok normal.");return;}const reason=window.prompt("Alasan Karantina:");if(reason===null)return;if(reason.trim().length<3){setActionMessage("Alasan minimal 3 karakter.");return;}setQuarantineBusy(true);setActionMessage("");const result=await quarantineInventoryLot({lotId:lot.id,weightKg:String(n),reason:reason.trim()});setQuarantineBusy(false);setActionMessage(result.ok?"Kuantitas berhasil dimasukkan ke Karantina.":"Gagal: "+result.error);if(result.ok)window.location.reload();}}>
-      {quarantineBusy?"Memproses…":"Masukkan kuantitas ke Karantina"}
-     </button>}
+     {canManageQuarantine&&lot.normalWeight>0.0001&&<QuarantineEvidenceForm lotId={lot.id} maxWeight={lot.normalWeight}/> }
      {canManageQuarantine&&<Link href="/dashboard/retur-pembelian" className={styles.stockCardButton}>Buka Return Pembelian →</Link>}
     </div>
     <div className={styles.milestoneList}><div><b>01</b><span><strong>Barang diterima</strong><small>{day(lot.inboundDate)} · {qty(lot.initialWeight)}</small></span></div>{lot.paidAt&&<div><b>02</b><span><strong>Pembayaran lunas</strong><small>{date(lot.paidAt)}</small></span></div>}{lot.isProblematic&&<div><b>!</b><span><strong>Masuk karantina</strong><small>{lot.problematicAt?date(lot.problematicAt):"Status karantina aktif"} · {lot.problematicReason||"Alasan tidak tersedia"}</small></span></div>}</div>
