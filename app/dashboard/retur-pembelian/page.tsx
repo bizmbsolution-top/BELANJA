@@ -81,7 +81,7 @@ export default async function PurchaseReturnPage() {
       remaining_amount: Number(credit.remaining_amount ?? 0),
       decision: String(credit.decision ?? "pending"),
       status: String(credit.status ?? "pending_decision")
-    }])
+    }] as const)
   );
   const visibleReturns = (returns ?? [])
     .filter(returnHeader => allowedReturnIds.has(returnHeader.id))
