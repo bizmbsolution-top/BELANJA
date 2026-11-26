@@ -70,7 +70,7 @@ export default function ExpenseManager({categories,projects,initialItems,balance
   async function uploadDocs(id:string,e:FormEvent<HTMLFormElement>){
     e.preventDefault();const form=e.currentTarget;setBusyId(id);setError("");setMessage("");
     const result=await uploadExpenseDocuments(id,new FormData(form));setBusyId("");
-    if(!result.ok){setError(result.error);return;}form.reset();setUploadId("");setMessage("Dokumen billing berhasil ditambahkan.");router.refresh();
+    if(!result.ok){setError(result.error);return;}form.reset();setMessage("Dokumen billing berhasil ditambahkan.");router.refresh();
   }
   async function uploadPaymentEvidence(id:string,e:FormEvent<HTMLFormElement>){
     e.preventDefault();const form=e.currentTarget;setBusyId(id);setError("");setMessage("");
