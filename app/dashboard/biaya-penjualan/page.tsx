@@ -4,19 +4,16 @@ import SalesExpenseManager,{type SalesExpenseMaster,type SalesBA,type ExpenseCat
 export const dynamic="force-dynamic";
 export const revalidate=0;
 export default async function SalesExpensePage(){
- const context = await requireAnyRole(["Management"]);
- const db=createAdminClient();
+ const context=await requireAnyRole(["Management"]);const db=createAdminClient();
  const [{data:masters,error:me},{data:categories,error:ce},{data:orders,error:oe},{data:items,error:ie},{data:customers,error:cu},{data:projects,error:pe}]=await Promise.all([
-  db.from("sales_expense_masters").select("id,code,name,expense_category_id,expense_type,calculation_method,calculation_basis,rate,recipient_name,description,is_active").eq("tenant_id", context.tenantId).order("code"),
-  db.from("expense_categories").select("id,code,name,cost_classification").eq("tenant_id", context.tenantId).eq("is_active",true).order("name"),
-  db.from("sales_orders").select("id,code,project_id,customer_id,received_weight_kg,final_amount,ba_number,ba_date,final_price_per_kg").eq("tenant_id", context.tenantId).eq("status","Selesai").order("finalized_at",{ascending:false}).limit(100),
-  db.from("sales_order_expense_items").select("sales_order_id,expense_type,final_amount").eq("tenant_id", context.tenantId),
-  db.from("customers").select("id,name").eq("tenant_id", context.tenantId),
-  db.from("projects").select("id,code,name").eq("tenant_id", context.tenantId)
+  db.from("sales_expense_masters").select("id,code,name,expense_category_id,expense_type,calculation_method,calculation_basis,rate,recipient_name,description,is_active").eq("tenant_id",context.tenantId).order("code"),
+  db.from("expense_categories").select("id,code,name,cost_classification").eq("tenant_id",context.tenantId).eq("is_active",true).order("name"),
+  db.from("sales_orders").select("id,code,project_id,customer_id,received_weight_kg,final_grade_value,final_grade_unit,final_amount,ba_number,ba_date,final_price_per_kg").eq("tenant_id",context.tenantId).eq("status","Selesai").order("finalized_at",{ascending:false}).limit(100),
+  db.from("sales_order_expense_items").select("sales_order_id,expense_type,final_amount").eq("tenant_id",context.tenantId),
+  db.from("customers").select("id,name").eq("tenant_id",context.tenantId),db.from("projects").select("id,code,name").eq("tenant_id",context.tenantId)
  ]);
  if(me||ce||oe||ie||cu||pe)throw new Error("Data Master Biaya Penjualan atau BA gagal dimuat.");
- const customerMap=new Map((customers??[]).map(x=>[x.id,x.name]));
- const projectMap=new Map((projects??[]).map(x=>[x.id,x.code+" · "+x.name]));
+ const customerMap=new Map((customers??[]).map(x=>[x.id,x.name]));const projectMap=new Map((projects??[]).map(x=>[x.id,x.code+" · "+x.name]));
  const generated=new Set((items??[]).map(x=>x.sales_order_id));
  const baRows=(orders??[]).map(o=>({...o,customer_name:customerMap.get(o.customer_id)??"Pembeli",project_label:projectMap.get(o.project_id)??"Project",already_generated:generated.has(o.id)}));
  return <SalesExpenseManager masters={(masters??[]) as SalesExpenseMaster[]} categories={(categories??[]) as ExpenseCategory[]} orders={baRows as SalesBA[]}/>;
