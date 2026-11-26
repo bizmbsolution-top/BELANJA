@@ -43,7 +43,7 @@ async function getRequest(id: string, tenantId: string | null) {
 }
 async function getPaymentContext(id: string, tenantId: string | null) {
   const admin = createAdminClient();
-  const { data: payment } = await admin.from("purchase_payment_requests").select("id,receipt_id,status,amount").eq("tenant_id", tenantId).eq("id", id).maybeSingle();
+  const { data: payment } = await admin.from("purchase_payment_requests").select("id,receipt_id,status,amount,payment_method,paid_amount").eq("tenant_id", tenantId).eq("id", id).maybeSingle();
   if (!payment) return null;
   const { data: receipt } = await admin.from("purchase_receipts").select("purchase_request_id").eq("tenant_id", tenantId).eq("id", payment.receipt_id).maybeSingle();
   if (!receipt) return null;
@@ -256,9 +256,10 @@ export async function cancelReceivedPurchase(paymentRequestId: string, reason: s
     }
     const admin = createAdminClient();
     const { data: payment, error: paymentError } = await admin.from("purchase_payment_requests")
-      .select("id,receipt_id,status").eq("tenant_id", actor.tenantId).eq("id", paymentRequestId).maybeSingle();
-    if (paymentError || !payment || payment.status !== "Menunggu Pembayaran") {
-      return { ok: false, error: "Hanya penerimaan berstatus Diterima dan Menunggu Pembayaran yang dapat dibatalkan." };
+      .select("id,receipt_id,status,payment_method,paid_amount").eq("tenant_id", actor.tenantId).eq("id", paymentRequestId).maybeSingle();
+    const creditOnlySettled = payment?.status === "Lunas" && payment.payment_method === "Supplier Credit" && Number(payment.paid_amount ?? 0) === 0;
+    if (paymentError || !payment || (payment.status !== "Menunggu Pembayaran" && !creditOnlySettled)) {
+      return { ok: false, error: "Hanya penerimaan yang belum dibayar tunai atau yang dilunasi dengan Kredit Supplier yang dapat dibatalkan." };
     }
     const { data: receipt } = await admin.from("purchase_receipts")
       .select("id,purchase_request_id").eq("tenant_id", actor.tenantId).eq("id", payment.receipt_id).maybeSingle();
