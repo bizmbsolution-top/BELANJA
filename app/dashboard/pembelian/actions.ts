@@ -329,6 +329,7 @@ export async function returnPurchaseLot(input: { lotId: string; weightKg: string
 
 export async function quarantineInventoryLot(formData: FormData): Promise<Result> {
   const uploadedPaths: string[] = [];
+  let quarantineCreated = false;
   try {
     const actor = await requireAnyRole(["Procurement"]);
     if (actor.tenantRole !== "superadmin" && actor.activeRole !== "Procurement") return { ok:false,error:"Pilih Mode Kerja Pembelian untuk mengarantina barang." };
@@ -355,13 +356,14 @@ export async function quarantineInventoryLot(formData: FormData): Promise<Result
     }
     const {data:quarantineId,error:rpcError}=await admin.rpc("quarantine_inventory_lot_with_audit",{p_lot_id:lot.id,p_actor_user_id:actor.userId,p_weight_kg:weight,p_reason:reason});
     if(rpcError||!quarantineId)throw new Error(rpcError?.message??"Karantina gagal dicatat.");
+    quarantineCreated = true;
     const rows=files.map((file,index)=>({tenant_id:actor.tenantId,quarantine_id:quarantineId,storage_path:uploadedPaths[index],file_name:file.name.slice(0,255),mime_type:file.type,file_size:file.size,created_by:actor.userId}));
     const {error:recordError}=await admin.from("inventory_lot_quarantine_documents").insert(rows);
     if(recordError)throw new Error("Karantina tercatat, tetapi metadata foto gagal disimpan. Hubungi Superadmin sebelum mengulangi tindakan.");
     revalidatePath("/dashboard/pembelian");revalidatePath("/dashboard/persediaan");revalidatePath("/dashboard/penjualan");
     return{ok:true,id:quarantineId as string};
   }catch(error){
-    if(uploadedPaths.length)await createAdminClient().storage.from("inventory-lot-quarantine-evidence").remove(uploadedPaths);
+    if(uploadedPaths.length&&!quarantineCreated)await createAdminClient().storage.from("inventory-lot-quarantine-evidence").remove(uploadedPaths);
     return{ok:false,error:error instanceof Error?error.message:"Karantina gagal dicatat."};
   }
 }
