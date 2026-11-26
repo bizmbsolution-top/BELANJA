@@ -45,10 +45,29 @@ export default async function PurchaseReturnPage() {
     return Boolean(lot && allowed(lot));
   });
 
-  const returnStatusById = new Map((returns ?? []).map(returnHeader => [returnHeader.id, returnHeader.status]));
+  // Read Draft headers first, then fetch only their reservation rows.
+  // This avoids relying on status matching across independently loaded result sets.
+  const draftReturnIds = (returns ?? [])
+    .filter(returnHeader => returnHeader.status === "Draft")
+    .map(returnHeader => returnHeader.id);
+  const allowedQuarantineIds = new Set((cases ?? [])
+    .filter(q => {
+      const lot = Array.isArray(q.inventory_lots) ? q.inventory_lots[0] : q.inventory_lots;
+      return Boolean(lot && allowed(lot));
+    })
+    .map(q => q.id));
+  const { data: draftItems, error: draftItemError } = draftReturnIds.length
+    ? await admin.from("purchase_return_items")
+        .select("quarantine_id,weight_kg")
+        .eq("tenant_id", actor.tenantId)
+        .in("purchase_return_id", draftReturnIds)
+    : { data: [], error: null };
+
+  if (draftItemError) throw new Error("Alokasi Draft Return gagal dimuat.");
+
   const reserved = new Map<string, number>();
-  for (const item of allowedItems) {
-    if (returnStatusById.get(item.purchase_return_id) === "Draft") {
+  for (const item of draftItems ?? []) {
+    if (allowedQuarantineIds.has(item.quarantine_id)) {
       reserved.set(item.quarantine_id, (reserved.get(item.quarantine_id) ?? 0) + Number(item.weight_kg));
     }
   }
