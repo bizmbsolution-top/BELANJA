@@ -9,10 +9,9 @@ type Props = {
   multiple?: boolean;
   required?: boolean;
   capture?: boolean;
-  onFilesChange?: () => void;
 };
 
-export default function PhotoEvidenceInput({ name, label, accept = "image/jpeg,image/png,image/webp", multiple = true, required = false, capture = true, onFilesChange }: Props) {
+export default function PhotoEvidenceInput({ name, label, accept = "image/jpeg,image/png,image/webp", multiple = true, required = false, capture = true }: Props) {
   const [files, setFiles] = useState<File[]>([]);
   const previews = useMemo(() => files.filter(file => file.type.startsWith("image/")).map(file => ({ file, url: URL.createObjectURL(file) })), [files]);
   useEffect(() => () => previews.forEach(item => URL.revokeObjectURL(item.url)), [previews]);
@@ -21,7 +20,7 @@ export default function PhotoEvidenceInput({ name, label, accept = "image/jpeg,i
       <strong>{label}</strong>
       <small>Ambil foto dengan kamera belakang atau pilih dari galeri/file. Maks. 10 MB per foto.</small>
       <input name={name} type="file" accept={accept} multiple={multiple} required={required} capture={capture ? "environment" : undefined}
-        onChange={event => { setFiles(Array.from(event.currentTarget.files ?? [])); onFilesChange?.(); }} />
+        onChange={event => { setFiles(Array.from(event.currentTarget.files ?? [])); }} />
     </label>
     {!!previews.length && <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
       {previews.map(({ file, url }) => <figure key={file.name + file.lastModified} style={{ margin: 0, width: 104 }}>
