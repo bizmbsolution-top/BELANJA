@@ -6,12 +6,13 @@ type Props = {
   name: string;
   label: string;
   accept?: string;
+  cameraAccept?: string;
   multiple?: boolean;
   required?: boolean;
   capture?: boolean;
 };
 
-export default function PhotoEvidenceInput({ name, label, accept = "image/jpeg,image/png,image/webp", multiple = true, required = false, capture = true }: Props) {
+export default function PhotoEvidenceInput({ name, label, accept = "image/jpeg,image/png,image/webp", cameraAccept = accept, multiple = true, required = false, capture = true }: Props) {
   const [files, setFiles] = useState<File[]>([]);
   const previews = useMemo(() => files.filter(file => file.type.startsWith("image/")).map(file => ({ file, url: URL.createObjectURL(file) })), [files]);
   useEffect(() => () => previews.forEach(item => URL.revokeObjectURL(item.url)), [previews]);
@@ -24,7 +25,7 @@ export default function PhotoEvidenceInput({ name, label, accept = "image/jpeg,i
     <small>Ambil foto langsung dengan kamera belakang, atau pilih foto/file dari galeri. Maks. 10 MB per foto.</small>
     {capture && <label style={{ display: "grid", gap: 4 }}>
       <span>📷 Ambil dengan Kamera</span>
-      <input name={name} type="file" accept={accept} multiple={multiple} required={required && files.length===0} capture="environment" onChange={addFiles} />
+      <input name={name} type="file" accept={cameraAccept} multiple={multiple} required={required && files.length===0} capture="environment" onChange={addFiles} />
     </label>}
     <label style={{ display: "grid", gap: 4 }}>
       <span>🖼️ Pilih dari Galeri / File</span>
