@@ -9,11 +9,12 @@ import styles from "./purchase.module.css";
 
 type Lookup = { id: string; code: string; name: string };
 type RequestRow = { id: string; code: string; request_date: string; project_id: string; supplier_id: string; warehouse_id: string; category_id: string; estimated_weight_kg: number; estimated_value: number | null; price_per_kg: number; notes: string | null; status: string; created_at: string };
-type ReceiptRow = { id: string; code: string; purchase_request_id: string; receipt_date: string; value: number; value_unit: string; weight: number; weight_unit: string; accepted_weight_kg: number | null; rejected_weight_kg: number | null; received_weight_kg: number | null; rejection_reason: string | null; notes: string | null; status: string; decision_reason: string | null; completed_at: string | null };
+type ReceiptRow = { id: string; code: string; purchase_request_id: string; receipt_date: string; value: number; value_unit: string; weight: number; weight_unit: string; accepted_weight_kg: number | null; rejected_weight_kg: number | null; received_weight_kg: number | null; rejection_reason: string | null; notes: string | null; status: string; decision_reason: string | null; completed_at: string | null; gross_purchase_amount?: number | null; supplier_credit_amount?: number | null; net_purchase_amount?: number | null };
 type PaymentRow = { id: string; code: string; receipt_id: string; amount: number; status: string; requested_at: string; paid_at: string | null; payment_method: string | null };
 type LotRow = { id: string; source_receipt_id: string; is_problematic: boolean; problematic_reason: string | null; is_cancelled: boolean; cancellation_reason: string | null; is_returned: boolean; returned_weight_kg: number };
 type DocRow = { id: string; receipt_id?: string; payment_request_id?: string; evidence_type?: string; file_name: string; signed_url: string | null };
-export type PurchasePageData = { actorRoles: string[]; projects: Lookup[]; suppliers: Lookup[]; categories: Lookup[]; warehouses: Lookup[]; requests: RequestRow[]; receipts: ReceiptRow[]; payments: PaymentRow[]; lots: LotRow[]; receiptDocs: DocRow[]; paymentDocs: DocRow[]; warehouseProjects: { warehouse_id: string; project_id: string }[] };
+type SupplierCreditRow = { id: string; supplier_id: string; returned_weight_kg: number; unit_price_per_kg: number; credit_amount: number; remaining_amount: number; status: string; return_code: string };
+export type PurchasePageData = { actorRoles: string[]; projects: Lookup[]; suppliers: Lookup[]; categories: Lookup[]; warehouses: Lookup[]; requests: RequestRow[]; receipts: ReceiptRow[]; payments: PaymentRow[]; lots: LotRow[]; receiptDocs: DocRow[]; paymentDocs: DocRow[]; warehouseProjects: { warehouse_id: string; project_id: string }[]; supplierCredits: SupplierCreditRow[] };
 
 const rupiah = (value: number) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(value);
 const dateLabel = (value: string) => new Date(value + (value.length === 10 ? "T00:00:00" : "")).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" });
@@ -252,6 +253,17 @@ export default function PurchaseManager({ data }: { data: PurchasePageData }) {
           <label className={styles.wide}>Keterangan<textarea name="notes" rows={2} maxLength={1000} placeholder="Keterangan hasil pemeriksaan" /></label>
           <label className={styles.wide}>Foto Timbangan <small>Wajib · JPG, PNG, WEBP · maksimal 10 MB per foto</small><input name="weightFiles" type="file" accept="image/jpeg,image/png,image/webp" multiple required /></label>
           <label className={styles.wide}>Foto Hasil Pengukuran <small>Wajib · JPG, PNG, WEBP · maksimal 10 MB per foto</small><input name="valueFiles" type="file" accept="image/jpeg,image/png,image/webp" multiple required /></label>
+          <label className={styles.wide}>Kredit Return Supplier (opsional)
+            <select name="supplierCreditId" defaultValue="">
+              <option value="">Tanpa menggunakan kredit Return</option>
+              {data.supplierCredits.filter(credit => credit.supplier_id === receiptFor.supplier_id).map(credit => (
+                <option key={credit.id} value={credit.id}>
+                  {credit.return_code} · Sisa kredit {rupiah(Number(credit.remaining_amount))} · {Number(credit.returned_weight_kg).toLocaleString("id-ID")} kg asal
+                </option>
+              ))}
+            </select>
+            <small>Kredit hanya tersedia untuk Supplier yang sama. Nilainya mengurangi tagihan, bukan berat fisik yang diterima.</small>
+          </label>
           <label>Berat Diterima<input name="acceptedWeight" type="number" min="0" step="0.001" defaultValue="0" required placeholder="Berat yang masuk stok" /></label>
           <label>Berat Ditolak<input name="rejectedWeight" type="number" min="0" step="0.001" defaultValue="0" required placeholder="Berat yang tidak masuk stok" /></label>
           <label className={styles.wide}>Alasan Penolakan<textarea name="reason" rows={2} maxLength={1000} placeholder="Wajib jika ada berat ditolak" /></label>
@@ -310,6 +322,9 @@ export default function PurchaseManager({ data }: { data: PurchasePageData }) {
             <button type="button" className={styles.detailToggle} aria-expanded={expandedPaymentId === payment.id} onClick={() => { const next = selectedPaymentId === payment.id ? null : payment.id; setSelectedPaymentId(next); setExpandedPaymentId(next); }}>{selectedPaymentId === payment.id ? "Kembali ke Daftar" : "Lihat Detail Pembayaran"} <span>{expandedPaymentId === payment.id ? "−" : "+"}</span></button>
             {expandedPaymentId === payment.id && <>
             <div className={styles.facts}>
+              <span><small>Nilai Barang</small><b>{receipt?.gross_purchase_amount == null ? "—" : rupiah(Number(receipt.gross_purchase_amount))}</b></span>
+              <span><small>Kredit Return</small><b>{receipt?.supplier_credit_amount ? rupiah(Number(receipt.supplier_credit_amount)) : rupiah(0)}</b></span>
+              <span><small>Tagihan Bersih</small><b>{receipt?.net_purchase_amount == null ? rupiah(Number(payment.amount)) : rupiah(Number(receipt.net_purchase_amount))}</b></span>
               <span><small>Estimasi Kadar</small><b>{request?.estimated_value == null ? "Belum tersedia" : Number(request.estimated_value).toLocaleString("id-ID") + " %"}</b></span>
               <span><small>Kadar Aktual Diterima</small><b>{receipt ? Number(receipt.value).toLocaleString("id-ID") + " " + receipt.value_unit : "Belum tersedia"}</b></span>
               <span><small>Estimasi Berat</small><b>{request ? Number(request.estimated_weight_kg).toLocaleString("id-ID") + " kg" : "—"}</b></span>
