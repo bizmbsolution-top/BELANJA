@@ -63,7 +63,7 @@ export default async function PembelianPage() {
       : Promise.resolve({ data: [] }),
   ]);
   const { data: supplierCredits, error: creditError } = await admin.from("purchase_return_supplier_credits")
-    .select("id,supplier_id,returned_weight_kg,unit_price_per_kg,credit_amount,remaining_amount,status,purchase_returns!inner(code)")
+    .select("id,supplier_id,returned_weight_kg,unit_price_per_kg,credit_amount,remaining_amount,status")
     .eq("tenant_id", actor.tenantId).in("status", ["available", "partially_used"])
     .order("created_at", { ascending: true });
   if (creditError) throw new Error("Data Kredit Return Supplier gagal dimuat.");
@@ -96,7 +96,7 @@ export default async function PembelianPage() {
     receiptDocs: signedReceiptDocs, paymentDocs: signedPaymentDocs, warehouseProjects: mappings ?? [],
     supplierCredits: (supplierCredits ?? []).map(credit => ({
       ...credit,
-      return_code: Array.isArray(credit.purchase_returns) ? credit.purchase_returns[0]?.code ?? "Return" : credit.purchase_returns?.code ?? "Return",
+      return_code: "Kredit " + String(credit.id).slice(0, 8).toUpperCase(),
     })),
   };
   return <PurchaseManager data={data} />;
