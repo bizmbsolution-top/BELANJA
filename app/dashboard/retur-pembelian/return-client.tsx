@@ -84,11 +84,12 @@ export default function ReturnClient({cases,returns}:{cases:CaseRow[];returns:Re
        <div style={{marginRight:10}}><strong>{lot?.code??"Lot"}</strong>: {kg(Number(item.weight_kg))} kg</div>
        {item.credit&&<div style={{marginTop:5,padding:9,borderRadius:7,background:"var(--surface-secondary,rgba(120,130,140,.08))"}}>
         <div><strong>Kredit Supplier · {item.credit.supplier?.name??"Supplier"}</strong></div>
+        <div>{kg(Number(item.credit.returned_weight_kg))} kg × {rupiah(Number(item.credit.unit_price_per_kg))}/kg</div>
         <div>Nilai awal: {rupiah(Number(item.credit.credit_amount))} · Sisa: {rupiah(Number(item.credit.remaining_amount))}</div>
         <div>Status: {item.credit.status==="pending_decision"?"Menunggu keputusan":item.credit.status==="available"?"Kredit penggantian tersedia":item.credit.status==="partially_used"?"Sebagian digunakan":item.credit.status==="used"?"Sudah digunakan":item.credit.status==="refund_pending"?"Menunggu pengembalian uang":"Selesai"}</div>
-        {item.credit.status==="pending_decision"&&<div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:8}}>
-         <button type="button" disabled={busy} onClick={()=>decideCredit(item.credit!.id,"replacement")} style={{padding:"7px 10px",border:0,borderRadius:6,background:"#176342",color:"white"}}>Penggantian Barang</button>
-         <button type="button" disabled={busy} onClick={()=>decideCredit(item.credit!.id,"refund")} style={{padding:"7px 10px",border:"1px solid var(--border,#bbb)",borderRadius:6,background:"transparent"}}>Pengembalian Uang</button>
+        {(item.credit.status==="pending_decision"||item.credit.status==="available"||item.credit.status==="refund_pending")&&<div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:8}}>
+         <button type="button" disabled={busy} onClick={()=>decideCredit(item.credit!.id,"replacement")} style={{padding:"7px 10px",border:0,borderRadius:6,background:"#176342",color:"white"}}>{item.credit.status==="pending_decision"?"Penggantian Barang":"Ubah ke Penggantian Barang"}</button>
+         <button type="button" disabled={busy} onClick={()=>decideCredit(item.credit!.id,"refund")} style={{padding:"7px 10px",border:"1px solid var(--border,#bbb)",borderRadius:6,background:"transparent"}}>{item.credit.status==="pending_decision"?"Pengembalian Uang":"Ubah ke Pengembalian Uang"}</button>
         </div>}
        </div>}
       </div>;})}</div><div style={{fontSize:12,opacity:.6}}>Dibuat {new Date(r.created_at).toLocaleString("id-ID")}{r.posted_at?" · Posted "+new Date(r.posted_at).toLocaleString("id-ID"):""}</div></div>
