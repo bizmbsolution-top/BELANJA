@@ -24,7 +24,7 @@ export default async function PersediaanPage() {
  const scoped=(r:{warehouse_id:string;project_id:string})=>(warehouseIds===null||warehouseIds.includes(r.warehouse_id))&&(projectIds===null||projectIds.includes(r.project_id));
  const lots=((rawLots??[]) as Lot[]).filter(l=>scoped(l)),receiptIds=[...new Set(lots.map(l=>l.source_receipt_id))];
  const [{data:receipts},{data:payments}]=await Promise.all([receiptIds.length?admin.from("purchase_receipts").select("id,code,status,decision_reason").eq("tenant_id",actor.tenantId).in("id",receiptIds):Promise.resolve({data:[]}),receiptIds.length?admin.from("purchase_payment_requests").select("receipt_id,status,paid_at").eq("tenant_id",actor.tenantId).in("receipt_id",receiptIds):Promise.resolve({data:[]})]);
- const {data:quarantineRows,error:quarantineError}=lots.length?await admin.from("inventory_lot_quarantines").select("id,lot_id,quarantined_weight_kg,returned_weight_kg,released_weight_kg,reason,status").eq("tenant_id",actor.tenantId).in("lot_id",lots.map(l=>l.id)).eq("status","Active"): {data:[],error:null};
+ const {data:quarantineRows,error:quarantineError}=lots.length?await admin.from("inventory_lot_quarantines").select("id,lot_id,quarantined_weight_kg,returned_weight_kg,released_weight_kg,reason,status").eq("tenant_id",actor.tenantId).in("lot_id",lots.map(l=>l.id)): {data:[],error:null};
 
  if(quarantineError)throw new Error("Data Karantina persediaan gagal dimuat.");
  const quarantineIds=(quarantineRows??[]).map(q=>q.id);
@@ -32,7 +32,7 @@ export default async function PersediaanPage() {
  const quarantineLotById=new Map((quarantineRows??[]).map(q=>[q.id,q.lot_id]));
  const quarantineDocuments=await Promise.all((quarantineDocRows??[]).map(async doc=>{const {data}=await admin.storage.from("inventory-lot-quarantine-evidence").createSignedUrl(doc.storage_path,300);return data?.signedUrl?{id:doc.id,lotId:quarantineLotById.get(doc.quarantine_id)??"",fileName:doc.file_name,signedUrl:data.signedUrl,createdAt:doc.created_at}:null;}));
 
- const quarantineMap=new Map<string,{weight:number;reasons:string[]}>();for(const q of quarantineRows??[]){const item=quarantineMap.get(q.lot_id)??{weight:0,reasons:[]};item.weight+=Math.max(0,Number(q.quarantined_weight_kg)-Number(q.returned_weight_kg)-Number(q.released_weight_kg));item.reasons.push(q.reason);quarantineMap.set(q.lot_id,item);}
+ const quarantineMap=new Map<string,{weight:number;reasons:string[]}>();for(const q of quarantineRows??[]){if(q.status!=="Active")continue;const item=quarantineMap.get(q.lot_id)??{weight:0,reasons:[]};item.weight+=Math.max(0,Number(q.quarantined_weight_kg)-Number(q.returned_weight_kg)-Number(q.released_weight_kg));item.reasons.push(q.reason);quarantineMap.set(q.lot_id,item);}
  const receiptMap=new Map((receipts??[]).map(r=>[r.id,r])),paymentMap=new Map((payments??[]).map(p=>[p.receipt_id,p])),projectMap=new Map((projects??[]).map(p=>[p.id,p])),categoryMap=new Map((categories??[]).map(c=>[c.id,c])),warehouseMap=new Map((allWarehouses??[]).map(w=>[w.id,w])),supplierMap=new Map((suppliers??[]).map(s=>[s.id,s.name]));
  const visibleMovements=((movements??[]) as Movement[]).filter(m=>scoped(m)),balances=new Map<string,number>();
  for(const m of visibleMovements){if(!m.lot_id)continue;const sign=["issue","transfer_out","sale_dispatch","purchase_return"].includes(m.movement_type)?-1:1;balances.set(m.lot_id,(balances.get(m.lot_id)??0)+sign*Number(m.weight_kg));}
