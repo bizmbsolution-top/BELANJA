@@ -28,8 +28,7 @@ export default function QuarantineEvidenceForm({ lotId, maxWeight }: { lotId: st
     </label>
     <label style={{display:"grid",gap:5}}>Foto barang bermasalah · wajib
       <small>Ambil foto dengan kamera belakang atau pilih dari galeri. JPG, PNG, WEBP · maks. 10 MB/foto.</small>
-      <input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" multiple required
-        onChange={event=>setFiles(Array.from(event.currentTarget.files??[]))}/>
+      <span>📷 Ambil dengan Kamera</span><input name="files" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" multiple required={files.length===0} onChange={event=>setFiles(current=>[...current,...Array.from(event.currentTarget.files??[])])}/><span>🖼️ Pilih dari Galeri</span><input name="files" type="file" accept="image/jpeg,image/png,image/webp" multiple required={files.length===0} onChange={event=>setFiles(current=>[...current,...Array.from(event.currentTarget.files??[])])}/>
     </label>
     {!!previews.length&&<div style={{display:"flex",gap:8,flexWrap:"wrap"}}>{previews.map(({file,url})=><figure key={file.name+file.lastModified} style={{margin:0,width:88}}>
       <img src={url} alt={file.name} style={{width:88,height:76,objectFit:"cover",borderRadius:6}}/>
