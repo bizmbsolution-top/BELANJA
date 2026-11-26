@@ -81,7 +81,7 @@ export default function SalesManager({data}:{data:SalesPageData}){
       {weights[l.id]!==undefined&&<label className={styles.weightInput}>Berat (kg)<input type="number" min="0.001" max={l.available_weight_kg} step="0.001" value={weights[l.id]} onChange={e=>setWeights(old=>({...old,[l.id]:e.target.value}))}/></label>}
      </div>)}</div>}
     </div>
-    <label>Harga Jual Awal per kg (Rp)<input name="salePricePerKg" type="text" inputMode="numeric" required value={salePriceInput} onChange={e=>setSalePriceInput(e.target.value.replace(/[^0-9]/g,"").replace(/\\B(?=(\\d{3})+(?!\\d))/g,"."))} placeholder="Contoh: 275.000"/></label>
+    <label>Harga Jual Awal per kg (Rp)<input name="salePricePerKg" type="text" inputMode="numeric" required value={salePriceInput} onChange={e=>setSalePriceInput(e.target.value.replace(/[^0-9]/g,"").replace(/\B(?=(\d{3})+(?!\d))/g,"."))} placeholder="Contoh: 275.000"/></label>
     
     <label className={styles.wide}>Keterangan<textarea name="notes" rows={2} maxLength={1000} placeholder="Catatan penjualan (opsional)"/></label>
     <div className={styles.summary}><span>Lot dipilih: <b>{selected.length}</b></span><span>Total berat: <b>{qty(selectedWeight)} kg</b></span><span>Estimasi kadar rata-rata: <b>{estimatedGrade===null?"—":`${qty(estimatedGrade)} ${estimatedGradeUnit}`}</b></span><span>Estimasi nilai pembelian: <b>{money(estimatedCost)}</b></span></div>
