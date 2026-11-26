@@ -2,6 +2,9 @@ import { requireAnyRole } from "@/lib/auth/authorization";
 import { createAdminClient } from "@/lib/supabase/admin";
 import PurchaseManager, { type PurchasePageData } from "./purchase-manager";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 const MODULE_ROLES = ["Procurement", "Cashier", "Finance", "Management"] as const;
 
 export default async function PembelianPage() {
