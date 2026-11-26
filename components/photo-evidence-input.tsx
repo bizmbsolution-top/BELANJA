@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 
 type Props = {
   name: string;
@@ -15,7 +15,7 @@ export default function PhotoEvidenceInput({ name, label, accept = "image/jpeg,i
   const [files, setFiles] = useState<File[]>([]);
   const previews = useMemo(() => files.filter(file => file.type.startsWith("image/")).map(file => ({ file, url: URL.createObjectURL(file) })), [files]);
   useEffect(() => () => previews.forEach(item => URL.revokeObjectURL(item.url)), [previews]);
-  const addFiles = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const addFiles = (event: ChangeEvent<HTMLInputElement>) => {
     const selected = Array.from(event.currentTarget.files ?? []);
     if (selected.length) setFiles(current => [...current, ...selected]);
   };
@@ -24,11 +24,11 @@ export default function PhotoEvidenceInput({ name, label, accept = "image/jpeg,i
     <small>Ambil foto langsung dengan kamera belakang, atau pilih foto/file dari galeri. Maks. 10 MB per foto.</small>
     {capture && <label style={{ display: "grid", gap: 4 }}>
       <span>📷 Ambil dengan Kamera</span>
-      <input name={name} type="file" accept={accept} multiple={multiple} capture="environment" onChange={addFiles} />
+      <input name={name} type="file" accept={accept} multiple={multiple} required={required && files.length===0} capture="environment" onChange={addFiles} />
     </label>}
     <label style={{ display: "grid", gap: 4 }}>
       <span>🖼️ Pilih dari Galeri / File</span>
-      <input name={name} type="file" accept={accept} multiple={multiple} required={required} onChange={addFiles} />
+      <input name={name} type="file" accept={accept} multiple={multiple} required={required && files.length===0} onChange={addFiles} />
     </label>
     {!!previews.length && <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
       {previews.map(({ file, url }, index) => <figure key={file.name + file.lastModified + index} style={{ margin: 0, width: 104 }}>
