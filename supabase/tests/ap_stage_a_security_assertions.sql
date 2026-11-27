@@ -7,7 +7,7 @@ do $$
 declare
   v_count integer;
   v_def text;
-  v_policy record;
+  v_rls_enabled boolean;
   v_name text;
   v_signature text;
 begin
@@ -20,11 +20,11 @@ begin
       raise exception 'FAIL: required table public.% is missing', v_name;
     end if;
 
-    select c.relrowsecurity into v_policy
+    select c.relrowsecurity into v_rls_enabled
     from pg_class c
     where c.oid = to_regclass('public.' || v_name);
 
-    if not v_policy.relrowsecurity then
+    if not v_rls_enabled then
       raise exception 'FAIL: RLS is not enabled on public.%', v_name;
     end if;
 
