@@ -45,7 +45,17 @@ export default async function ApPage() {
   const projects = actor.tenantRole === "superadmin" || scope?.scope_mode === "all"
     ? all
     : all.filter((project) => scope?.scope_mode === "selected" && scope.resource_ids?.includes(project.id));
-  if (!projects.length) return <ApManager enabled documents={[]} lines={[]} />;
+  if (!projects.length) return <ApManager
+    enabled
+    documents={[]}
+    lines={[]}
+    suppliers={(supplierRows ?? []) as ApSupplierOption[]}
+    projects={[]}
+    categories={categories ?? []}
+    references={[]}
+    canCreateEdit={actor.tenantRole === "superadmin" || (permissionResult.data ?? []).some((item) => item.permission_key === "ap.create_edit" && item.effect === "allow")}
+    canSubmit={actor.tenantRole === "superadmin" || (permissionResult.data ?? []).some((item) => item.permission_key === "ap.submit" && item.effect === "allow")}
+  />;
 
   const projectIds = projects.map((project) => project.id);
   const [{ data: rows, error }, { data: salesOrders, error: salesError }] = await Promise.all([
