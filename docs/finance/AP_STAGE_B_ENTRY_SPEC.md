@@ -19,7 +19,9 @@ This document fixes the implementation contract so coding can proceed without ch
 - Cashier: view submitted AP queue only when the relevant existing access permissions allow it; payment execution is Stage C.
 - Platform Owner remains outside tenant operations.
 - The server resolves actor, active tenant, role, and work scope. Never accept tenant ID or actor ID from browser input.
-- Project scope must be enforced on every read and mutation.
+- Tenant Superadmin bypasses individual Project scope and may access every Project inside the active tenant. This is a tenant-wide bypass only; it never grants access to another tenant. Platform Owner remains outside tenant operations.
+- Finance and all other non-Superadmin users must pass their configured Project scope on every read and mutation.
+- Project scope must be enforced on every read and mutation for non-Superadmin users.
 - Use the application's existing permission-override mechanism. Before implementation, confirm the canonical permission-key registry and add only the minimum AP create/submit keys if they do not already exist. Do not invent keys in UI code or treat a hidden button as authorization.
 
 ## 3. AP form
@@ -38,7 +40,7 @@ When a BA is selected, show its number, customer, Project, date, and transaction
 
 ### Expense lines
 
-At least one line is required. Each line has:
+At least one line and no more than **50 lines** are allowed per AP document. Each line has:
 - Category: required active category from the current tenant.
 - Description: required, trimmed, max 500 characters.
 - Amount: positive Rupiah integer; no zero or negative values.
@@ -70,7 +72,7 @@ Suggested operations:
 - `updateApDraft(input)`
 - `submitApDocument(expenseId)`
 
-Input must not include trusted actor or tenant identifiers. Validate UUIDs, date, text lengths, line count, and integer amounts at the server boundary. Resolve active actor using the existing authorization helpers.
+Input must not include trusted actor or tenant identifiers. Validate UUIDs, a real calendar date (not format alone), text lengths, a maximum of 50 lines, and positive integer amounts at the server boundary. Resolve active actor using the existing authorization helpers.
 
 Every action must:
 - require tenant membership and an active tenant;
@@ -90,7 +92,7 @@ Implement in a later migration after Stage A validation. All functions use a fix
 - Receives actor ID, tenant ID, date, recipient, project, optional sales_order_id, summary, and JSON line array from trusted server code.
 - Confirms actor is an active member of the tenant and the tenant is active.
 - Confirms the Project and optional BA belong to the same tenant; if BA has a Project, it must equal the selected AP Project.
-- Confirms actor has the required Project work scope and Finance/Superadmin authority.
+- Confirms actor has Finance/Superadmin authority. For Finance and other non-Superadmin users, confirms the actor's configured Project scope includes the selected Project. For tenant Superadmin, bypasses individual Project scope only after validating that the Project belongs to the active tenant.
 - Confirms every line category is active and belongs to the tenant.
 - Calculates total server-side; reject empty lines, invalid amount, too many lines, or total overflow.
 - Inserts `expenses.ap_version = 2`, `status = 'Draft'`, required `recipient_name`, and `amount = sum(lines)`; inserts all `expense_items` and one audit event in the same transaction.
@@ -100,7 +102,7 @@ Implement in a later migration after Stage A validation. All functions use a fix
 
 - Locks the AP header with `FOR UPDATE`.
 - Requires `ap_version = 2` and `status = 'Draft'`.
-- Repeats tenant, actor, role, Project scope, BA, and category validation.
+- Repeats tenant, actor, role, Project, BA, and category validation. Non-Superadmin Project scope is enforced; tenant Superadmin may access any Project within the same tenant.
 - Replaces header and all lines atomically. Any failure rolls back the complete operation.
 - Writes before/after audit snapshots.
 
@@ -137,12 +139,16 @@ Implement in a later migration after Stage A validation. All functions use a fix
 4. A BA can be omitted; one BA can be referenced by multiple AP documents.
 5. BA from another tenant or inaccessible Project is rejected.
 6. A category from another tenant is rejected even if its UUID is forged into the request.
-7. A Project outside the actor's scope is rejected by both server action and RPC.
-8. Non-Finance/non-Superadmin users cannot create, edit, or submit AP.
-9. Submitted AP and its lines cannot be edited.
-10. Failure inserting any line leaves no partial header or orphan line.
-11. Legacy version-1 vouchers remain readable and their existing create/edit/submit/pay/cancel flow is unchanged.
-12. No AP creation produces an `expense_payments` row or cashier ledger movement.
+7. Finance users cannot access a Project outside their configured scope; this is rejected by both server action and RPC.
+8. Tenant Superadmin can create, edit, and submit AP in any Project belonging to the same tenant, even when the Project is not in an individual Selected scope.
+9. Superadmin cannot access a Project belonging to another tenant.
+10. Non-Finance/non-Superadmin users cannot create, edit, or submit AP.
+11. Submitted AP and its lines cannot be edited.
+12. Failure inserting any line leaves no partial header or orphan line.
+13. Legacy version-1 vouchers remain readable and their existing create/edit/submit/pay/cancel flow is unchanged.
+14. No AP creation produces an `expense_payments` row or cashier ledger movement.
+15. More than 50 expense lines are rejected by both server action and RPC.
+16. An invalid calendar date is rejected even when it matches the `YYYY-MM-DD` text pattern.
 
 ## 9. Deferred from Stage B
 
