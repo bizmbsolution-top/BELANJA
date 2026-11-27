@@ -10,7 +10,7 @@ type Method="manual"|"percentage"|"per_kg"|"per_grade_point"|"per_kg_grade"|"per
 type ExpenseType="company_payable"|"transaction_deduction";
 type Form={name:string;description:string;isActive:boolean;costClassification:Classification;expenseType:ExpenseType;calculationMethod:Method;calculationRate:string};
 const EMPTY:Form={name:"",description:"",isActive:true,costClassification:"flexible",expenseType:"company_payable",calculationMethod:"manual",calculationRate:""};
-const formatRupiah=(value:string)=>{const digits=value.replace(/\\D/g,"");return digits?new Intl.NumberFormat("id-ID",{maximumFractionDigits:0}).format(Number(digits)):"";};\nconst label=(v:Classification)=>v==="direct_cost"?"Direct Cost":v==="general_overhead"?"General Overhead":"Fleksibel";
+const formatRupiah=(value:string)=>{const digits=value.replace(/\D/g,"");return digits?new Intl.NumberFormat("id-ID",{maximumFractionDigits:0}).format(Number(digits)):"";};\nconst label=(v:Classification)=>v==="direct_cost"?"Direct Cost":v==="general_overhead"?"General Overhead":"Fleksibel";
 const methodLabel=(x:ExpenseCategory)=>{
  const method=x.calculation_method??"manual";
  const names:Record<Method,string>={manual:"Manual",percentage:"Persentase",per_kg:"Tarif per Kg",per_grade_point:"Tarif per poin Grade",per_kg_grade:"Kg × Grade",per_transaction:"Per BA / transaksi",fixed:"Nominal tetap"};
