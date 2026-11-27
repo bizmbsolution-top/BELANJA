@@ -18,7 +18,7 @@ const methodLabel=(x:ExpenseCategory)=>{
  const rate=x.calculation_rate==null?"":method==="percentage"?` · ${x.calculation_rate}%`:` · Rp ${new Intl.NumberFormat("id-ID",{maximumFractionDigits:2}).format(x.calculation_rate)}`;
  return names[method]+(basis?` ${basis}`:"")+rate;
 };
-export default function ExpenseCategoryManager({initialItems}:{initialItems:ExpenseCategory[]}){
+export default function ExpenseCategoryManager({initialItems,formulaConfigReady=true}:{initialItems:ExpenseCategory[];formulaConfigReady?:boolean}){
  const router=useRouter();
  const [query,setQuery]=useState("");
  const [classificationFilter,setClassificationFilter]=useState("all");
@@ -63,6 +63,7 @@ export default function ExpenseCategoryManager({initialItems}:{initialItems:Expe
    <div><strong>{overhead}</strong><span>General Overhead</span></div>
    <div><strong>{flexible}</strong><span>Fleksibel</span></div>
   </section>
+  {!formulaConfigReady&&<p className={styles.footnote}>Pengaturan formula belum aktif pada database. Pilihan metode di formulir akan berfungsi setelah migration formula diterapkan.</p>}
   {message&&<p className={styles.success} role="status">{message}</p>}
   {open&&<section className={styles.formCard}>
    <div className={styles.formHeading}><div><h2>{editingId?"Ubah Kategori":"Tambah Kategori"}</h2><p>Kode kategori dibuat otomatis saat data disimpan.</p></div><button className={styles.closeButton} type="button" onClick={()=>setOpen(false)}>×</button></div>
