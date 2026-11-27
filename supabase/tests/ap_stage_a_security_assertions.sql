@@ -135,7 +135,32 @@ begin
     end if;
   end loop;
 
-  -- 5) Legacy default/status and paid-field compatibility constraints survive.
+  -- 5) Tenant-scoped AP permission keys are registered in the allow-list
+  --    and the audited user-access RPC validates and persists both effects.
+  select count(*) into v_count
+  from pg_constraint
+  where conrelid = 'public.tenant_user_permission_overrides'::regclass
+    and conname = 'tenant_user_permission_overrides_key_check'
+    and pg_get_constraintdef(oid) like '%ap.create_edit%'
+    and pg_get_constraintdef(oid) like '%ap.submit%';
+  if v_count <> 1 then
+    raise exception 'FAIL: tenant AP permission keys are missing from the permission allow-list';
+  end if;
+
+  select pg_get_functiondef(p.oid) into v_def
+  from pg_proc p
+  join pg_namespace n on n.oid = p.pronamespace
+  where n.nspname = 'public'
+    and p.proname = 'save_tenant_user_access_profile_with_audit'
+  order by p.oid
+  limit 1;
+  if v_def is null
+     or position('ap.create_edit' in v_def) = 0
+     or position('ap.submit' in v_def) = 0 then
+    raise exception 'FAIL: audited access-profile RPC does not validate and persist AP permissions';
+  end if;
+
+  -- 6) Legacy default/status and paid-field compatibility constraints survive.
   select column_default into v_def
   from information_schema.columns
   where table_schema = 'public'
