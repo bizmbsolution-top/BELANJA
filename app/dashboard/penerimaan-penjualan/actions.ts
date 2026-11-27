@@ -18,12 +18,6 @@ export async function recordSalesSettlement(input:{salesOrderId:string;paymentMe
   const db=createAdminClient();
   const {data:order,error:oe}=await db.from("sales_orders").select("id,status,customer_id,project_id,final_amount,ba_number,ba_date").eq("tenant_id",actor.tenantId).eq("id",input.salesOrderId).maybeSingle();
   if(oe||!order||order.status!=="Selesai"||!order.ba_number||!order.ba_date)return{ok:false,error:"BA final tidak ditemukan atau belum selesai."};
-  const [{data:activeMasters,error:masterError},{data:existingCosts,error:costError}]=await Promise.all([
-   db.from("sales_expense_masters").select("id").eq("tenant_id",actor.tenantId).eq("is_active",true),
-   db.from("sales_order_expense_items").select("id").eq("tenant_id",actor.tenantId).eq("sales_order_id",order.id).eq("status","Ditetapkan")
-  ]);
-  if(masterError||costError)return{ok:false,error:"Pemeriksaan biaya BA gagal. Silakan muat ulang halaman."};
-  if((activeMasters??[]).length>0&&(existingCosts??[]).length===0)return{ok:false,error:"Hitung Biaya Lainnya BA terlebih dahulu sebelum settlement."};
   if(actor.tenantRole!=="superadmin"){
    const {data:permission,error:permissionError}=await db.from("tenant_user_permission_overrides").select("effect").eq("tenant_id",actor.tenantId).eq("user_id",actor.userId).eq("permission_key","payment.post").maybeSingle();
    if(permissionError||permission?.effect!=="allow")return{ok:false,error:"Permission payment.post belum diberikan oleh Superadmin perusahaan."};
