@@ -114,3 +114,39 @@
 .profileShortcut span{display:grid;width:19px;height:19px;place-items:center;border-radius:6px;background:#dce9ff;font-size:14px}
 .app[data-theme="dark"] .profileShortcut{border-color:#365a91;background:#1a3152;color:#a9c8ff}
 .app[data-theme="dark"] .profileShortcut:hover{background:#223d65}
+
+
+/* Sidebar refinement: clearer hierarchy, consistent rhythm, and accessible states. */
+.sidebar{width:272px}
+.mainColumn{margin-left:272px}
+.navScroll{padding:17px 13px 20px;scrollbar-width:thin;scrollbar-color:rgba(125,145,175,.38) transparent}
+.navScroll::-webkit-scrollbar{width:6px}
+.navScroll::-webkit-scrollbar-thumb{border-radius:8px;background:rgba(125,145,175,.38)}
+.navGroup{margin:4px 0 17px}
+.groupHeading{min-height:30px;padding:7px 10px;font-size:9px;letter-spacing:.16em}
+.groupHeading span:first-child{display:flex;align-items:center;gap:8px}
+.groupHeading span:first-child:before{width:5px;height:5px;border-radius:2px;background:#8ea1bd;content:""}
+.navItems{gap:3px;margin-top:5px}
+.navLink,.navActive,.navDisabled{min-height:39px;padding:9px 12px;border-radius:9px;font-size:12px;line-height:1.35}
+.navDot{width:7px;height:7px;flex-basis:7px;border-radius:2px;transition:transform .15s ease,background .15s ease}
+.navLink:hover .navDot{transform:scale(1.2)}
+.navActive{font-weight:750}
+.navActive .navDot{transform:rotate(45deg)}
+.navLink:focus-visible,.groupHeading:focus-visible,.themeToggle:focus-visible,.logout:focus-visible,.profileShortcut:focus-visible{outline:2px solid #70a2ff;outline-offset:2px}
+.navDisabled{opacity:.72}
+.sidebarFooter{padding:13px 16px 12px}
+.userBadge{padding:2px 2px 4px}
+.themeToggle{margin-top:10px;min-height:36px}
+.logout{min-height:36px}
+.app[data-theme="light"] .groupHeading span:first-child:before{background:#9aa9bd}
+.app[data-theme="light"] .navActive{background:linear-gradient(90deg,#e8f0ff,#f2f6ff);color:#174ea6;box-shadow:inset 3px 0 #3977e8}
+.app[data-theme="light"] .navActive .navDot{background:#3977e8}
+.app[data-theme="dark"] .groupHeading span:first-child:before{background:#7186a5}
+.app[data-theme="dark"] .navActive{background:linear-gradient(90deg,#203f6c,#254b83);box-shadow:inset 3px 0 #73a2ff}
+@media(max-width:800px){
+ .sidebar{width:272px}
+ .mainColumn{margin-left:0}
+ .mobileSidebar .navScroll{padding:14px 13px 18px}
+ .mobileSidebar .navGroup{margin-bottom:14px}
+ .mobileSidebar .navLink,.mobileSidebar .navActive,.mobileSidebar .navDisabled{min-height:41px}
+}
