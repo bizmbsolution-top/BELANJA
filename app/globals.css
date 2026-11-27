@@ -235,9 +235,9 @@ footer {
 .auth-card .eyebrow{margin-top:16px;font-size:9px;letter-spacing:.12em}
 
 /* Shared theme tokens and native controls for all tenant pages. */
-.app[data-theme="light"]{--ink:#172b4d;--muted:#62718a;--line:#e5eaf2;--surface:#fff;--surface-soft:#f4f7fb;--text:#172b4d;--border:#e5eaf2;color-scheme:light}
-.app[data-theme="dark"]{--ink:#e5edf8;--muted:#aab8cc;--line:#293b56;--surface:#142238;--surface-soft:#1c2b42;--text:#e5edf8;--border:#43536c;color-scheme:dark}
-.app[data-theme="dark"] .content input,
+[data-theme="light"]{--ink:#172b4d;--muted:#62718a;--line:#e5eaf2;--surface:#fff;--surface-soft:#f4f7fb;--text:#172b4d;--border:#e5eaf2;color-scheme:light}
+[data-theme="dark"]{--ink:#e5edf8;--muted:#aab8cc;--line:#293b56;--surface:#142238;--surface-soft:#1c2b42;--text:#e5edf8;--border:#43536c;color-scheme:dark}
+[data-theme="dark"] .content input,
 .app[data-theme="dark"] .content select,
 .app[data-theme="dark"] .content textarea{color-scheme:dark}
 .app[data-theme="dark"] .content ::placeholder{color:#8192aa;opacity:1}
