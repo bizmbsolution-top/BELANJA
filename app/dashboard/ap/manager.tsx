@@ -102,12 +102,12 @@ export default function ApManager({
 
   if (!enabled) return (
     <main className={styles.page}>
-      <header className={styles.header}><div><p className={styles.eyebrow}>KEUANGAN</p><h1>AP / Hutang Supplier</h1><p>Dokumen kewajiban pembayaran kepada Supplier.</p></div></header>
+      <header className={styles.header}><div><p className={styles.eyebrow}>KEUANGAN</p><h1>Pengeluaran</h1><p>Pencatatan pengeluaran dan kewajiban pembayaran kepada Supplier.</p></div></header>
       <section className={styles.notice}>
         <span className={styles.noticeIcon}>i</span>
-        <div><h2>Fondasi database AP belum diaktifkan</h2>
-          <p>Halaman ini disiapkan terpisah dari Pengeluaran lama. Data AP baru akan ditampilkan setelah migrasi fondasi AP dan layanan Draft disetujui, diterapkan, serta diverifikasi.</p>
-          <small>Belum ada perubahan pada database produksi. Modul Pengeluaran lama tetap berjalan seperti sebelumnya.</small>
+        <div><h2>Fitur Pengeluaran belum dapat dimuat</h2>
+          <p>Data atau layanan Pengeluaran belum tersedia. Silakan muat ulang halaman atau hubungi Superadmin jika masalah berlanjut.</p>
+          <small></small>
         </div>
       </section>
     </main>
@@ -117,9 +117,10 @@ export default function ApManager({
     <main className={styles.page}>
       <header className={styles.header}>
         <div><p className={styles.eyebrow}>KEUANGAN</p><h1>AP / Hutang Supplier</h1>
-          <p>Daftar kewajiban pembayaran. Penerima dan Project dicatat sebagai informasi terpisah.</p>
+          <p>Catat pengeluaran dan kewajiban pembayaran. Penerima dan Project dicatat terpisah.</p>
         </div>
-        {canCreateEdit && <button className={styles.primaryButton} type="button" onClick={() => { setEditing(null); setFormOpen(true); }}>+ Buat AP</button>}
+        <button className={styles.primaryButton} type="button" disabled={!canCreateEdit || !projects.length} title={!canCreateEdit ? "Akses tambah pengeluaran belum diberikan untuk akun ini" : !projects.length ? "Belum ada Project aktif pada Area Kerja" : undefined} onClick={() => { setEditing(null); setFormOpen(true); }}>+ Tambah Pengeluaran</button>
+        <a href="/dashboard/pengeluaran" className={styles.footnote}>Buka voucher pengeluaran sebelumnya</a>
       </header>
       <section className={styles.summary}>
         <div><strong>{documents.length}</strong><span>Total Dokumen</span></div>
@@ -127,7 +128,7 @@ export default function ApManager({
         <div><strong>{money(documents.filter((item) => item.status !== "Dibatalkan").reduce((sum, item) => sum + Number(item.amount), 0))}</strong><span>Total AP Aktif</span></div>
       </section>
       <section className={styles.listCard}>
-        <div className={styles.listHeading}><div><h2>Daftar AP</h2><p>{visible.length} dari {documents.length} dokumen</p></div>
+        <div className={styles.listHeading}><div><h2>Daftar Pengeluaran</h2><p>{visible.length} dari {documents.length} dokumen</p></div>
           <div className={styles.filters}>
             <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Cari kode, penerima, Project..." aria-label="Cari AP" />
             <select value={status} onChange={(event) => setStatus(event.target.value)} aria-label="Filter status">
@@ -136,7 +137,7 @@ export default function ApManager({
           </div>
         </div>
         {!visible.length ? <div className={styles.empty}><h3>{documents.length ? "AP tidak ditemukan" : "Belum ada dokumen AP"}</h3>
-          <p>{documents.length ? "Ubah kata pencarian atau filter status." : "Buat Draft AP pertama untuk mulai mencatat kewajiban kepada Supplier."}</p>
+          <p>{documents.length ? "Ubah kata pencarian atau filter status." : "Klik “Tambah Pengeluaran” untuk mulai mencatat kewajiban kepada Supplier."}</p>
         </div> : <div className={styles.tableWrap}><table><thead><tr><th>No. AP</th><th>Tanggal</th><th>Dibayarkan Kepada</th><th>Project</th><th>Total</th><th>Status</th></tr></thead>
           <tbody>{visible.map((item) => <tr key={item.id} className={selected === item.id ? styles.selected : ""} onClick={() => { setSelected(selected === item.id ? "" : item.id); setActionError(""); }}>
             <td><strong>{item.code}</strong></td><td>{date(item.expense_date)}</td><td>{item.recipient_name}</td><td>{item.project}</td><td className={styles.amount}>{money(Number(item.amount))}</td><td><span className={styles.status}>{item.status}</span></td>
