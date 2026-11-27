@@ -21,6 +21,8 @@ type UserRecord = {
     "fund_utilization.post_recognition": "unset" | "allow" | "deny";
     "payment.post": "unset" | "allow" | "deny";
     "payment.allocate": "unset" | "allow" | "deny";
+    "ap.create_edit": "unset" | "allow" | "deny";
+    "ap.submit": "unset" | "allow" | "deny";
   };
 };
 
@@ -56,8 +58,10 @@ const permissionSections = [
     permissions: [
       { id: "payment.post", label: "Posting Payment" },
       { id: "payment.allocate", label: "Alokasi Payment" },
+      { id: "ap.create_edit", label: "Buat & Ubah AP Draft" },
+      { id: "ap.submit", label: "Submit AP" },
     ],
-    note: "Hak permintaan dan pencatatan penyerahan dana Kasir akan ditambahkan bersama implementasi Cashier Fund.",
+    note: "Buat & Ubah AP Draft dan Submit AP adalah izin terpisah. Finance harus memiliki Role Finance serta izin Izinkan yang sesuai. Belum diatur atau Tolak berarti tidak memiliki akses. Superadmin tenant memiliki akses AP dalam tenant aktif tanpa override individual.",
   },
   {
     id: "Warehouse",
@@ -104,7 +108,7 @@ export default function UserAccess({ organizationName, initialUsers, initialProj
   const [saveError, setSaveError] = useState("");
 
   const selectedUser = useMemo(
-    () => users.find((user) => user.id === selectedId) ?? users[0] ?? { id: "", name: "Belum ada pengguna", email: "", roles: [], status: "Nonaktif" as const, scopes: { project: "none" as const, department: "none" as const, warehouse: "none" as const }, projectIds: [], warehouseIds: [], permissions: { "transaction.post_recognition": "unset" as const, "fund_utilization.post_recognition": "unset" as const, "payment.post": "unset" as const, "payment.allocate": "unset" as const } },
+    () => users.find((user) => user.id === selectedId) ?? users[0] ?? { id: "", name: "Belum ada pengguna", email: "", roles: [], status: "Nonaktif" as const, scopes: { project: "none" as const, department: "none" as const, warehouse: "none" as const }, projectIds: [], warehouseIds: [], permissions: { "transaction.post_recognition": "unset" as const, "fund_utilization.post_recognition": "unset" as const, "payment.post": "unset" as const, "payment.allocate": "unset" as const, "ap.create_edit": "unset" as const, "ap.submit": "unset" as const } },
     [users, selectedId],
   );
 
