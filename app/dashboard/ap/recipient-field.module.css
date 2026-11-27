@@ -1,0 +1,18 @@
+.field{display:grid;gap:7px;min-width:0}
+.field>label{font-size:13px;font-weight:650;color:#253247}
+.field b{color:#dc2626}
+.selectRow{display:flex;gap:8px;align-items:stretch}
+.selectRow select,.quickAdd input,.quickAdd textarea{width:100%;min-width:0;border:1px solid #d7dee8;border-radius:9px;padding:10px 11px;background:#fff;color:#172033;font:inherit;font-size:14px}
+.selectRow select{flex:1}
+.addButton,.saveButton{border:0;border-radius:9px;background:#173b67;color:#fff;padding:10px 13px;font-weight:650;font-size:13px;white-space:nowrap;cursor:pointer}
+.field small{font-size:12px;color:#697586}
+.quickAdd{margin-top:5px;padding:15px;border:1px solid #dbe3ed;border-radius:12px;background:#f8fafc}
+.quickAdd h3{margin:0 0 12px;font-size:15px;color:#172033}
+.quickAdd form{display:grid;gap:10px}
+.quickAdd label{display:grid;gap:5px;font-size:12px;font-weight:600;color:#344054}
+.twoColumns{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.actions{display:flex;justify-content:flex-end;gap:8px;margin-top:3px}
+.cancelButton{border:1px solid #d0d5dd;border-radius:8px;background:#fff;padding:9px 12px;color:#344054;font-weight:600;cursor:pointer}
+.error{margin:0;color:#b42318;font-size:12px}
+.saveButton:disabled,.addButton:disabled,.cancelButton:disabled{opacity:.55;cursor:not-allowed}
+@media(max-width:560px){.selectRow{flex-direction:column}.twoColumns{grid-template-columns:1fr}}
