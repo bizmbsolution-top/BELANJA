@@ -36,34 +36,40 @@ export default function ApRecipientField({ initialSuppliers, value, onChange }: 
 
   async function saveSupplier(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (saving) return;
     setSaving(true);
     setError("");
-    const result = await createSupplier({ name, contactPerson, phone, email, address, notes });
-    setSaving(false);
-    if (!result.ok) {
-      setError(result.error);
-      return;
+    try {
+      const result = await createSupplier({ name, contactPerson, phone, email, address, notes });
+      if (!result.ok) {
+        setError(result.error || "Supplier gagal disimpan.");
+        return;
+      }
+      const selectedSupplier: ApSupplierOption = result.supplier ?? {
+        id: result.id!,
+        code: "BARU",
+        name: name.trim(),
+        contact_person: contactPerson.trim() || null,
+        phone: phone.trim() || null,
+        email: email.trim() || null,
+        address: address.trim() || null,
+        notes: notes.trim() || null,
+        is_active: true,
+      };
+      setSuppliers((current) => [selectedSupplier, ...current.filter((item) => item.id !== selectedSupplier.id)]);
+      onChange(selectedSupplier.id);
+      setQuickAddOpen(false);
+      setName("");
+      setContactPerson("");
+      setPhone("");
+      setEmail("");
+      setAddress("");
+      setNotes("");
+    } catch {
+      setError("Supplier gagal disimpan karena terjadi gangguan. Data formulir tetap tersedia; silakan coba lagi.");
+    } finally {
+      setSaving(false);
     }
-    const selectedSupplier: ApSupplierOption = result.supplier ?? {
-      id: result.id!,
-      code: "BARU",
-      name: name.trim(),
-      contact_person: contactPerson.trim() || null,
-      phone: phone.trim() || null,
-      email: email.trim() || null,
-      address: address.trim() || null,
-      notes: notes.trim() || null,
-      is_active: true,
-    };
-    setSuppliers((current) => [selectedSupplier, ...current.filter((item) => item.id !== selectedSupplier.id)]);
-    onChange(selectedSupplier.id);
-    setQuickAddOpen(false);
-    setName("");
-    setContactPerson("");
-    setPhone("");
-    setEmail("");
-    setAddress("");
-    setNotes("");
   }
 
   return (
