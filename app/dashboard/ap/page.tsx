@@ -111,7 +111,7 @@ export default async function ApPage() {
     lines={lines}
     suppliers={suppliers}
     projects={projects.map(({ id, name }) => ({ id, name }))}
-    categories={categories ?? []}
+    categories={usableCategories ?? []}
     references={references}
     canCreateEdit={isSuperadmin || permissions.some((item) => item.permission_key === "ap.create_edit" && item.effect === "allow")}
     canSubmit={isSuperadmin || permissions.some((item) => item.permission_key === "ap.submit" && item.effect === "allow")}
