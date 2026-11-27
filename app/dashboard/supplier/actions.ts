@@ -24,7 +24,8 @@ type CleanSupplier = {
   notes: string | null;
 };
 
-type ActionResult = { ok: true; id?: string } | { ok: false; error: string };
+type SupplierCreated = { id: string; code: string; name: string; contact_person: string | null; phone: string | null; email: string | null; address: string | null; notes: string | null; is_active: boolean };
+type ActionResult = { ok: true; id?: string; supplier?: SupplierCreated } | { ok: false; error: string };
 
 function cleanInput(input: SupplierInput): CleanSupplier | string {
   const name = typeof input?.name === "string" ? input.name.trim() : "";
@@ -76,7 +77,11 @@ export async function createSupplier(input: SupplierInput): Promise<ActionResult
     if (error || typeof data !== "string" || !/^[0-9a-f-]{36}$/i.test(data)) {
       return { ok: false, error: "Supplier gagal disimpan. Silakan periksa data dan coba lagi." };
     }
-    return { ok: true, id: data };
+    const { data: created, error: readError } = await admin.from("suppliers")
+      .select("id,code,name,contact_person,phone,email,address,notes,is_active")
+      .eq("tenant_id", actor.tenantId).eq("id", data).maybeSingle();
+    if (readError || !created) return { ok: false, error: "Supplier tersimpan, tetapi datanya belum dapat dimuat. Silakan muat ulang daftar Supplier." };
+    return { ok: true, id: data, supplier: created as SupplierCreated };
   } catch {
     return { ok: false, error: "Akses atau penyimpanan supplier gagal. Silakan muat ulang halaman." };
   }
