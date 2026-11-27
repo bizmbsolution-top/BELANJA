@@ -6,7 +6,7 @@ type Classification="direct_cost"|"general_overhead"|"flexible";
 type Method="manual"|"percentage"|"per_kg"|"per_grade_point"|"per_kg_grade"|"per_transaction"|"fixed";
 type Basis="manual"|"final_amount"|"purchase_cost"|"received_weight_kg"|"final_grade_value"|"received_weight_x_grade"|"per_transaction"|"fixed";
 type Input={name:string;description:string;isActive?:boolean;costClassification:Classification;expenseType:"company_payable"|"transaction_deduction";calculationMethod:Method;calculationRate:string};
-type Result={ok:true;category:{id:string;code:string;name:string;expense_type:"company_payable"|"transaction_deduction";calculation_method:Method;calculation_basis:Basis;calculation_rate:number|null}}|{ok:false;error:string};
+type Result={ok:true;category?:{id:string;code:string;name:string;expense_type:"company_payable"|"transaction_deduction";calculation_method:Method;calculation_basis:Basis;calculation_rate:number|null}}|{ok:false;error:string};
 function clean(input:Input){
  const name=typeof input?.name==="string"?input.name.trim():"";
  const description=typeof input?.description==="string"?input.description.trim():"";
