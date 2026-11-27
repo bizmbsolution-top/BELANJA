@@ -44,12 +44,19 @@ export default function ApRecipientField({ initialSuppliers, value, onChange }: 
       setError(result.error);
       return;
     }
-    if (!result.supplier) {
-      setError("Supplier tersimpan. Muat ulang halaman untuk memilih data terbaru.");
-      return;
-    }
-    setSuppliers((current) => [result.supplier!, ...current.filter((item) => item.id !== result.supplier!.id)]);
-    onChange(result.supplier.id);
+    const selectedSupplier: ApSupplierOption = result.supplier ?? {
+      id: result.id!,
+      code: "BARU",
+      name: name.trim(),
+      contact_person: contactPerson.trim() || null,
+      phone: phone.trim() || null,
+      email: email.trim() || null,
+      address: address.trim() || null,
+      notes: notes.trim() || null,
+      is_active: true,
+    };
+    setSuppliers((current) => [selectedSupplier, ...current.filter((item) => item.id !== selectedSupplier.id)]);
+    onChange(selectedSupplier.id);
     setQuickAddOpen(false);
     setName("");
     setContactPerson("");
