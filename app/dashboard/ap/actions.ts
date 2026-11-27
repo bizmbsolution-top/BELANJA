@@ -33,7 +33,7 @@ function validate(input: ApDraftInput): string | null {
   if (!UUID.test(input?.recipient_supplier_id ?? "")) return "Supplier wajib dipilih.";
   if (!UUID.test(input?.project_id ?? "")) return "Project wajib dipilih.";
   if (input.sales_order_id && !UUID.test(input.sales_order_id)) return "Referensi BA/Invoice tidak valid.";
-  if (typeof input.summary !== "string" || input.summary.length > 1000) return "Keterangan maksimal 1.000 karakter.";
+  if (input.summary !== undefined && (typeof input.summary !== "string" || input.summary.length > 1000)) return "Keterangan maksimal 1.000 karakter.";
   if (!Array.isArray(input.lines) || input.lines.length < 1 || input.lines.length > 50) return "AP harus memiliki 1 sampai 50 rincian biaya.";
   for (const [index, line] of input.lines.entries()) {
     if (!UUID.test(line?.expense_category_id ?? "")) return `Kategori pada rincian ${index + 1} wajib dipilih.`;
@@ -60,7 +60,7 @@ export async function createApDraft(input: ApDraftInput): Promise<ApActionResult
       p_recipient_supplier_id: input.recipient_supplier_id,
       p_project_id: input.project_id,
       p_sales_order_id: input.sales_order_id || null,
-      p_summary: input.summary.trim() || null,
+      p_summary: (input.summary ?? "").trim() || null,
       p_lines: input.lines.map((line) => ({
         expense_category_id: line.expense_category_id,
         description: line.description.trim(),
