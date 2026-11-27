@@ -12,6 +12,8 @@ type PermissionSettings = {
   "fund_utilization.post_recognition": PermissionSetting;
   "payment.post": PermissionSetting;
   "payment.allocate": PermissionSetting;
+  "ap.create_edit": PermissionSetting;
+  "ap.submit": PermissionSetting;
 };
 
 type ManagedUser = {
@@ -32,6 +34,8 @@ const DEFAULT_PERMISSIONS: PermissionSettings = {
   "fund_utilization.post_recognition": "unset",
   "payment.post": "unset",
   "payment.allocate": "unset",
+  "ap.create_edit": "unset",
+  "ap.submit": "unset",
 };
 
 /**
@@ -183,6 +187,8 @@ export async function saveUserAccessProfile(input: {
       "fund_utilization.post_recognition",
       "payment.post",
       "payment.allocate",
+      "ap.create_edit",
+      "ap.submit",
     ] as const;
 
     if (!userId) return { ok: false, error: "Pengguna tidak valid." };
