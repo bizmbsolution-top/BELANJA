@@ -9,7 +9,7 @@ type Deduction={settlement_id:string;component_name:string;deduction_amount:numb
 const money=(n:number)=>new Intl.NumberFormat("id-ID",{style:"currency",currency:"IDR",maximumFractionDigits:0}).format(n);
 const thousands=(n:number)=>new Intl.NumberFormat("id-ID",{maximumFractionDigits:0}).format(Number.isFinite(n)?n:0);
 const date=(v:string)=>new Date(v+"T00:00:00").toLocaleDateString("id-ID");
-export default function SettlementManager({orders,components,settlements,deductions,expenseItems,activeExpenseCount}:{orders:Order[];components:Component[];settlements:Settlement[];deductions:Deduction[];expenseItems:BAExpense[];activeExpenseCount:number}){
+export default function SettlementManager({orders,components,settlements,deductions}:{orders:Order[];components:Component[];settlements:Settlement[];deductions:Deduction[]}){
  const router=useRouter();const [selected,setSelected]=useState("");const [amounts,setAmounts]=useState<Record<string,string>>({});const [included,setIncluded]=useState<string[]>([]);const [componentToAdd,setComponentToAdd]=useState("");const [method,setMethod]=useState("Transfer");const [receivedAt,setReceivedAt]=useState(new Date().toISOString().slice(0,16));const [reference,setReference]=useState("");const [notes,setNotes]=useState("");const [file,setFile]=useState<File|null>(null);const [busy,setBusy]=useState(false);const [error,setError]=useState("");const [message,setMessage]=useState("");
  const order=orders.find(o=>o.id===selected);
  const applicable=useMemo(()=>order?components.filter(c=>c.customer_id===null||c.customer_id===order.customer_id).sort((a,b)=>a.sort_order-b.sort_order):[],[order,components]);
