@@ -34,8 +34,7 @@ export default function ApRecipientField({ initialSuppliers, value, onChange }: 
   const [address, setAddress] = useState("");
   const [notes, setNotes] = useState("");
 
-  async function saveSupplier(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function saveSupplier() {
     if (saving) return;
     setSaving(true);
     setError("");
@@ -90,7 +89,7 @@ export default function ApRecipientField({ initialSuppliers, value, onChange }: 
       {quickAddOpen && (
         <section className={styles.quickAdd} aria-label="Tambah Supplier cepat">
           <h3>Tambah Supplier</h3>
-          <form onSubmit={saveSupplier}>
+          <div>
             <label>Nama Supplier *<input required maxLength={160} value={name} onChange={(event) => setName(event.target.value)} /></label>
             <label>Nama Kontak<input maxLength={120} value={contactPerson} onChange={(event) => setContactPerson(event.target.value)} /></label>
             <div className={styles.twoColumns}>
@@ -102,9 +101,9 @@ export default function ApRecipientField({ initialSuppliers, value, onChange }: 
             {error && <p className={styles.error} role="alert">{error}</p>}
             <div className={styles.actions}>
               <button type="button" className={styles.cancelButton} disabled={saving} onClick={() => setQuickAddOpen(false)}>Batal</button>
-              <button type="submit" className={styles.saveButton} disabled={saving || !name.trim()}>{saving ? "Menyimpan..." : "Simpan & Pilih Supplier"}</button>
+              <button type="button" className={styles.saveButton} disabled={saving || !name.trim()} onClick={() => void saveSupplier()}>{saving ? "Menyimpan..." : "Simpan & Pilih Supplier"}</button>
             </div>
-          </form>
+          </div>
         </section>
       )}
     </div>
