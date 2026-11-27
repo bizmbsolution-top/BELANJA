@@ -72,8 +72,9 @@ function databaseMessage(message: string | undefined, fallback: string): string 
   ];
   const match = known.find(([needle]) => message?.includes(needle));
   if (match) return match[1];
-  if (message && /^[A-Za-z0-9 _.,:()%-]{1,180}$/.test(message)) {
-    return `Penyimpanan ditolak oleh validasi: ${message}`;
+  if (message) {
+    const safeMessage = message.replace(/[\\u0000-\\u001f\\u007f]/g, " ").replace(/\\s+/g, " ").trim().slice(0, 240);
+    if (safeMessage) return `Database menolak penyimpanan: ${safeMessage}`;
   }
   return fallback;
 }
