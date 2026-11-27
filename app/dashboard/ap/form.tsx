@@ -8,7 +8,7 @@ import styles from "./form.module.css";
 import type { ApDocument, ApLine } from "./manager";
 
 type Method="manual"|"percentage"|"per_kg"|"per_grade_point"|"per_kg_grade"|"per_transaction"|"fixed";
-type Option = { id: string; name: string; expense_type?:"company_payable"|"transaction_deduction"; calculation_method?:Method; calculation_basis?:string; calculation_rate?:number|null };
+type Option = { id: string; name: string; code?: string; expense_type?:"company_payable"|"transaction_deduction"; calculation_method?:Method; calculation_basis?:string; calculation_rate?:number|null };
 type ApReference = {
   id: string;
   code: string;
