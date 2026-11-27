@@ -208,7 +208,7 @@ grant all on public.expense_items, public.expense_payments, public.expense_payme
 alter table public.expenses
   drop constraint if exists expenses_status_check,
   add constraint expenses_status_check
-    check (status in ('Draft', 'Menunggu Pembayaran', 'Dibayar', 'Dibatalkan', 'Partial'));
+    check (status in ('Aktif', 'Draft', 'Menunggu Pembayaran', 'Dibayar', 'Dibatalkan', 'Partial'));
 
 alter table public.expenses
   drop constraint if exists expenses_paid_fields_check,
@@ -250,6 +250,11 @@ create policy expenses_legacy_only_update
   using (ap_version <> 2)
   with check (ap_version <> 2);
 
+drop policy if exists expenses_legacy_only_delete on public.expenses;
+create policy expenses_legacy_only_delete
+  on public.expenses as restrictive for delete to authenticated
+  using (ap_version <> 2);
+
 -- The new cashier-payment ledger source is written only by trusted server-side code.
 -- Existing fund, expense-voucher, and purchase-payment ledger flows remain unaffected.
 drop policy if exists project_cash_ledger_no_direct_ap_payment_insert on public.project_cash_ledger;
@@ -262,5 +267,10 @@ create policy project_cash_ledger_no_direct_ap_payment_update
   on public.project_cash_ledger as restrictive for update to authenticated
   using (expense_payment_id is null)
   with check (expense_payment_id is null);
+
+drop policy if exists project_cash_ledger_no_direct_ap_payment_delete on public.project_cash_ledger;
+create policy project_cash_ledger_no_direct_ap_payment_delete
+  on public.project_cash_ledger as restrictive for delete to authenticated
+  using (expense_payment_id is null);
 
 commit;
