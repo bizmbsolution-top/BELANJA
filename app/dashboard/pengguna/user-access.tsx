@@ -58,10 +58,10 @@ const permissionSections = [
     permissions: [
       { id: "payment.post", label: "Posting Payment" },
       { id: "payment.allocate", label: "Alokasi Payment" },
-      { id: "ap.create_edit", label: "Buat & Ubah AP Draft" },
+      { id: "ap.create_edit", label: "Tambah/Ubah Pengeluaran (Draft AP)" },
       { id: "ap.submit", label: "Submit AP" },
     ],
-    note: "Buat & Ubah AP Draft dan Submit AP adalah izin terpisah. Finance harus memiliki Role Finance serta izin Izinkan yang sesuai. Belum diatur atau Tolak berarti tidak memiliki akses. Superadmin tenant memiliki akses AP dalam tenant aktif tanpa override individual.",
+    note: "Tambah/Ubah Pengeluaran dan Submit Pengeluaran adalah izin terpisah. Finance harus memiliki Role Finance serta izin Izinkan yang sesuai. Belum diatur atau Tolak berarti tidak memiliki akses. Superadmin tenant memiliki akses AP dalam tenant aktif tanpa override individual.",
   },
   {
     id: "Warehouse",
