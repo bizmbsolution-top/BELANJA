@@ -263,6 +263,8 @@ export const INDIVIDUAL_ONLY_PERMISSIONS = [
   "fund_utilization.post_recognition",
   "payment.post",
   "payment.allocate",
+  "ap.create_edit",
+  "ap.submit",
 ] as const;
 
 export type IndividualOnlyPermission =
