@@ -132,10 +132,10 @@ Calculations:
 
 ## 6. Database security and tenant isolation
 
-For each new table:
-- Enable RLS.
-- Add explicit SELECT/INSERT/UPDATE policies for active tenant members, with tenant_id equality to the active membership. Avoid broad policies that grant unrelated tenant data.
-- Do not grant authenticated table writes that bypass audited RPC workflows. Revoke direct INSERT/UPDATE/DELETE where appropriate and grant only the intended operations.
+For each new AP table:
+- Enable RLS and revoke direct Data API access from anon/authenticated until a read path enforces both tenant membership and Project work scope.
+- Serve AP headers, lines, payments, and evidence through trusted server actions/RPCs that validate tenant, role, and Project scope on every read.
+- Do not grant authenticated table writes that bypass audited RPC workflows. Revoke direct INSERT/UPDATE/DELETE and grant only the intended server-side operations.
 - Use SECURITY DEFINER functions only where required, with fixed `search_path`, explicit actor membership validation, tenant match checks, and row locks for financial posting.
 - New RPCs must verify active tenant status, actor membership, project scope, category ownership, AP status, and amount limits inside the database transaction.
 - Application server actions must still check role/permission keys; database functions are the final integrity boundary.
@@ -210,7 +210,7 @@ For each new table:
 - New AP rows are version 2 and require a non-empty recipient name. Existing rows remain version 1.
 - The legacy `Aktif` status default is retained in the expanded status constraint so existing insert paths do not fail. Direct authenticated delete is blocked for AP v2 headers and AP payment ledger rows.
 - The cashier ledger now receives composite tenant-safe foreign keys for its project and legacy expense references as well as its new AP payment reference; the preflight must show zero mismatches before applying.
-- Authenticated clients receive read access to the new tables only; writes are reserved for trusted server-side operations to be implemented in later stages. Restrictive policies also prevent direct authenticated deletion of AP v2 headers and their new cashier-ledger rows.
+- Direct authenticated reads and writes of AP v2 headers, lines, payments, and evidence are blocked. The legacy expenses table has tenant-wide SELECT RLS, so a restrictive version fence blocks AP v2 headers from direct reads too. Future AP read actions must enforce Project work scope server-side.
 - Bank payment is intentionally not enabled by this migration.
 - This is a repository-only draft. It has not been applied to the active Supabase database and has not yet been tested against an isolated preview database.
 
