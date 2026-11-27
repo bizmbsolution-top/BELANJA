@@ -22,7 +22,31 @@ This document fixes the implementation contract so coding can proceed without ch
 - Tenant Superadmin bypasses individual Project scope and may access every Project inside the active tenant. This is a tenant-wide bypass only; it never grants access to another tenant. Platform Owner remains outside tenant operations.
 - Finance and all other non-Superadmin users must pass their configured Project scope on every read and mutation.
 - Project scope must be enforced on every read and mutation for non-Superadmin users.
-- Use the application's existing permission-override mechanism. Before implementation, confirm the canonical permission-key registry and add only the minimum AP create/submit keys if they do not already exist. Do not invent keys in UI code or treat a hidden button as authorization.
+### AP permission contract
+
+The current application does **not** have a general Role-Permission matrix. Operational Roles are stored on the tenant access profile, while the existing permission mechanism is an individual tenant-scoped override (allow / deny / unset). The shared policy evaluator treats the existing sensitive permissions as individual-only. Do not assume that a Finance Role automatically grants every action.
+
+Add only these two canonical keys to that existing override mechanism:
+
+| Permission key | Allows |
+|---|---|
+| ap.create_edit | Create and edit AP while status is Draft |
+| ap.submit | Submit a Draft AP to Menunggu Pembayaran |
+
+Effective authorization:
+- **Finance:** must have the Finance operational Role **and** an explicit allow for the relevant AP permission. Unset means denied. Explicit deny means denied.
+- **Tenant Superadmin:** may perform AP actions throughout the active tenant without individual AP overrides or Project scope. This bypass is valid only after active tenant membership and active tenant status are verified.
+- **Platform Owner:** remains outside tenant AP operations.
+- A user with another operational Role cannot gain AP authority merely by receiving an AP permission override; the Finance Role check remains mandatory.
+- Create/edit checks ap.create_edit; submit checks ap.submit. Keep these permissions separate so an administrator can allow drafting without allowing submission.
+
+Integration requirements:
+- Add both keys to INDIVIDUAL_ONLY_PERMISSIONS in lib/auth/access-policy.ts; do not add Role grants.
+- Add the two settings to the Finance section of the existing Owner/Superadmin Pengaturan Pengguna UI. Keep the existing unset / allow / deny controls and tenant-scoped storage.
+- Extend the allow-list constraint on tenant_user_permission_overrides and the validation loops in save_tenant_user_access_profile_with_audit in a dedicated, reviewed migration. Update the server-action TypeScript shape and validation in the same application change.
+- The permission lookup must use the active tenant ID from trusted server context and the target user's ID; never query overrides by user ID alone.
+- Enforce the same Role + permission + tenant checks in both the server action and the database RPC. A hidden/disabled button is presentation only, not authorization.
+- Until the coordinated migration and application changes are tested, do not expose the AP route or AP actions. Existing four permission keys and their behavior must remain unchanged.
 
 ## 3. AP form
 
@@ -76,8 +100,8 @@ Input must not include trusted actor or tenant identifiers. Validate UUIDs, a re
 
 Every action must:
 - require tenant membership and an active tenant;
-- require Finance or Superadmin as appropriate;
-- check Project and BA access against the current tenant and work scope;
+- for Finance, require the Finance Role plus the matching explicit AP permission (ap.create_edit or ap.submit); for tenant Superadmin, verify active membership and tenant status, then allow tenant-wide AP access;
+- check Project and BA ownership against the current tenant; enforce configured Project scope for Finance and bypass only that individual scope for tenant Superadmin;
 - check category ownership and active status;
 - call a dedicated audited RPC;
 - return a safe user-facing error, not raw database internals;
@@ -92,7 +116,7 @@ Implement in a later migration after Stage A validation. All functions use a fix
 - Receives actor ID, tenant ID, date, recipient, project, optional sales_order_id, summary, and JSON line array from trusted server code.
 - Confirms actor is an active member of the tenant and the tenant is active.
 - Confirms the Project and optional BA belong to the same tenant; if BA has a Project, it must equal the selected AP Project.
-- Confirms actor has Finance/Superadmin authority. For Finance and other non-Superadmin users, confirms the actor's configured Project scope includes the selected Project. For tenant Superadmin, bypasses individual Project scope only after validating that the Project belongs to the active tenant.
+- Confirms active tenant membership. Finance must have the Finance operational Role and an explicit allow for ap.create_edit; tenant Superadmin is authorized by the active tenant membership and bypasses individual Project scope only after validating that the Project belongs to the active tenant. Explicit Finance permission deny and unset both reject the action.
 - Confirms every line category is active and belongs to the tenant.
 - Calculates total server-side; reject empty lines, invalid amount, too many lines, or total overflow.
 - Inserts `expenses.ap_version = 2`, `status = 'Draft'`, required `recipient_name`, and `amount = sum(lines)`; inserts all `expense_items` and one audit event in the same transaction.
@@ -102,13 +126,14 @@ Implement in a later migration after Stage A validation. All functions use a fix
 
 - Locks the AP header with `FOR UPDATE`.
 - Requires `ap_version = 2` and `status = 'Draft'`.
-- Repeats tenant, actor, role, Project, BA, and category validation. Non-Superadmin Project scope is enforced; tenant Superadmin may access any Project within the same tenant.
+- Repeats tenant, actor, role, ap.create_edit permission, Project, BA, and category validation. Finance requires an explicit permission allow; tenant Superadmin may access any Project within the same tenant.
 - Replaces header and all lines atomically. Any failure rolls back the complete operation.
 - Writes before/after audit snapshots.
 
 ### Submit RPC
 
 - Locks the AP header and lines.
+- Requires active tenant membership; Finance must have the Finance Role and an explicit allow for ap.submit; tenant Superadmin is allowed within the active tenant.
 - Requires `ap_version = 2`, Draft status, required recipient/project, and at least one valid line.
 - Recalculates and writes the header total from line rows; no client-supplied total is trusted.
 - Sets `status = 'Menunggu Pembayaran'`, submitted actor/time, and audit snapshot atomically.
@@ -142,13 +167,16 @@ Implement in a later migration after Stage A validation. All functions use a fix
 7. Finance users cannot access a Project outside their configured scope; this is rejected by both server action and RPC.
 8. Tenant Superadmin can create, edit, and submit AP in any Project belonging to the same tenant, even when the Project is not in an individual Selected scope.
 9. Superadmin cannot access a Project belonging to another tenant.
-10. Non-Finance/non-Superadmin users cannot create, edit, or submit AP.
-11. Submitted AP and its lines cannot be edited.
-12. Failure inserting any line leaves no partial header or orphan line.
-13. Legacy version-1 vouchers remain readable and their existing create/edit/submit/pay/cancel flow is unchanged.
-14. No AP creation produces an `expense_payments` row or cashier ledger movement.
-15. More than 50 expense lines are rejected by both server action and RPC.
-16. An invalid calendar date is rejected even when it matches the `YYYY-MM-DD` text pattern.
+10. Non-Finance/non-Superadmin users cannot create, edit, or submit AP, even if an AP override is present.
+11. Finance without explicit ap.create_edit allow cannot create or edit; explicit deny and unset both reject.
+12. Finance without explicit ap.submit allow cannot submit; explicit deny and unset both reject.
+13. Tenant Superadmin can create, edit, and submit AP within the active tenant without individual AP overrides; inactive membership/tenant is always rejected.
+14. Submitted AP and its lines cannot be edited.
+15. Failure inserting any line leaves no partial header or orphan line.
+16. Legacy version-1 vouchers remain readable and their existing create/edit/submit/pay/cancel flow is unchanged.
+17. No AP creation produces an `expense_payments` row or cashier ledger movement.
+18. More than 50 expense lines are rejected by both server action and RPC.
+19. An invalid calendar date is rejected even when it matches the `YYYY-MM-DD` text pattern.
 
 ## 9. Deferred from Stage B
 
