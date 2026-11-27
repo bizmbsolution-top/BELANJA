@@ -28,12 +28,13 @@ Tujuan: memastikan pembatasan akses AP v2 tidak membuka data lintas tenant/Proje
 6. Enam RPC legacy tetap hanya dapat dieksekusi oleh `service_role` dan memiliki pagar versi 1.
 7. Default status lama `Aktif` dan constraint status `Aktif` + `Partial` tetap tersedia.
 8. Constraint paid-fields legacy tetap ada.
+9. Allow-list permission tenant mencakup `ap.create_edit` dan `ap.submit`; RPC pengaturan akses tervalidasi dan menyimpan kedua permission tersebut.
 
 Jika seluruh blok `DO` selesai tanpa error, seluruh assertion di atas lulus. Query ringkasan di bagian akhir juga menampilkan beberapa status boolean.
 
 ## 4. Pengujian manual yang tetap wajib
 
-Pemeriksaan katalog SQL **tidak membuktikan** bahwa aplikasi server action benar-benar memfilter tenant dan Project. Setelah Stage B/AP read actions dibuat, lakukan pengujian integrasi berikut pada database uji dengan dua tenant dan dua Project:
+Pemeriksaan katalog SQL **tidak membuktikan** bahwa aplikasi server action benar-benar memfilter tenant dan Project, atau bahwa tindakan AP sudah memeriksa permission tersebut. Permission baru pada Pengaturan Pengguna hanya menyimpan konfigurasi; enforcement AP harus hadir pada server action dan RPC Stage B sebelum AP dibuka. Setelah Stage B/AP read actions dibuat, lakukan pengujian integrasi berikut pada database uji dengan dua tenant dan dua Project:
 
 | Skenario | Hasil yang wajib |
 |---|---|
