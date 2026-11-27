@@ -50,7 +50,6 @@ AP is a payable obligation to a recipient. It is not an automatic result of a BA
 Add nullable columns, preserving every existing row:
 
 - `recipient_name` text — recipient snapshot, required for new AP.
-- `recipient_supplier_id` uuid nullable — optional link to an existing supplier when appropriate; free-text recipient remains supported.
 - `ap_version` smallint not null default 1 — identifies records created under the new AP workflow.
 
 Keep existing `sales_order_id` as the optional BA reference. Do not impose uniqueness on it.
@@ -82,20 +81,20 @@ One row per successful payment installment:
 - id, tenant_id, expense_id
 - payment_date
 - amount
-- payment_channel: `Bank` or `Cashier`
-- payment_method: `Transfer` or `Tunai`
-- bank_account_id nullable (required for Bank channel)
+- payment_channel: `Cashier` in Stage A/C; `Bank` is enabled only after Stage D
+- payment_method: `Tunai` for the cashier-only Stage A/C flow; Bank transfers are added in Stage D
+- bank_account_id is deferred to the Stage D Bank migration
 - payment_reference nullable
 - cashier_project_id nullable (required for Cashier channel)
-- project_cash_ledger_id nullable (link to the exact cashier debit entry)
+- the cashier ledger row links back through `project_cash_ledger.expense_payment_id`
 - notes nullable
 - status: `Posted` or `Reversed`
 - created_at, created_by
 
 Constraints:
 - amount > 0
-- Bank channel requires a valid tenant bank account and no cashier ledger reference.
-- Cashier channel requires a project and an exact matching cashier ledger debit entry.
+- Stage A/C permits Cashier channel only, with a Project and exactly one matching cashier ledger debit row.
+- Bank channel remains unavailable until Stage D creates and validates tenant Bank accounts and movements.
 - Sum of Posted payments must never exceed AP total.
 - A payment cannot be silently edited or deleted after posting. Corrections use a reversal record and audit event.
 - Payment insertion and balance/status update must be atomic in a single database function.
@@ -146,10 +145,11 @@ For each new table:
 
 ## 7. Staged delivery
 
-### Stage A — AP data foundation (first migration, preview only)
-- Add nullable recipient fields to `expenses`.
-- Create `expense_items`, `expense_payments`, and payment evidence metadata.
-- Add constraints, indexes, RLS, grants, and audit-ready structures.
+### Stage A — AP data foundation (migration drafted in preview branch; not applied)
+- Add nullable `recipient_name` and `ap_version` to `expenses`; version 1 preserves legacy vouchers and version 2 identifies new AP documents.
+- Create `expense_items`, cashier-only `expense_payments`, and payment evidence metadata.
+- Add tenant-safe composite foreign keys, indexes, read-only member RLS, and restrictive policies preventing direct authenticated writes to AP v2 and new cashier ledger rows.
+- Extend the existing cashier ledger with an `expense_payment_id` source while preserving the three legacy source types.
 - No production data migration and no automatic conversion of old expenses.
 - Do not yet expose Bank payment until the Bank account/movement model is deployed and tested.
 
@@ -196,3 +196,14 @@ For each new table:
 8. Bank AP payment creates one expense payment and one Bank outflow.
 9. Bank-to-Cashier transfer changes account balances but creates no AP expense.
 10. Existing legacy voucher payment and evidence remain readable until cutover is explicitly approved.
+
+
+## 10. Stage A implementation status (2026-11-27)
+
+- Migration draft: `supabase/migrations/20261127180000_ap_foundation_v1.sql`.
+- Read-only verification script: `docs/finance/AP_STAGE_A_VERIFICATION.sql`.
+- Preflight inspection of current Supabase data found zero tenant mismatches for existing expense/category, expense/project, expense/BA, and cashier-ledger/project or expense relationships.
+- New AP rows are version 2 and require a non-empty recipient name. Existing rows remain version 1.
+- Authenticated clients receive read access to the new tables only; writes are reserved for trusted server-side operations to be implemented in later stages.
+- Bank payment is intentionally not enabled by this migration.
+- This is a repository-only draft. It has not been applied to the active Supabase database and has not yet been tested against an isolated preview database.
