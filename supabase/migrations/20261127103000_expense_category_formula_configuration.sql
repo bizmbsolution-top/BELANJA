@@ -44,7 +44,7 @@ alter table public.expense_items
 create or replace function public.ap_capture_expense_item_formula()
 returns trigger
 language plpgsql
-security definer
+security invoker
 set search_path = pg_catalog, public
 as $$
 declare
@@ -92,11 +92,11 @@ begin
       elsif v_category.calculation_basis = 'purchase_cost' then v_base := v_ba.dispatched_purchase_cost;
       end if;
       if v_base is null then v_missing := 'Nilai dasar persentase belum tersedia pada BA'; end if;
-      v_result := round(v_base * v_category.calculation_rate / 100, 2);
+      v_result := round(v_base * v_category.calculation_rate / 100, 0);
     when 'per_kg' then
       v_base := v_ba.received_weight_kg;
       if v_base is null then v_missing := 'Berat diterima belum tersedia pada BA'; end if;
-      v_result := round(v_base * v_category.calculation_rate, 2);
+      v_result := round(v_base * v_category.calculation_rate, 0);
     when 'per_grade_point' then
       v_base := v_ba.final_grade_value;
       if v_base is null then v_missing := 'Nilai grade final belum tersedia pada BA'; end if;
@@ -110,7 +110,7 @@ begin
       v_result := round(v_base * v_category.calculation_rate, 2);
     when 'per_transaction' then
       v_base := 1;
-      v_result := round(v_category.calculation_rate, 2);
+      v_result := round(v_category.calculation_rate, 0);
     when 'fixed' then
       v_base := 1;
       v_result := round(v_category.calculation_rate, 2);
@@ -137,6 +137,12 @@ begin
   return new;
 end;
 $$;
+
+-- Trigger function is not a public API. SECURITY INVOKER keeps caller privileges.
+revoke all on function public.ap_capture_expense_item_formula() from public;
+revoke all on function public.ap_capture_expense_item_formula() from anon;
+revoke all on function public.ap_capture_expense_item_formula() from authenticated;
+grant execute on function public.ap_capture_expense_item_formula() to service_role;
 
 drop trigger if exists trg_ap_capture_expense_item_formula on public.expense_items;
 create trigger trg_ap_capture_expense_item_formula
