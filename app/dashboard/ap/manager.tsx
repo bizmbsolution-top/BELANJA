@@ -60,7 +60,7 @@ export default function ApManager({
   lines: ApLine[];
   suppliers?: ApSupplierOption[];
   projects?: { id: string; name: string }[];
-  categories?: { id: string; name: string }[];
+  categories?: { id: string; name: string; expense_type?:"company_payable"|"transaction_deduction"; calculation_method?:"manual"|"percentage"|"per_kg"|"per_grade_point"|"per_kg_grade"|"per_transaction"|"fixed"; calculation_basis?:string; calculation_rate?:number|null }[];
   references?: ApReference[];
   canCreateEdit?: boolean;
   canSubmit?: boolean;
