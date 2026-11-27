@@ -19,14 +19,15 @@ export default async function ApPage() {
     return <ApManager enabled={false} documents={[]} lines={[]} />;
   }
 
-  const [{ data: allProjects, error: projectError }, scopeResult] = await Promise.all([
+  const [{ data: allProjects, error: projectError }, { data: categories, error: categoryError }, scopeResult] = await Promise.all([
     admin.from("projects").select("id,code,name").eq("tenant_id", actor.tenantId).eq("is_active", true).order("name"),
+    admin.from("expense_categories").select("id,name").eq("tenant_id", actor.tenantId),
     actor.tenantRole !== "superadmin"
       ? admin.from("tenant_user_work_scopes").select("scope_mode,resource_ids")
           .eq("tenant_id", actor.tenantId).eq("user_id", actor.userId).eq("dimension", "project").maybeSingle()
       : Promise.resolve({ data: null, error: null }),
   ]);
-  if (projectError || scopeResult.error) throw new Error("Data Project untuk AP gagal dimuat.");
+  if (projectError || categoryError || scopeResult.error) throw new Error("Data referensi AP gagal dimuat.");
 
   const all = allProjects ?? [];
   const scope = scopeResult.data as { scope_mode?: string; resource_ids?: string[] } | null;
@@ -54,5 +55,10 @@ export default async function ApPage() {
     ...row,
     project: projects.find((project) => project.id === row.project_id)?.name ?? "Project",
   })) as ApDocument[];
-  return <ApManager enabled documents={documents} lines={(lineRows ?? []) as ApLine[]} />;
+  const categoryNames = new Map((categories ?? []).map((category) => [category.id, category.name]));
+  const lines: ApLine[] = ((lineRows ?? []) as ApLine[]).map((line) => ({
+    ...line,
+    category_name: categoryNames.get(line.expense_category_id) ?? "Kategori tidak tersedia",
+  }));
+  return <ApManager enabled documents={documents} lines={lines} />;
 }
