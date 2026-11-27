@@ -9,3 +9,7 @@
 :global([data-theme="dark"]) .page button[style*="background: transparent"]{border-color:#536782!important}
 :global([data-theme="dark"]) .page button[style*="background: transparent"]:hover{background:#263c5b!important}
 @media(max-width:640px){.page{padding:20px 12px 40px!important}.page h1{font-size:25px!important}}
+
+:global([data-theme="dark"]) .page header>p:not(:first-child){color:#aab8cc!important}
+:global([data-theme="dark"]) .page small{color:#aab8cc}
+:global([data-theme="dark"]) .page .badge{background:#173c30;color:#8de0b5}
