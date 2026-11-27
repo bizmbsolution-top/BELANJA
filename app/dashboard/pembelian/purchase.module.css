@@ -26,3 +26,24 @@
 :global([data-theme="dark"]) .cardQuickFacts{background:#1c2b42}
 :global([data-theme="dark"]) .cardQuickFacts small{color:#aab8cc}
 @media(max-width:520px){.cardQuickFacts{gap:6px;padding:9px}.cardQuickFacts b{font-size:11px}}
+
+/* Complete contrast pass for purchase cards, filters and feedback. */
+:global([data-theme="dark"]) .eyebrow{color:#8eb6ff}
+:global([data-theme="dark"]) .form label,
+:global([data-theme="dark"]) .cashierActions label,
+:global([data-theme="dark"]) .form label small,
+:global([data-theme="dark"]) .cashierActions label small,
+:global([data-theme="dark"]) .empty,
+:global([data-theme="dark"]) .receiptRow small{color:#aab8cc}
+:global([data-theme="dark"]) .filterPanel{background:#142238;border-color:#293b56}
+:global([data-theme="dark"]) .filterPanel label{color:#aab8cc}
+:global([data-theme="dark"]) .detailToggle{color:#8eb6ff}
+:global([data-theme="dark"]) .neutral{background:#293b56;color:#cbd5e1}
+:global([data-theme="dark"]) .pending{background:#493a20;color:#f4cf83}
+:global([data-theme="dark"]) .good{background:#173c30;color:#8de0b5}
+:global([data-theme="dark"]) .bad{background:#482b31;color:#ffaaa2}
+:global([data-theme="dark"]) .success{background:#173c30;color:#8de0b5}
+:global([data-theme="dark"]) .error{background:#482b31;color:#ffaaa2}
+:global([data-theme="dark"]) .docLinks a,
+:global([data-theme="dark"]) .proof,
+:global([data-theme="dark"]) .supplierAdd{color:#8eb6ff}
