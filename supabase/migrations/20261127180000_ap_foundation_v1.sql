@@ -9,7 +9,10 @@ alter table public.expenses
   add column if not exists ap_version smallint not null default 1;
 
 alter table public.expenses
-  add constraint expenses_ap_version_check check (ap_version in (1, 2));
+  add constraint expenses_ap_version_check check (ap_version in (1, 2)),
+  add constraint expenses_ap_recipient_check check (
+    ap_version = 1 or (recipient_name is not null and length(btrim(recipient_name)) > 0)
+  );
 
 -- Composite unique keys allow tenant-safe foreign keys on new relationships.
 create unique index if not exists expenses_tenant_id_id_uidx
