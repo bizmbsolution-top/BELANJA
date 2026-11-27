@@ -58,10 +58,10 @@ export default function ApForm({
     [references, projectId],
   );
   const selectedReference=availableReferences.find(item=>item.id===salesOrderId);
-  function formula(categoryId:string){
+  function formula(categoryId:string, refOverride=selectedReference){
     const category=categories.find(item=>item.id===categoryId);
     if(!category||!category.calculation_method||category.calculation_method==="manual")return null;
-    const rate=Number(category.calculation_rate??0);const ref=selectedReference;
+    const rate=Number(category.calculation_rate??0);const ref=refOverride;
     if(!ref)return {error:"Pilih referensi BA untuk menghitung kategori ini."};
     let base:number|null=null;let label="";
     switch(category.calculation_method){
@@ -72,7 +72,7 @@ export default function ApForm({
       case "per_transaction":case "fixed":base=1;label="Per transaksi";break;
     }
     if(base===null||!Number.isFinite(base))return {error:"Data dasar formula belum tersedia pada BA."};
-    const result=Math.round((category.calculation_method==="percentage"?base*rate/100:base*rate)*100)/100;
+    const result=Math.round(category.calculation_method==="percentage"?base*rate/100:base*rate);
     if(!Number.isSafeInteger(result)||result<=0)return {error:"Hasil formula bukan nominal Rupiah bulat yang valid."};
     return {result,label,base,rate,method:category.calculation_method};
   }
@@ -133,7 +133,7 @@ export default function ApForm({
           </div>
           <ApRecipientField initialSuppliers={suppliers} value={supplierId} onChange={setSupplierId} />
           <label>Referensi BA / Invoice (opsional)
-            <select value={salesOrderId} onChange={(event) => {setSalesOrderId(event.target.value);setItems(current=>current.map(line=>{const cat=categories.find(c=>c.id===line.expense_category_id);if(!cat||!cat.calculation_method||cat.calculation_method==="manual")return line;const f=formula(cat.id);return f&&"result" in f?{...line,amount:String(f.result)}:line;}));}} disabled={!projectId}>
+            <select value={salesOrderId} onChange={(event) => {const nextId=event.target.value;setSalesOrderId(nextId);const nextRef=availableReferences.find(ref=>ref.id===nextId);setItems(current=>current.map(line=>{const cat=categories.find(c=>c.id===line.expense_category_id);if(!cat||!cat.calculation_method||cat.calculation_method==="manual")return line;const f=formula(cat.id,nextRef);return f&&"result" in f?{...line,amount:String(f.result)}:line;}));}} disabled={!projectId}>
               <option value="">Tidak menggunakan referensi</option>
               {availableReferences.map((item) => <option key={item.id} value={item.id}>{item.ba_number || item.code} · {item.customer_name}</option>)}
             </select>
