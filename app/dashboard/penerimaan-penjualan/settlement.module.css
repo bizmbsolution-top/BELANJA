@@ -1,0 +1,11 @@
+.page{--ink:#172b4d;--muted:#64748b;--line:#e2e8f0;--surface:#fff;--surface-secondary:#f1f5f9;--success-bg:#e8f7ee;--success:#18794e;--info-bg:#eef6ff;--info:#155eef;--danger-bg:#fff1f0;color:var(--ink)}
+.page input,.page select,.page textarea{color-scheme:light}
+.page input:focus-visible,.page select:focus-visible,.page textarea:focus-visible{outline:2px solid #8eb6ff;outline-offset:1px}
+:global([data-theme="dark"]) .page{--ink:#e5edf8;--muted:#aab8cc;--line:#354963;--surface:#142238;--surface-secondary:#1c2b42;--success-bg:#173c30;--success:#8de0b5;--info-bg:#1b3555;--info:#9fc2ff;--danger-bg:#482b31;color:#e5edf8;color-scheme:dark}
+:global([data-theme="dark"]) .page input,:global([data-theme="dark"]) .page select,:global([data-theme="dark"]) .page textarea{background:#1c2b42!important;border-color:#43536c!important;color:#e5edf8!important;color-scheme:dark}
+:global([data-theme="dark"]) .page input::placeholder,:global([data-theme="dark"]) .page textarea::placeholder{color:#91a1b8}
+:global([data-theme="dark"]) .page article{border-color:#354963}
+:global([data-theme="dark"]) .page a{color:#9fc2ff!important}
+:global([data-theme="dark"]) .page button[style*="background: transparent"]{border-color:#536782!important}
+:global([data-theme="dark"]) .page button[style*="background: transparent"]:hover{background:#263c5b!important}
+@media(max-width:640px){.page{padding:20px 12px 40px!important}.page h1{font-size:25px!important}}
