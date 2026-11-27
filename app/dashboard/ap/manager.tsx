@@ -10,6 +10,7 @@ export type ApLine = {
   expense_category_id: string;
   description: string;
   amount: number;
+  category_name: string;
 };
 export type ApDocument = {
   id: string;
@@ -92,8 +93,8 @@ export default function ApManager({ enabled, documents, lines }: {
       {selectedDoc && <section className={styles.detail}>
         <div className={styles.listHeading}><div><h2>{selectedDoc.code}</h2><p>{selectedDoc.recipient_name} · {selectedDoc.project}</p></div><button type="button" className={styles.closeButton} onClick={() => setSelected("")}>Tutup</button></div>
         {selectedDoc.description && <p className={styles.description}>{selectedDoc.description}</p>}
-        <div className={styles.tableWrap}><table><thead><tr><th>No.</th><th>Keterangan</th><th>Kategori ID</th><th>Nominal</th></tr></thead>
-          <tbody>{selectedLines.map((line) => <tr key={line.id}><td>{line.line_number}</td><td>{line.description}</td><td>{line.expense_category_id}</td><td className={styles.amount}>{money(Number(line.amount))}</td></tr>)}</tbody>
+        <div className={styles.tableWrap}><table><thead><tr><th>No.</th><th>Keterangan</th><th>Kategori</th><th>Nominal</th></tr></thead>
+          <tbody>{selectedLines.map((line) => <tr key={line.id}><td>{line.line_number}</td><td>{line.description}</td><td>{line.category_name}</td><td className={styles.amount}>{money(Number(line.amount))}</td></tr>)}</tbody>
         </table></div>
         <strong className={styles.detailTotal}>Total AP: {money(Number(selectedDoc.amount))}</strong>
       </section>}
