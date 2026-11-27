@@ -62,7 +62,8 @@ export default function ApForm({
     setItems((current) => current.map((line, i) => i === index ? { ...line, ...patch } : line));
   }
 
-  async function save() {
+  async function save(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
     setSaving(true);
     setError("");
     if (items.length < 1 || items.length > 50) {
@@ -100,7 +101,7 @@ export default function ApForm({
           <div><p className={styles.eyebrow}>KEWAJIBAN PEMBAYARAN</p><h2 id="ap-form-title">{document ? "Ubah Draft AP" : "Buat AP Baru"}</h2></div>
           <button type="button" className={styles.close} onClick={onClose} aria-label="Tutup">×</button>
         </header>
-        <div className={styles.form}>
+        <form onSubmit={save} className={styles.form}>
           <div className={styles.grid}>
             <label>Tanggal AP *<input type="date" required value={date} onChange={(event) => setDate(event.target.value)} /></label>
             <label>Project *<select required value={projectId} onChange={(event) => { setProjectId(event.target.value); setSalesOrderId(""); }}>
@@ -140,10 +141,10 @@ export default function ApForm({
           {error && <p className={styles.error} role="alert">{error}</p>}
           <footer className={styles.actions}>
             <button type="button" className={styles.cancel} disabled={saving} onClick={onClose}>Batal</button>
-            <button type="button" className={styles.save} disabled={saving || !projects.length || !categories.length} onClick={() => void save()}>{saving ? "Menyimpan..." : "Simpan Draft AP"}</button>
+            <button type="submit" className={styles.save} disabled={saving || !projects.length || !categories.length}>{saving ? "Menyimpan..." : "Simpan Draft AP"}</button>
           </footer>
         </div>
       </section>
-    </div>
+    </form>
   );
 }
