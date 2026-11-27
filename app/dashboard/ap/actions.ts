@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireApPermission } from "@/lib/auth/authorization";
+import { AuthorizationError, requireApPermission } from "@/lib/auth/authorization";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 type ApLineInput = {
@@ -45,6 +45,25 @@ function validate(input: ApDraftInput): string | null {
   return null;
 }
 
+function authorizationMessage(error: unknown, fallback: string): string {
+  if (error instanceof AuthorizationError) return error.message;
+  return fallback;
+}
+
+function databaseMessage(message: string | undefined, fallback: string): string {
+  const known: Array<[string, string]> = [
+    ["Explicit AP permission is required", "Izin AP belum terbaca oleh layanan penyimpanan. Keluar lalu masuk kembali, kemudian coba lagi."],
+    ["Finance role is required for AP", "Akun aktif belum terbaca dengan Role Finance. Periksa Role pengguna."],
+    ["Project work scope does not permit AP access", "Scope Project akun ini belum mengizinkan Project yang dipilih."],
+    ["Project is outside the actor work scope", "Project yang dipilih berada di luar Area Kerja akun ini."],
+    ["Project is unavailable in the active tenant", "Project tidak tersedia pada perusahaan aktif."],
+    ["Supplier is unavailable in the active tenant", "Supplier tidak tersedia atau tidak aktif pada perusahaan ini."],
+    ["BA/Invoice is unavailable for the selected Project", "Referensi BA/Invoice tidak sesuai dengan Project yang dipilih."],
+  ];
+  const match = known.find(([needle]) => message?.includes(needle));
+  return match?.[1] ?? fallback;
+}
+
 export async function createApDraft(input: ApDraftInput): Promise<ApActionResult> {
   try {
     const actor = await requireApPermission("ap.create_edit");
@@ -67,13 +86,16 @@ export async function createApDraft(input: ApDraftInput): Promise<ApActionResult
         amount: line.amount,
       })),
     });
-    if (error || typeof data !== "string" || !UUID.test(data)) {
-      return { ok: false, error: "Draft AP gagal disimpan. Periksa kembali data dan akses Anda." };
+    if (error) {
+      return { ok: false, error: databaseMessage(error.message, "Draft AP gagal disimpan. Periksa data dan Area Kerja akun Anda.") };
+    }
+    if (typeof data !== "string" || !UUID.test(data)) {
+      return { ok: false, error: "Draft AP belum tersimpan karena layanan tidak mengembalikan nomor dokumen. Coba muat ulang." };
     }
     revalidatePath("/dashboard/ap");
     return { ok: true, id: data };
-  } catch {
-    return { ok: false, error: "Akses atau penyimpanan Draft AP gagal. Muat ulang halaman dan coba lagi." };
+  } catch (error) {
+    return { ok: false, error: authorizationMessage(error, "Penyimpanan Draft AP gagal karena sesi atau layanan akses tidak dapat diverifikasi. Muat ulang halaman dan coba lagi.") };
   }
 }
 
@@ -100,11 +122,11 @@ export async function updateApDraft(expenseId: string, input: ApDraftInput): Pro
         amount: line.amount,
       })),
     });
-    if (error) return { ok: false, error: "Perubahan Draft AP gagal disimpan. Periksa status dan akses Anda." };
+    if (error) return { ok: false, error: databaseMessage(error.message, "Perubahan Draft AP gagal disimpan. Periksa status dokumen dan Area Kerja akun Anda.") };
     revalidatePath("/dashboard/ap");
     return { ok: true, id: expenseId };
-  } catch {
-    return { ok: false, error: "Akses atau perubahan Draft AP gagal. Muat ulang halaman dan coba lagi." };
+  } catch (error) {
+    return { ok: false, error: authorizationMessage(error, "Perubahan Draft AP gagal karena sesi atau layanan akses tidak dapat diverifikasi. Muat ulang halaman dan coba lagi.") };
   }
 }
 
@@ -118,10 +140,10 @@ export async function submitApDocument(expenseId: string): Promise<ApActionResul
       p_actor_user_id: actor.userId,
       p_tenant_id: actor.tenantId,
     });
-    if (error) return { ok: false, error: "AP gagal disubmit. Pastikan dokumen masih Draft dan datanya valid." };
+    if (error) return { ok: false, error: databaseMessage(error.message, "AP gagal disubmit. Pastikan dokumen masih Draft dan datanya valid.") };
     revalidatePath("/dashboard/ap");
     return { ok: true, id: expenseId };
-  } catch {
-    return { ok: false, error: "Akses atau proses submit AP gagal. Muat ulang halaman dan coba lagi." };
+  } catch (error) {
+    return { ok: false, error: authorizationMessage(error, "Proses submit AP gagal karena sesi atau layanan akses tidak dapat diverifikasi. Muat ulang halaman dan coba lagi.") };
   }
 }
