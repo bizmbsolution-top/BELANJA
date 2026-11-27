@@ -101,7 +101,7 @@ export default function CashierPaymentManager({
       </section>
 
       <section className={styles.summary}>
-        <article><span>AP Menunggu Pembayaran</span><strong>{documents.length}</strong></article>
+        <article><span>AP Belum Lunas</span><strong>{documents.filter((doc) => Number(doc.amount) - (paymentTotals[doc.id] ?? 0) > 0).length}</strong></article>
         <article><span>Total Sisa Kewajiban</span><strong>{money(documents.reduce((sum, doc) => sum + Math.max(0, Number(doc.amount) - (paymentTotals[doc.id] ?? 0)), 0))}</strong></article>
         <article><span>Saldo Kasir Project</span><strong>{money(Object.values(balances).reduce((sum, value) => sum + value, 0))}</strong></article>
       </section>
