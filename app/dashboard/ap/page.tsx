@@ -48,12 +48,11 @@ export default async function ApPage() {
   if (!projects.length) return <ApManager enabled documents={[]} lines={[]} />;
 
   const projectIds = projects.map((project) => project.id);
-  const [{ data: rows, error }, { data: lineRows, error: lineError }, { data: salesOrders, error: salesError }] = await Promise.all([
+  const [{ data: rows, error }, { data: salesOrders, error: salesError }] = await Promise.all([
     admin.from("expenses")
       .select("id,code,expense_date,recipient_name,recipient_supplier_id,project_id,sales_order_id,description,amount,status,created_at,created_by")
       .eq("tenant_id", actor.tenantId).eq("ap_version", 2)
       .in("project_id", projectIds).order("created_at", { ascending: false }).limit(300),
-    Promise.resolve({ data: null, error: null }),
     admin.from("sales_orders")
       .select("id,code,ba_number,project_id,ba_date,final_amount,customer_id")
       .eq("tenant_id", actor.tenantId).eq("status", "Selesai")
