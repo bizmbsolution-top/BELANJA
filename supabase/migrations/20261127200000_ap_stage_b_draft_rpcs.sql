@@ -271,6 +271,8 @@ begin
     raise exception 'Only an AP Draft in the active tenant can be edited';
   end if;
 
+  -- Enforce scope on both the existing document Project and the requested new Project.
+  perform public._assert_ap_actor(p_actor_user_id, p_tenant_id, v_before.project_id, 'ap.create_edit');
   perform public._assert_ap_actor(p_actor_user_id, p_tenant_id, p_project_id, 'ap.create_edit');
 
   if p_expense_date is null then raise exception 'AP date is required'; end if;
