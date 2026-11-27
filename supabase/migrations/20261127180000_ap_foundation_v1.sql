@@ -233,4 +233,31 @@ alter table public.expenses
     )
   );
 
+
+-- Prevent authenticated clients from creating/updating AP v2 headers directly.
+-- Trusted server-side actions will write these rows through audited operations.
+drop policy if exists expenses_legacy_only_insert on public.expenses;
+create policy expenses_legacy_only_insert
+  on public.expenses as restrictive for insert to authenticated
+  with check (ap_version <> 2);
+
+drop policy if exists expenses_legacy_only_update on public.expenses;
+create policy expenses_legacy_only_update
+  on public.expenses as restrictive for update to authenticated
+  using (ap_version <> 2)
+  with check (ap_version <> 2);
+
+-- The new cashier-payment ledger source is written only by trusted server-side code.
+-- Existing fund, expense-voucher, and purchase-payment ledger flows remain unaffected.
+drop policy if exists project_cash_ledger_no_direct_ap_payment_insert on public.project_cash_ledger;
+create policy project_cash_ledger_no_direct_ap_payment_insert
+  on public.project_cash_ledger as restrictive for insert to authenticated
+  with check (expense_payment_id is null);
+
+drop policy if exists project_cash_ledger_no_direct_ap_payment_update on public.project_cash_ledger;
+create policy project_cash_ledger_no_direct_ap_payment_update
+  on public.project_cash_ledger as restrictive for update to authenticated
+  using (expense_payment_id is null)
+  with check (expense_payment_id is null);
+
 commit;
