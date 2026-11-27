@@ -26,6 +26,14 @@ from public.expenses
 group by status
 order by status;
 
+-- The migration must preserve this legacy default; the expanded status check
+-- must continue accepting it for existing application insert paths.
+select column_default
+from information_schema.columns
+where table_schema = 'public'
+  and table_name = 'expenses'
+  and column_name = 'status';
+
 -- Confirm current constraints exist under the names the migration replaces.
 select conname, pg_get_constraintdef(oid) as definition
 from pg_constraint
