@@ -93,7 +93,7 @@ export async function updateApDraft(expenseId: string, input: ApDraftInput): Pro
       p_recipient_supplier_id: input.recipient_supplier_id,
       p_project_id: input.project_id,
       p_sales_order_id: input.sales_order_id || null,
-      p_summary: input.summary.trim() || null,
+      p_summary: (input.summary ?? "").trim() || null,
       p_lines: input.lines.map((line) => ({
         expense_category_id: line.expense_category_id,
         description: line.description.trim(),
