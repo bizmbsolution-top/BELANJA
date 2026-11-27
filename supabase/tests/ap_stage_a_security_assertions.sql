@@ -55,7 +55,7 @@ begin
     and tablename = 'expenses'
     and policyname = 'expenses_legacy_only_select'
     and cmd = 'SELECT'
-    and not permissive
+    and permissive = 'RESTRICTIVE'
     and coalesce(qual, '') like '%ap_version%2%';
   if v_count <> 1 then
     raise exception 'FAIL: restrictive expenses_legacy_only_select policy missing or unexpected';
@@ -71,7 +71,7 @@ begin
     where schemaname = 'public'
       and tablename = 'expenses'
       and policyname = v_name
-      and not permissive;
+      and permissive = 'RESTRICTIVE';
     if v_count <> 1 then
       raise exception 'FAIL: expected restrictive policy % is missing', v_name;
     end if;
@@ -88,7 +88,7 @@ begin
     where schemaname = 'public'
       and tablename = 'project_cash_ledger'
       and policyname = v_name
-      and not permissive
+      and permissive = 'RESTRICTIVE'
       and coalesce(qual, '') || coalesce(with_check, '') like '%expense_payment_id%';
     if v_count <> 1 then
       raise exception 'FAIL: expected restrictive ledger policy % is missing or does not fence expense_payment_id', v_name;
