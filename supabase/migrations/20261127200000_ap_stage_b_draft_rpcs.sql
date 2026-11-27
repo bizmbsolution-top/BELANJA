@@ -154,9 +154,18 @@ begin
     if not found then raise exception 'BA/Invoice is unavailable for the selected Project'; end if;
   end if;
 
-  if jsonb_typeof(p_lines) <> 'array'
-     or jsonb_array_length(p_lines) < 1
-     or jsonb_array_length(p_lines) > 50 then
+  select coalesce(jsonb_agg(jsonb_build_object(
+    'line_number', line_number, 'expense_category_id', expense_category_id,
+    'description', description, 'amount', amount
+  ) order by line_number), '[]'::jsonb)
+  into v_before_lines
+  from public.expense_items
+  where tenant_id = p_tenant_id and expense_id = p_expense_id;
+
+  if p_lines is null or jsonb_typeof(p_lines) is distinct from 'array' then
+    raise exception 'AP expense lines must be an array';
+  end if;
+  if jsonb_array_length(p_lines) < 1 or jsonb_array_length(p_lines) > 50 then
     raise exception 'AP must contain between 1 and 50 expense lines';
   end if;
 
@@ -249,6 +258,7 @@ set search_path = pg_catalog, public
 as $function$
 declare
   v_before public.expenses%rowtype;
+  v_before_lines jsonb;
   v_supplier_name text;
   v_total numeric(18,2) := 0;
   v_category_id uuid;
@@ -371,7 +381,7 @@ begin
       'code', v_before.code, 'status', v_before.status, 'expense_date', v_before.expense_date,
       'recipient_supplier_id', v_before.recipient_supplier_id, 'recipient_name', v_before.recipient_name,
       'project_id', v_before.project_id, 'sales_order_id', v_before.sales_order_id,
-      'amount', v_before.amount
+      'amount', v_before.amount, 'lines', v_before_lines
     ),
     jsonb_build_object(
       'code', v_before.code, 'status', 'Draft', 'expense_date', p_expense_date,
