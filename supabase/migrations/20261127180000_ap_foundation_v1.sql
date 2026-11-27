@@ -279,4 +279,293 @@ create policy project_cash_ledger_no_direct_ap_payment_delete
   on public.project_cash_ledger as restrictive for delete to authenticated
   using (expense_payment_id is null);
 
+
+-- Stage A legacy compatibility guard: legacy voucher RPCs may mutate version 1 only.
+-- CREATE OR REPLACE preserves the existing function ACLs. These functions remain
+-- service_role-only; this change adds a version fence without changing legacy behavior.
+
+create or replace function public.create_expense_draft_with_audit(
+  p_actor_user_id uuid, p_expense_date date, p_project_id uuid,
+  p_expense_category_id uuid, p_description text, p_amount numeric
+) returns uuid
+language plpgsql
+set search_path to 'public', 'pg_temp'
+as $function$
+declare
+  v_row public.expenses%rowtype;
+  v_category_name text;
+  v_project_code text;
+begin
+  if p_description is null or length(btrim(p_description)) = 0 then
+    raise exception 'Description required';
+  end if;
+  if p_amount is null or p_amount <= 0 then
+    raise exception 'Amount must be positive';
+  end if;
+  select name into v_category_name
+  from public.expense_categories
+  where id = p_expense_category_id and is_active = true;
+  if not found then raise exception 'Expense category unavailable'; end if;
+  select code into v_project_code
+  from public.projects
+  where id = p_project_id and is_active = true;
+  if not found then raise exception 'Project unavailable'; end if;
+
+  insert into public.expenses(
+    expense_date, project_id, expense_category_id, description, amount,
+    payment_method, status, created_by, updated_by, ap_version
+  )
+  values (
+    coalesce(p_expense_date, current_date), p_project_id, p_expense_category_id,
+    btrim(p_description), p_amount, 'Transfer', 'Draft',
+    p_actor_user_id, p_actor_user_id, 1
+  )
+  returning * into v_row;
+
+  insert into public.audit_logs(actor_user_id, action, entity_type, entity_id, after_data)
+  values (
+    p_actor_user_id, 'expense.created', 'expense', v_row.id::text,
+    jsonb_build_object(
+      'code', v_row.code, 'project_id', p_project_id, 'project_code', v_project_code,
+      'expense_date', v_row.expense_date, 'category', v_category_name,
+      'description', v_row.description, 'amount', v_row.amount, 'status', 'Draft'
+    )
+  );
+  return v_row.id;
+end;
+$function$;
+
+create or replace function public.update_expense_draft_with_audit(
+  p_expense_id uuid, p_actor_user_id uuid, p_expense_date date,
+  p_project_id uuid, p_expense_category_id uuid, p_description text, p_amount numeric
+) returns void
+language plpgsql
+set search_path to 'public', 'pg_temp'
+as $function$
+declare
+  v_before public.expenses%rowtype;
+  v_category_name text;
+  v_project_code text;
+begin
+  select * into v_before
+  from public.expenses
+  where id = p_expense_id and ap_version = 1
+  for update;
+  if not found or v_before.status <> 'Draft' then
+    raise exception 'Only draft expenses can be edited';
+  end if;
+  if p_description is null or length(btrim(p_description)) = 0
+     or p_amount is null or p_amount <= 0 then
+    raise exception 'Invalid expense data';
+  end if;
+  select name into v_category_name
+  from public.expense_categories
+  where id = p_expense_category_id and is_active = true;
+  if not found then raise exception 'Expense category unavailable'; end if;
+  select code into v_project_code
+  from public.projects
+  where id = p_project_id and is_active = true;
+  if not found then raise exception 'Project unavailable'; end if;
+
+  update public.expenses
+  set expense_date = p_expense_date, project_id = p_project_id,
+      expense_category_id = p_expense_category_id, description = btrim(p_description),
+      amount = p_amount, updated_at = now(), updated_by = p_actor_user_id
+  where id = p_expense_id and ap_version = 1;
+
+  insert into public.audit_logs(actor_user_id, action, entity_type, entity_id, before_data, after_data)
+  values (
+    p_actor_user_id, 'expense.updated', 'expense', p_expense_id::text,
+    jsonb_build_object(
+      'code', v_before.code, 'project_id', v_before.project_id,
+      'category_id', v_before.expense_category_id,
+      'description', v_before.description, 'amount', v_before.amount
+    ),
+    jsonb_build_object(
+      'code', v_before.code, 'project_id', p_project_id, 'project_code', v_project_code,
+      'category', v_category_name, 'description', btrim(p_description), 'amount', p_amount
+    )
+  );
+end;
+$function$;
+
+create or replace function public.submit_expense_with_audit(
+  p_expense_id uuid, p_actor_user_id uuid
+) returns void
+language plpgsql
+set search_path to 'public', 'pg_temp'
+as $function$
+declare v_row public.expenses%rowtype;
+begin
+  select * into v_row
+  from public.expenses
+  where id = p_expense_id and ap_version = 1
+  for update;
+  if not found or v_row.status <> 'Draft' then
+    raise exception 'Expense is not an editable draft';
+  end if;
+  if v_row.project_id is null then raise exception 'Project required'; end if;
+
+  update public.expenses
+  set status = 'Menunggu Pembayaran', submitted_at = now(),
+      submitted_by = p_actor_user_id, updated_at = now(), updated_by = p_actor_user_id
+  where id = p_expense_id and ap_version = 1;
+
+  insert into public.audit_logs(actor_user_id, action, entity_type, entity_id, before_data, after_data)
+  values (
+    p_actor_user_id, 'expense.submitted', 'expense', p_expense_id::text,
+    jsonb_build_object('code', v_row.code, 'status', 'Draft'),
+    jsonb_build_object(
+      'code', v_row.code, 'status', 'Menunggu Pembayaran',
+      'project_id', v_row.project_id, 'amount', v_row.amount
+    )
+  );
+end;
+$function$;
+
+create or replace function public.pay_expense_with_audit(
+  p_expense_id uuid, p_actor_user_id uuid, p_payment_method text
+) returns void
+language plpgsql
+set search_path to 'public', 'pg_temp'
+as $function$
+declare
+  v_row public.expenses%rowtype;
+  v_balance numeric;
+  v_project_code text;
+  v_evidence_count integer;
+begin
+  select * into v_row
+  from public.expenses
+  where id = p_expense_id and ap_version = 1
+  for update;
+  if not found or v_row.status <> 'Menunggu Pembayaran' then
+    raise exception 'Expense is not awaiting payment';
+  end if;
+  if p_payment_method not in ('Tunai', 'Transfer') then
+    raise exception 'Invalid payment method';
+  end if;
+  if p_payment_method = 'Transfer' then
+    select count(*) into v_evidence_count
+    from public.expense_payment_documents where expense_id = p_expense_id;
+    if v_evidence_count < 1 then raise exception 'Transfer payment evidence required'; end if;
+  end if;
+
+  perform 1 from public.projects
+  where id = v_row.project_id and is_active = true
+  for update;
+  if not found then raise exception 'Project unavailable'; end if;
+  select code into v_project_code from public.projects where id = v_row.project_id;
+  select coalesce(sum(amount), 0) into v_balance
+  from public.project_cash_ledger where project_id = v_row.project_id;
+  if v_balance < v_row.amount then raise exception 'Insufficient project cash balance'; end if;
+
+  update public.expenses
+  set status = 'Dibayar', paid_amount = amount, paid_at = now(),
+      paid_by = p_actor_user_id, paid_method = p_payment_method,
+      payment_method = p_payment_method, updated_at = now(), updated_by = p_actor_user_id
+  where id = p_expense_id and ap_version = 1;
+
+  insert into public.project_cash_ledger(
+    project_id, fund_request_id, expense_id, entry_type, amount, description, created_by
+  )
+  values (
+    v_row.project_id, null, p_expense_id, 'debit', -v_row.amount,
+    'Pembayaran Expenses ' || v_row.code, p_actor_user_id
+  );
+
+  insert into public.audit_logs(actor_user_id, action, entity_type, entity_id, before_data, after_data)
+  values (
+    p_actor_user_id, 'expense.paid', 'expense', p_expense_id::text,
+    jsonb_build_object(
+      'code', v_row.code, 'status', v_row.status, 'amount', v_row.amount,
+      'project_balance_before', v_balance
+    ),
+    jsonb_build_object(
+      'code', v_row.code, 'status', 'Dibayar', 'project_id', v_row.project_id,
+      'project_code', v_project_code, 'paid_amount', v_row.amount,
+      'payment_method', p_payment_method,
+      'payment_evidence_count', case when p_payment_method = 'Transfer' then v_evidence_count else 0 end,
+      'paid_at', now(), 'project_balance_after', v_balance - v_row.amount
+    )
+  );
+end;
+$function$;
+
+create or replace function public.cancel_expense_with_audit(
+  p_expense_id uuid, p_actor_user_id uuid, p_reason text
+) returns void
+language plpgsql
+set search_path to 'public', 'pg_temp'
+as $function$
+declare v_before public.expenses%rowtype;
+begin
+  if p_reason is null or length(btrim(p_reason)) = 0 then
+    raise exception 'Cancellation reason required';
+  end if;
+  select * into v_before
+  from public.expenses
+  where id = p_expense_id and ap_version = 1
+  for update;
+  if not found then raise exception 'Expense not found'; end if;
+  if v_before.status not in ('Draft', 'Menunggu Pembayaran') then
+    raise exception 'Only unpaid expenses can be cancelled';
+  end if;
+
+  update public.expenses
+  set status = 'Dibatalkan', cancellation_reason = btrim(p_reason),
+      cancelled_at = now(), cancelled_by = p_actor_user_id,
+      updated_at = now(), updated_by = p_actor_user_id
+  where id = p_expense_id and ap_version = 1;
+
+  insert into public.audit_logs(actor_user_id, action, entity_type, entity_id, before_data, after_data)
+  values (
+    p_actor_user_id, 'expense.cancelled', 'expense', p_expense_id::text,
+    jsonb_build_object('code', v_before.code, 'status', v_before.status, 'amount', v_before.amount),
+    jsonb_build_object('code', v_before.code, 'status', 'Dibatalkan', 'reason', btrim(p_reason))
+  );
+end;
+$function$;
+
+create or replace function public.register_expense_payment_document_with_audit(
+  p_expense_id uuid, p_actor_user_id uuid, p_storage_path text,
+  p_file_name text, p_mime_type text, p_file_size bigint
+) returns uuid
+language plpgsql
+security definer
+set search_path to 'public', 'pg_temp'
+as $function$
+declare v_id uuid;
+begin
+  if p_mime_type not in ('application/pdf', 'image/jpeg', 'image/png')
+     or p_file_size <= 0 or p_file_size > 10485760 then
+    raise exception 'Invalid payment evidence file';
+  end if;
+  perform 1
+  from public.expenses
+  where id = p_expense_id and status = 'Menunggu Pembayaran' and ap_version = 1
+  for update;
+  if not found then raise exception 'Expense is not awaiting payment'; end if;
+
+  insert into public.expense_payment_documents(
+    expense_id, storage_path, file_name, mime_type, file_size, uploaded_by
+  )
+  values (
+    p_expense_id, p_storage_path, left(p_file_name, 255),
+    p_mime_type, p_file_size, p_actor_user_id
+  )
+  returning id into v_id;
+
+  insert into public.audit_logs(actor_user_id, action, entity_type, entity_id, after_data)
+  values (
+    p_actor_user_id, 'expense.payment_evidence_uploaded', 'expense_payment_document', v_id::text,
+    jsonb_build_object(
+      'expense_id', p_expense_id, 'file_name', left(p_file_name, 255),
+      'mime_type', p_mime_type, 'file_size', p_file_size
+    )
+  );
+  return v_id;
+end;
+$function$;
+
 commit;
