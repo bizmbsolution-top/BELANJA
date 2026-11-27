@@ -150,3 +150,15 @@
  .mobileSidebar .navGroup{margin-bottom:14px}
  .mobileSidebar .navLink,.mobileSidebar .navActive,.mobileSidebar .navDisabled{min-height:41px}
 }
+
+
+/* Use a real two-column shell so the sidebar can never cover page content. */
+.app{display:grid;grid-template-columns:272px minmax(0,1fr);align-items:start}
+.sidebar{position:sticky;top:0;inset:auto;left:auto;width:272px;height:100vh;min-width:0}
+.mainColumn{grid-column:2;width:100%;min-width:0;margin:0}
+.content{width:100%;min-width:0;overflow-x:clip}
+@media(max-width:800px){
+ .app{display:block}
+ .sidebar{display:none}
+ .mainColumn{display:block;width:100%;min-width:0;margin:0}
+}
