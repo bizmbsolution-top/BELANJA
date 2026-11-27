@@ -80,7 +80,10 @@ export async function createSupplier(input: SupplierInput): Promise<ActionResult
     const { data: created, error: readError } = await admin.from("suppliers")
       .select("id,code,name,contact_person,phone,email,address,notes,is_active")
       .eq("tenant_id", actor.tenantId).eq("id", data).maybeSingle();
-    if (readError || !created) return { ok: false, error: "Supplier tersimpan, tetapi datanya belum dapat dimuat. Silakan muat ulang daftar Supplier." };
+    // The audited RPC has already committed the Supplier. Do not report a failed
+    // create if this optional follow-up read is temporarily unavailable; callers
+    // can still select the returned ID and avoid duplicate submissions.
+    if (readError || !created) return { ok: true, id: data };
     return { ok: true, id: data, supplier: created as SupplierCreated };
   } catch {
     return { ok: false, error: "Akses atau penyimpanan supplier gagal. Silakan muat ulang halaman." };
