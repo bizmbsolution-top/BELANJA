@@ -187,7 +187,7 @@ export default function ApForm({
               </div>
               {item.expense_category_id&&(()=>{const category=categoryOptions.find(c=>c.id===item.expense_category_id);const f=formula(item.expense_category_id);return category&&category.calculation_method&&category.calculation_method!=="manual"?<div className={styles.reference}>Formula kategori: <strong>{category.calculation_method}</strong> · Tarif {category.calculation_rate} · {f&&"result" in f?<>Dasar {money(f.base ?? 0)} · Hasil hitung <strong>{money(f.result ?? 0)}</strong>. Nominal dapat disesuaikan Finance; hasil formula dan perubahan disimpan sebagai snapshot.</>:(f&&"error" in f)?f.error:"Pilih BA untuk menghitung."}</div>:null;})()}
               <div className={styles.lineFields}>
-                <label>Keterangan *<input required maxLength={500} value={item.description} onChange={(event) => updateLine(index, { description: event.target.value })} /></label>
+                <label>Keterangan (opsional)<input maxLength={500} value={item.description} onChange={(event) => updateLine(index, { description: event.target.value })} /></label>
                 <label>Nominal (Rp) *<input required inputMode="numeric" type="text" value={formatRupiahInput(item.amount)} placeholder="Contoh: 1.500.000" onChange={(event) => updateLine(index, { amount: event.target.value.replace(/\D/g, "") })} /></label>
               </div>
             </div>)}
