@@ -143,8 +143,8 @@ export default function ApForm({
             <button type="button" className={styles.cancel} disabled={saving} onClick={onClose}>Batal</button>
             <button type="submit" className={styles.save} disabled={saving || !projects.length || !categories.length}>{saving ? "Menyimpan..." : "Simpan Draft AP"}</button>
           </footer>
-        </div>
+        </form>
       </section>
-    </form>
+    </div>
   );
 }
