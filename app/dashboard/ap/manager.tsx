@@ -38,6 +38,9 @@ export type ApReference = {
   project_id: string;
   ba_date: string | null;
   final_amount: number | null;
+  dispatched_purchase_cost: number | null;
+  received_weight_kg: number | null;
+  final_grade_value: number | null;
   customer_name: string;
 };
 
