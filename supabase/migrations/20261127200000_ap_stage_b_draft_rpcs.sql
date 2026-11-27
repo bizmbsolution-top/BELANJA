@@ -154,14 +154,6 @@ begin
     if not found then raise exception 'BA/Invoice is unavailable for the selected Project'; end if;
   end if;
 
-  select coalesce(jsonb_agg(jsonb_build_object(
-    'line_number', line_number, 'expense_category_id', expense_category_id,
-    'description', description, 'amount', amount
-  ) order by line_number), '[]'::jsonb)
-  into v_before_lines
-  from public.expense_items
-  where tenant_id = p_tenant_id and expense_id = p_expense_id;
-
   if p_lines is null or jsonb_typeof(p_lines) is distinct from 'array' then
     raise exception 'AP expense lines must be an array';
   end if;
@@ -306,9 +298,18 @@ begin
     if not found then raise exception 'BA/Invoice is unavailable for the selected Project'; end if;
   end if;
 
-  if jsonb_typeof(p_lines) <> 'array'
-     or jsonb_array_length(p_lines) < 1
-     or jsonb_array_length(p_lines) > 50 then
+  select coalesce(jsonb_agg(jsonb_build_object(
+    'line_number', line_number, 'expense_category_id', expense_category_id,
+    'description', description, 'amount', amount
+  ) order by line_number), '[]'::jsonb)
+  into v_before_lines
+  from public.expense_items
+  where tenant_id = p_tenant_id and expense_id = p_expense_id;
+
+  if p_lines is null or jsonb_typeof(p_lines) is distinct from 'array' then
+    raise exception 'AP expense lines must be an array';
+  end if;
+  if jsonb_array_length(p_lines) < 1 or jsonb_array_length(p_lines) > 50 then
     raise exception 'AP must contain between 1 and 50 expense lines';
   end if;
 
