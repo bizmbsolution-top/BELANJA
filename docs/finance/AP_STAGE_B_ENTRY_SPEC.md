@@ -8,7 +8,7 @@ Database: production inspected read-only; no schema or data changes applied.
 
 Stage B introduces the AP document-entry workflow as a separate module from legacy Pengeluaran vouchers. It does not enable installment payments; that belongs to Stage C.
 
-**Important release rule:** The production database does not yet contain `ap_version`, `recipient_name`, `expense_items`, or the Stage A AP payment tables. Therefore Stage B application code must not be deployed as an active route or query these fields until Stage A has been applied and verified in an isolated database and a controlled release has been approved. The current Free Supabase project has no isolated database; no paid branch will be created.
+**Important release rule:** The production database does not yet contain `ap_version`, `recipient_name`, `recipient_supplier_id`, `expense_items`, or the Stage A AP payment tables. Therefore Stage B application code must not be deployed as an active route or query these fields until Stage A has been applied and verified in an isolated database and a controlled release has been approved. The current Free Supabase project has no isolated database; no paid branch will be created.
 
 This document fixes the implementation contract so coding can proceed without changing the production schema or exposing a broken feature.
 
@@ -55,10 +55,12 @@ Integration requirements:
 | Field | Rule |
 |---|---|
 | Tanggal AP | Required; default today |
-| Penerima | Required; free text snapshot, trimmed, 1–180 characters |
+| Supplier / Dibayarkan Kepada | Required; select one active record from the current tenant's Master Suppliers. Store `recipient_supplier_id` and a snapshot of the supplier's current `name` in `recipient_name`. |
 | Project | Required; active tenant Project within the user's work scope |
 | Referensi BA/Invoice | Optional; select only from the same tenant and accessible Project |
 | Keterangan | Optional short summary; max 1,000 characters |
+
+When a Supplier is selected, show its supplier name and contact person (if present); the supplier name is the recipient snapshot for historical AP. Provide **+ Tambah Supplier** inline without leaving the AP form, using the existing supplier fields (name required; contact person, phone, email, address, notes optional). Quick-add must use the existing audited supplier creation flow and return/select the newly created supplier ID. Only active suppliers can be selected for a new or edited Draft AP. Deactivating a supplier must not rewrite historical AP snapshots.
 
 When a BA is selected, show its number, customer, Project, date, and transaction value as read-only reference context. The BA does not determine or auto-fill AP amount. One BA may be referenced by multiple AP documents.
 
@@ -113,20 +115,20 @@ Implement in a later migration after Stage A validation. All functions use a fix
 
 ### Create Draft RPC
 
-- Receives actor ID, tenant ID, date, recipient, project, optional sales_order_id, summary, and JSON line array from trusted server code.
+- Receives actor ID, tenant ID, date, `recipient_supplier_id`, recipient-name snapshot, project, optional sales_order_id, summary, and JSON line array from trusted server code.
 - Confirms actor is an active member of the tenant and the tenant is active.
-- Confirms the Project and optional BA belong to the same tenant; if BA has a Project, it must equal the selected AP Project.
+- Confirms the selected Supplier is active and belongs to the same tenant; confirms the Project and optional BA belong to the same tenant; if BA has a Project, it must equal the selected AP Project.
 - Confirms active tenant membership. Finance must have the Finance operational Role and an explicit allow for ap.create_edit; tenant Superadmin is authorized by the active tenant membership and bypasses individual Project scope only after validating that the Project belongs to the active tenant. Explicit Finance permission deny and unset both reject the action.
 - Confirms every line category is active and belongs to the tenant.
 - Calculates total server-side; reject empty lines, invalid amount, too many lines, or total overflow.
-- Inserts `expenses.ap_version = 2`, `status = 'Draft'`, required `recipient_name`, and `amount = sum(lines)`; inserts all `expense_items` and one audit event in the same transaction.
+- Inserts `expenses.ap_version = 2`, `status = 'Draft'`, required `recipient_supplier_id`, recipient-name snapshot, and `amount = sum(lines)`; inserts all `expense_items` and one audit event in the same transaction.
 - Never creates payments or cashier-ledger entries.
 
 ### Update Draft RPC
 
 - Locks the AP header with `FOR UPDATE`.
 - Requires `ap_version = 2` and `status = 'Draft'`.
-- Repeats tenant, actor, role, ap.create_edit permission, Project, BA, and category validation. Finance requires an explicit permission allow; tenant Superadmin may access any Project within the same tenant.
+- Repeats tenant, actor, role, ap.create_edit permission, active Supplier, Project, BA, and category validation. Finance requires an explicit permission allow; tenant Superadmin may access any Project within the same tenant.
 - Replaces header and all lines atomically. Any failure rolls back the complete operation.
 - Writes before/after audit snapshots.
 
@@ -134,7 +136,7 @@ Implement in a later migration after Stage A validation. All functions use a fix
 
 - Locks the AP header and lines.
 - Requires active tenant membership; Finance must have the Finance Role and an explicit allow for ap.submit; tenant Superadmin is allowed within the active tenant.
-- Requires `ap_version = 2`, Draft status, required recipient/project, and at least one valid line.
+- Requires `ap_version = 2`, Draft status, required active Supplier and Project, and at least one valid line.
 - Recalculates and writes the header total from line rows; no client-supplied total is trusted.
 - Sets `status = 'Menunggu Pembayaran'`, submitted actor/time, and audit snapshot atomically.
 - Prevents all later line/header edits through the dedicated RPC and server actions.
@@ -159,24 +161,25 @@ Implement in a later migration after Stage A validation. All functions use a fix
 ## 8. Acceptance tests
 
 1. Finance can create an AP with one line and with multiple lines.
-2. Empty recipient, no Project, no line, inactive category, zero/negative amount, invalid date, and overlong text are rejected.
-3. Header total always equals the sum of saved lines, even if the browser sends a forged total.
-4. A BA can be omitted; one BA can be referenced by multiple AP documents.
-5. BA from another tenant or inaccessible Project is rejected.
-6. A category from another tenant is rejected even if its UUID is forged into the request.
-7. Finance users cannot access a Project outside their configured scope; this is rejected by both server action and RPC.
-8. Tenant Superadmin can create, edit, and submit AP in any Project belonging to the same tenant, even when the Project is not in an individual Selected scope.
-9. Superadmin cannot access a Project belonging to another tenant.
-10. Non-Finance/non-Superadmin users cannot create, edit, or submit AP, even if an AP override is present.
-11. Finance without explicit ap.create_edit allow cannot create or edit; explicit deny and unset both reject.
-12. Finance without explicit ap.submit allow cannot submit; explicit deny and unset both reject.
-13. Tenant Superadmin can create, edit, and submit AP within the active tenant without individual AP overrides; inactive membership/tenant is always rejected.
-14. Submitted AP and its lines cannot be edited.
-15. Failure inserting any line leaves no partial header or orphan line.
-16. Legacy version-1 vouchers remain readable and their existing create/edit/submit/pay/cancel flow is unchanged.
-17. No AP creation produces an `expense_payments` row or cashier ledger movement.
-18. More than 50 expense lines are rejected by both server action and RPC.
-19. An invalid calendar date is rejected even when it matches the `YYYY-MM-DD` text pattern.
+2. Missing/inactive Supplier, Supplier from another tenant, no Project, no line, inactive category, zero/negative amount, invalid date, and overlong text are rejected.
+3. Quick-add Supplier from the AP form creates one audited Master Supplier in the active tenant and selects it for the Draft AP; duplicate clicks must not create duplicate suppliers.
+4. Header total always equals the sum of saved lines, even if the browser sends a forged total.
+5. A BA can be omitted; one BA can be referenced by multiple AP documents.
+6. BA from another tenant or inaccessible Project is rejected.
+7. A category from another tenant is rejected even if its UUID is forged into the request.
+8. Finance users cannot access a Project outside their configured scope; this is rejected by both server action and RPC.
+9. Tenant Superadmin can create, edit, and submit AP in any Project belonging to the same tenant, even when the Project is not in an individual Selected scope.
+10. Superadmin cannot access a Project belonging to another tenant.
+11. Non-Finance/non-Superadmin users cannot create, edit, or submit AP, even if an AP override is present.
+12. Finance without explicit ap.create_edit allow cannot create or edit; explicit deny and unset both reject.
+13. Finance without explicit ap.submit allow cannot submit; explicit deny and unset both reject.
+14. Tenant Superadmin can create, edit, and submit AP within the active tenant without individual AP overrides; inactive membership/tenant is always rejected.
+15. Submitted AP and its lines cannot be edited.
+16. Failure inserting any line leaves no partial header or orphan line.
+17. Legacy version-1 vouchers remain readable and their existing create/edit/submit/pay/cancel flow is unchanged.
+18. No AP creation produces an `expense_payments` row or cashier ledger movement.
+19. More than 50 expense lines are rejected by both server action and RPC.
+20. An invalid calendar date is rejected even when it matches the `YYYY-MM-DD` text pattern.
 
 ## 9. Deferred from Stage B
 
