@@ -33,48 +33,56 @@ type MenuGroup = {
 };
 
 const groups: MenuGroup[] = [
-  { title: "UTAMA", items: [{ label: "Dashboard", href: "/dashboard" }] },
-  { title: "AKTIVITAS", items: [{ label: "Aktivitas Saya", href: "/dashboard/aktivitas-saya" }] },
   {
-    title: "OPERASIONAL",
+    title: "UTAMA",
     items: [
-      { label: "Pembelian", href: "/dashboard/pembelian", roles: ["Procurement", "Cashier", "Finance", "Management"] },
+      { label: "Dashboard", href: "/dashboard" },
+      { label: "Aktivitas Saya", href: "/dashboard/aktivitas-saya" },
+    ],
+  },
+  {
+    title: "KEGIATAN",
+    items: [
+      { label: "Penjualan / Sales", href: "/dashboard/penjualan", roles: ["Sales", "Warehouse", "Management"] },
+      { label: "Pembelian / Purchase", href: "/dashboard/pembelian", roles: ["Procurement", "Cashier", "Finance", "Management"] },
       { label: "Return Pembelian", href: "/dashboard/retur-pembelian", roles: ["Procurement"] },
-      { label: "Pengeluaran", href: "/dashboard/pengeluaran", roles: ["Procurement", "Sales", "Cashier", "Finance", "Management"] },
-      { label: "Permintaan Dana Kasir", href: "/dashboard/permintaan-penggunaan-dana", roles: ["Cashier", "Finance", "Management"] },
-      { label: "Persediaan", href: "/dashboard/persediaan", roles: ["Warehouse", "Management", "Finance", "Cashier", "Sales", "Procurement"] },
-      { label: "Penjualan", href: "/dashboard/penjualan", roles: ["Sales", "Warehouse", "Management"] },
-      { label: "Penerimaan Penjualan", href: "/dashboard/penerimaan-penjualan", roles: ["Finance"] },
-      { label: "Rekap Penjualan", href: "/dashboard/laporan-penjualan", roles: ["Finance", "Management"] },
-      { label: "Laporan Biaya Penjualan", href: "/dashboard/laporan-biaya-penjualan", roles: ["Cashier", "Finance", "Management"] },
+      { label: "Persediaan / Stock", href: "/dashboard/persediaan", roles: ["Warehouse", "Management", "Finance", "Cashier", "Sales", "Procurement"] },
     ],
   },
   {
     title: "KEUANGAN",
     items: [
-      { label: "Laporan Keuangan", href: "/dashboard/laporan-keuangan", roles: ["Finance", "Management"] },
-      { label: "Kas & Pembayaran", roles: ["Cashier", "Finance", "Management"] },
+      { label: "Kas & Bank", href: "/dashboard/kas-pembayaran", roles: ["Cashier", "Finance", "Management"] },
+      { label: "Permintaan Dana Kasir", href: "/dashboard/permintaan-penggunaan-dana", roles: ["Cashier", "Finance", "Management"] },
+      { label: "Penerimaan (AR)", href: "/dashboard/penerimaan-penjualan", roles: ["Finance"] },
+      { label: "Pengeluaran (AP)", href: "/dashboard/pengeluaran", roles: ["Procurement", "Sales", "Cashier", "Finance", "Warehouse", "Management"] },
     ],
   },
   {
-    title: "DATA MASTER",
+    title: "LAPORAN",
+    items: [
+      { label: "Laporan Penjualan", href: "/dashboard/laporan-penjualan", roles: ["Finance", "Management"] },
+      { label: "Laporan Pembelian", roles: ["Finance", "Management"] },
+      { label: "Laporan Keuangan", href: "/dashboard/laporan-keuangan", roles: ["Finance", "Management"] },
+      { label: "Laporan Biaya Penjualan", href: "/dashboard/laporan-biaya-penjualan", roles: ["Cashier", "Finance", "Management"] },
+    ],
+  },
+  {
+    title: "MASTER DATA",
     items: [
       { label: "Supplier", href: "/dashboard/supplier", roles: ["Procurement", "Finance", "Management"] },
       { label: "Pelanggan", href: "/dashboard/pelanggan", roles: ["Sales", "Management"] },
       { label: "Kategori Pembelian", href: "/dashboard/kategori", roles: ["Procurement", "Finance", "Management"] },
-      { label: "Proyek & Departemen", roles: ["Management"] },
       { label: "Gudang / Warehouse", href: "/dashboard/gudang", roles: ["Procurement", "Warehouse", "Finance", "Management"] },
       { label: "Kategori Pengeluaran", href: "/dashboard/kategori-expenses", roles: ["Cashier", "Finance", "Management"] },
-      { label: "Master Biaya Penjualan", href: "/dashboard/biaya-penjualan", roles: ["Management"] },
       { label: "UOM / Satuan", href: "/dashboard/uom", roles: ["Procurement", "Warehouse", "Finance", "Management"] },
     ],
   },
   {
-    title: "ADMINISTRASI SUPERADMIN",
+    title: "ADMINISTRASI",
     superadminOnly: true,
     items: [
       { label: "Pengguna & Akses", href: "/dashboard/pengguna" },
-      { label: "Role & Permission" },
       { label: "Riwayat Aktivitas", href: "/dashboard/riwayat-aktivitas" },
       { label: "Profil Perusahaan", href: "/dashboard/profil-perusahaan" },
       { label: "Master Project", href: "/dashboard/project" },
