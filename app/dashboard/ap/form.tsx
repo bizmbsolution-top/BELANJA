@@ -6,7 +6,8 @@ import { createApDraft, updateApDraft } from "./actions";
 import styles from "./form.module.css";
 import type { ApDocument, ApLine } from "./manager";
 
-type Option = { id: string; name: string };
+type Method="manual"|"percentage"|"per_kg"|"per_grade_point"|"per_kg_grade"|"per_transaction"|"fixed";
+type Option = { id: string; name: string; expense_type?:"company_payable"|"transaction_deduction"; calculation_method?:Method; calculation_basis?:string; calculation_rate?:number|null };
 type ApReference = {
   id: string;
   code: string;
@@ -14,6 +15,9 @@ type ApReference = {
   project_id: string;
   ba_date: string | null;
   final_amount: number | null;
+  dispatched_purchase_cost:number|null;
+  received_weight_kg:number|null;
+  final_grade_value:number|null;
   customer_name: string;
 };
 type DraftLine = { expense_category_id: string; description: string; amount: string };
@@ -53,6 +57,25 @@ export default function ApForm({
     () => references.filter((item) => item.project_id === projectId),
     [references, projectId],
   );
+  const selectedReference=availableReferences.find(item=>item.id===salesOrderId);
+  function formula(categoryId:string){
+    const category=categories.find(item=>item.id===categoryId);
+    if(!category||!category.calculation_method||category.calculation_method==="manual")return null;
+    const rate=Number(category.calculation_rate??0);const ref=selectedReference;
+    if(!ref)return {error:"Pilih referensi BA untuk menghitung kategori ini."};
+    let base:number|null=null;let label="";
+    switch(category.calculation_method){
+      case "percentage": base=category.calculation_basis==="purchase_cost"?ref.dispatched_purchase_cost:ref.final_amount;label=category.calculation_basis==="purchase_cost"?"Biaya Pembelian":"Nilai Final BA";break;
+      case "per_kg":base=ref.received_weight_kg;label="Berat diterima (Kg)";break;
+      case "per_grade_point":base=ref.final_grade_value;label="Nilai Grade Final";break;
+      case "per_kg_grade":base=ref.received_weight_kg!==null&&ref.final_grade_value!==null?ref.received_weight_kg*ref.final_grade_value/100:null;label="Kg × Grade / 100";break;
+      case "per_transaction":case "fixed":base=1;label="Per transaksi";break;
+    }
+    if(base===null||!Number.isFinite(base))return {error:"Data dasar formula belum tersedia pada BA."};
+    const result=Math.round((category.calculation_method==="percentage"?base*rate/100:base*rate)*100)/100;
+    if(!Number.isSafeInteger(result)||result<=0)return {error:"Hasil formula bukan nominal Rupiah bulat yang valid."};
+    return {result,label,base,rate,method:category.calculation_method};
+  }
   const total = items.reduce((sum, item) => {
     const amount = Number(item.amount);
     return sum + (Number.isSafeInteger(amount) && amount > 0 ? amount : 0);
@@ -110,7 +133,7 @@ export default function ApForm({
           </div>
           <ApRecipientField initialSuppliers={suppliers} value={supplierId} onChange={setSupplierId} />
           <label>Referensi BA / Invoice (opsional)
-            <select value={salesOrderId} onChange={(event) => setSalesOrderId(event.target.value)} disabled={!projectId}>
+            <select value={salesOrderId} onChange={(event) => {setSalesOrderId(event.target.value);setItems(current=>current.map(line=>{const cat=categories.find(c=>c.id===line.expense_category_id);if(!cat||!cat.calculation_method||cat.calculation_method==="manual")return line;const f=formula(cat.id);return f&&"result" in f?{...line,amount:String(f.result)}:line;}));}} disabled={!projectId}>
               <option value="">Tidak menggunakan referensi</option>
               {availableReferences.map((item) => <option key={item.id} value={item.id}>{item.ba_number || item.code} · {item.customer_name}</option>)}
             </select>
@@ -128,9 +151,10 @@ export default function ApForm({
               <div className={styles.lineTitle}><strong>Rincian {index + 1}</strong>
                 <button type="button" className={styles.removeLine} disabled={items.length === 1} onClick={() => setItems((current) => current.filter((_, i) => i !== index))}>Hapus</button>
               </div>
-              <label>Kategori Biaya *<select required value={item.expense_category_id} onChange={(event) => updateLine(index, { expense_category_id: event.target.value })}>
+              <label>Kategori Biaya *<select required value={item.expense_category_id} onChange={(event) => {const categoryId=event.target.value;const f=formula(categoryId);updateLine(index,{expense_category_id:categoryId,...(f&&"result" in f?{amount:String(f.result)}:{})});}}>
                 <option value="">Pilih Kategori</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
               </select></label>
+              {item.expense_category_id&&(()=>{const category=categories.find(c=>c.id===item.expense_category_id);const f=formula(item.expense_category_id);return category&&category.calculation_method&&category.calculation_method!=="manual"?<div className={styles.reference}>Formula kategori: <strong>{category.calculation_method}</strong> · Tarif {category.calculation_rate} · {f&&"result" in f?<>Dasar {money(f.base)} · Hasil hitung <strong>{money(f.result)}</strong>. Nominal dapat disesuaikan Finance; hasil formula dan perubahan disimpan sebagai snapshot.</>:f?.error??"Pilih BA untuk menghitung."}</div>:null;})()}
               <div className={styles.lineFields}>
                 <label>Keterangan *<input required maxLength={500} value={item.description} onChange={(event) => updateLine(index, { description: event.target.value })} /></label>
                 <label>Nominal (Rp) *<input required inputMode="numeric" type="number" min="1" step="1" value={item.amount} onChange={(event) => updateLine(index, { amount: event.target.value })} /></label>

@@ -23,7 +23,7 @@ export default async function ApPage() {
   const [{ data: allProjects, error: projectError }, { data: categories, error: categoryError },
     { data: supplierRows, error: supplierError }, scopeResult, permissionResult] = await Promise.all([
     admin.from("projects").select("id,code,name").eq("tenant_id", actor.tenantId).eq("is_active", true).order("name"),
-    admin.from("expense_categories").select("id,name").eq("tenant_id", actor.tenantId).eq("is_active", true).order("name"),
+    admin.from("expense_categories").select("id,name,expense_type,calculation_method,calculation_basis,calculation_rate").eq("tenant_id", actor.tenantId).eq("is_active", true).eq("expense_type","company_payable").order("name"),
     admin.from("suppliers").select("id,code,name,contact_person,phone,email,address,notes,is_active")
       .eq("tenant_id", actor.tenantId).eq("is_active", true).order("name"),
     actor.tenantRole !== "superadmin"
@@ -36,10 +36,13 @@ export default async function ApPage() {
           .eq("tenant_id", actor.tenantId).eq("user_id", actor.userId)
           .in("permission_key", ["ap.create_edit", "ap.submit"]),
   ]);
-  if (projectError || categoryError || supplierError || scopeResult.error || permissionResult.error) {
+  if (projectError || supplierError || scopeResult.error || permissionResult.error) {
     throw new Error("Data referensi AP gagal dimuat.");
   }
 
+  let usableCategories=categories;
+  if(categoryError){const fallback=await admin.from("expense_categories").select("id,name").eq("tenant_id",actor.tenantId).eq("is_active",true).order("name");usableCategories=(fallback.data??[]).map(x=>({...x,expense_type:"company_payable",calculation_method:"manual",calculation_basis:"manual",calculation_rate:null}));}
+  if(!usableCategories)throw new Error("Kategori pengeluaran gagal dimuat.");
   const all = allProjects ?? [];
   const scope = scopeResult.data as { scope_mode?: string; resource_ids?: string[] } | null;
   const projects = actor.tenantRole === "superadmin" || scope?.scope_mode === "all"
@@ -51,7 +54,7 @@ export default async function ApPage() {
     lines={[]}
     suppliers={(supplierRows ?? []) as ApSupplierOption[]}
     projects={[]}
-    categories={categories ?? []}
+    categories={usableCategories ?? []}
     references={[]}
     canCreateEdit={actor.tenantRole === "superadmin" || (permissionResult.data ?? []).some((item) => item.permission_key === "ap.create_edit" && item.effect === "allow")}
     canSubmit={actor.tenantRole === "superadmin" || (permissionResult.data ?? []).some((item) => item.permission_key === "ap.submit" && item.effect === "allow")}
@@ -64,7 +67,7 @@ export default async function ApPage() {
       .eq("tenant_id", actor.tenantId).eq("ap_version", 2)
       .in("project_id", projectIds).order("created_at", { ascending: false }).limit(300),
     admin.from("sales_orders")
-      .select("id,code,ba_number,project_id,ba_date,final_amount,customer_id")
+      .select("id,code,ba_number,project_id,ba_date,final_amount,dispatched_purchase_cost,received_weight_kg,final_grade_value,customer_id")
       .eq("tenant_id", actor.tenantId).eq("status", "Selesai")
       .in("project_id", projectIds).order("ba_date", { ascending: false }).limit(300),
   ]);
@@ -88,7 +91,7 @@ export default async function ApPage() {
     ...row,
     project: projects.find((project) => project.id === row.project_id)?.name ?? "Project",
   })) as ApDocument[];
-  const categoryNames = new Map((categories ?? []).map((category) => [category.id, category.name]));
+  const categoryNames = new Map((usableCategories ?? []).map((category) => [category.id, category.name]));
   const lines: ApLine[] = (actualLines.data ?? []).map((line) => ({
     ...line,
     category_name: categoryNames.get(line.expense_category_id) ?? "Kategori tidak tersedia",

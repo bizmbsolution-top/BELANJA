@@ -6,7 +6,8 @@ import styles from "../kategori/category.module.css";
 
 type Classification="direct_cost"|"general_overhead"|"flexible";
 export type ExpenseCategory={id:string;code:string;name:string;description:string|null;is_active:boolean;cost_classification:Classification;expense_type?:ExpenseType;calculation_method?:Method;calculation_basis?:string;calculation_rate?:number|null};
-type Method="manual"|"percentage"|"per_kg"|"per_grade_point"|"per_kg_grade"|"per_transaction"|"fixed";\ntype ExpenseType="company_payable"|"transaction_deduction";\ntype Form={name:string;description:string;isActive:boolean;costClassification:Classification;expenseType:ExpenseType;calculationMethod:Method;calculationRate:string};
+type Method="manual"|"percentage"|"per_kg"|"per_grade_point"|"per_kg_grade"|"per_transaction"|"fixed";
+type ExpenseType="company_payable"|"transaction_deduction";\ntype Form={name:string;description:string;isActive:boolean;costClassification:Classification;expenseType:ExpenseType;calculationMethod:Method;calculationRate:string};
 const EMPTY:Form={name:"",description:"",isActive:true,costClassification:"flexible",expenseType:"company_payable",calculationMethod:"manual",calculationRate:""};
 const label=(v:Classification)=>v==="direct_cost"?"Direct Cost":v==="general_overhead"?"General Overhead":"Fleksibel";
 export default function ExpenseCategoryManager({initialItems}:{initialItems:ExpenseCategory[]}){
@@ -32,7 +33,7 @@ export default function ExpenseCategoryManager({initialItems}:{initialItems:Expe
  const flexible=initialItems.filter(x=>x.cost_classification==="flexible").length;
  function edit(x:ExpenseCategory){
   setEditingId(x.id);
-  setForm({name:x.name,description:x.description??"",isActive:x.is_active,costClassification:x.cost_classification,expenseType:x.expense_type??"company_payable",calculationMethod:x.calculation_method??"manual",calculationRate:x.calculation_rate==null?"":String(x.calculation_rate)});
+  setForm({name:x.name,description:x.description??"",isActive:x.is_active,costClassification:x.cost_classification,expenseType:x.expense_type??"company_payable",calculationMethod:x.calculation_method??"manual",calculationRate:x.calculation_rate==null?"":(x.calculation_basis==="purchase_cost"?"purchase:":"final:")+String(x.calculation_rate)});
   setError("");setMessage("");setOpen(true);
  }
  function add(){setEditingId(null);setForm(EMPTY);setError("");setMessage("");setOpen(true);}

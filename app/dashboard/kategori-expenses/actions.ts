@@ -17,9 +17,11 @@ function clean(input:Input){
  if(!["company_payable","transaction_deduction"].includes(input?.expenseType))return "Jenis biaya tidak valid.";
  const methods:Record<Method,Basis>={manual:"manual",percentage:"final_amount",per_kg:"received_weight_kg",per_grade_point:"final_grade_value",per_kg_grade:"received_weight_x_grade",per_transaction:"per_transaction",fixed:"fixed"};
  if(!(input.calculationMethod in methods))return "Metode perhitungan tidak valid.";
- const rate=input.calculationMethod==="manual"?null:Number(input.calculationRate);
- if(rate!==null&&(!Number.isFinite(rate)||rate<=0||rate>1000000000000))return "Tarif harus lebih besar dari nol.";
- return {name,description:description||null,costClassification:input.costClassification,expenseType:input.expenseType,calculationMethod:input.calculationMethod,calculationBasis:methods[input.calculationMethod],calculationRate:rate};
+ const rawRate=input.calculationRate??"";
+ const selectedBasis=rawRate.startsWith("purchase:")?"purchase_cost":"final_amount";
+ const numericRate=input.calculationMethod==="manual"?null:Number(rawRate.replace(/^(purchase:|final:)/,""));
+ if(numericRate!==null&&(!Number.isFinite(numericRate)||numericRate<=0||numericRate>1000000000000))return "Tarif harus lebih besar dari nol.";
+ return {name,description:description||null,costClassification:input.costClassification,expenseType:input.expenseType,calculationMethod:input.calculationMethod,calculationBasis:input.calculationMethod==="percentage"?selectedBasis:methods[input.calculationMethod],calculationRate:numericRate};
 }
 export async function createExpenseCategory(input:Input):Promise<Result>{
  try{
