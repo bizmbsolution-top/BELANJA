@@ -117,6 +117,12 @@ alter table public.project_cash_ledger
   drop constraint if exists project_cash_ledger_source_check,
   add constraint project_cash_ledger_source_check
     check (num_nonnulls(fund_request_id, expense_id, purchase_payment_request_id, expense_payment_id) = 1),
+  add constraint project_cash_ledger_project_tenant_fk
+    foreign key (tenant_id, project_id)
+    references public.projects (tenant_id, id) on delete restrict,
+  add constraint project_cash_ledger_expense_tenant_fk
+    foreign key (tenant_id, expense_id)
+    references public.expenses (tenant_id, id) on delete restrict,
   add constraint project_cash_ledger_expense_payment_tenant_fk
     foreign key (tenant_id, expense_payment_id)
     references public.expense_payments (tenant_id, id) on delete restrict;
