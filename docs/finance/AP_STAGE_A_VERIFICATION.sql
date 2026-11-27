@@ -73,3 +73,18 @@ where n.nspname = 'public'
     'register_expense_payment_document_with_audit'
   )
 order by p.proname, p.oid::regprocedure::text;
+
+
+-- Direct authenticated Data API access to AP v2 records must remain blocked.
+select
+  has_table_privilege('authenticated', 'public.expense_items', 'SELECT') as authenticated_can_read_items,
+  has_table_privilege('authenticated', 'public.expense_payments', 'SELECT') as authenticated_can_read_payments,
+  has_table_privilege('authenticated', 'public.expense_payment_evidence', 'SELECT') as authenticated_can_read_payment_evidence,
+  has_table_privilege('service_role', 'public.expense_items', 'SELECT') as service_role_can_read_items,
+  has_table_privilege('service_role', 'public.expense_payments', 'SELECT') as service_role_can_read_payments,
+  has_table_privilege('service_role', 'public.expense_payment_evidence', 'SELECT') as service_role_can_read_payment_evidence;
+
+select policyname, cmd, permissive, qual
+from pg_policies
+where schemaname='public' and tablename='expenses'
+  and policyname='expenses_legacy_only_select';
