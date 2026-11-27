@@ -29,6 +29,11 @@ async function assertProjectAccess(userId: string, projectId: string, isOwner: b
     throw new Error("Project di luar area kerja akun Anda.");
   }
 }
+async function assertCategoryAccess(categoryId: string, tenantId: string | null) {
+  const { data, error } = await createAdminClient().from("expense_categories")
+    .select("id").eq("tenant_id", tenantId).eq("id", categoryId).eq("is_active", true).maybeSingle();
+  if (error || !data) throw new Error("Kategori tidak aktif atau bukan milik perusahaan Anda.");
+}
 async function getExpense(expenseId: string, tenantId: string | null) {
   return createAdminClient().from("expenses").select("id,project_id,status,created_by").eq("tenant_id", tenantId).eq("id", expenseId).maybeSingle();
 }
@@ -42,6 +47,7 @@ export async function createExpenseDraft(input: { expenseDate: string; projectId
     if (!description || description.length > 1000) return { ok: false, error: "Keterangan wajib diisi (maksimal 1.000 karakter)." };
     if (!Number.isSafeInteger(amount) || amount <= 0) return { ok: false, error: "Nominal tidak valid." };
     await assertProjectAccess(actor.userId, input.projectId, actor.tenantRole === "superadmin", actor.tenantId);
+    await assertCategoryAccess(input.categoryId, actor.tenantId);
     const { data, error } = await createAdminClient().rpc("create_expense_draft_with_audit", {
       p_actor_user_id: actor.userId, p_expense_date: input.expenseDate, p_project_id: input.projectId,
       p_expense_category_id: input.categoryId, p_description: description, p_amount: amount,
@@ -63,6 +69,7 @@ export async function updateExpenseDraft(input: { expenseId: string; expenseDate
     if (!current || current.status !== "Draft") return { ok: false, error: "Hanya Draft yang dapat diubah." };
     await assertProjectAccess(actor.userId, current.project_id, actor.tenantRole === "superadmin", actor.tenantId);
     await assertProjectAccess(actor.userId, input.projectId, actor.tenantRole === "superadmin", actor.tenantId);
+    await assertCategoryAccess(input.categoryId, actor.tenantId);
     const { error } = await admin.rpc("update_expense_draft_with_audit", {
       p_expense_id: input.expenseId, p_actor_user_id: actor.userId, p_expense_date: input.expenseDate,
       p_project_id: input.projectId, p_expense_category_id: input.categoryId, p_description: description, p_amount: amount,
