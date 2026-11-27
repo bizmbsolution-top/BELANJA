@@ -26,7 +26,8 @@ function localDate() {
   const now = new Date();
   return [now.getFullYear(), String(now.getMonth() + 1).padStart(2, "0"), String(now.getDate()).padStart(2, "0")].join("-");
 }
-const formatRupiahInput = (value: string) => { const digits = value.replace(/\D/g, ""); return digits ? new Intl.NumberFormat("id-ID", { maximumFractionDigits: 0 }).format(Number(digits)) : ""; };\nconst money = (value: number) => new Intl.NumberFormat("id-ID", {
+const formatRupiahInput = (value: string) => { const digits = value.replace(/\D/g, ""); return digits ? new Intl.NumberFormat("id-ID", { maximumFractionDigits: 0 }).format(Number(digits)) : ""; };
+const money = (value: number) => new Intl.NumberFormat("id-ID", {
   style: "currency", currency: "IDR", maximumFractionDigits: 0,
 }).format(value);
 
