@@ -42,6 +42,13 @@ Pemeriksaan katalog SQL **tidak membuktikan** bahwa aplikasi server action benar
 | User Tenant A meminta item, pembayaran, atau bukti Tenant B | Ditolak atau tidak ditemukan |
 | User Project A meminta AP Project B dalam tenant yang sama | Ditolak atau tidak ditemukan |
 | User tanpa role/permission AP memanggil server action langsung | Ditolak |
+| Finance dengan ap.create_edit = unset atau deny mencoba membuat/mengubah Draft | Ditolak |
+| Finance dengan ap.create_edit = allow mencoba membuat/mengubah Draft | Lolos pemeriksaan permission, tetap wajib lolos Project scope dan validasi AP |
+| Finance dengan ap.submit = unset atau deny mencoba submit | Ditolak |
+| Finance dengan ap.submit = allow mencoba submit | Lolos pemeriksaan permission, tetap wajib lolos Project scope dan validasi AP |
+| User non-Finance diberi override AP allow | Tetap ditolak |
+| Superadmin tenant aktif tanpa override AP | Diizinkan dalam tenant aktif saja |
+| Platform Owner mencoba tindakan AP tenant | Ditolak |
 | User dengan scope Project A membaca AP Project A | Hanya data Project A |
 | Manipulasi tenant_id/project_id pada payload | Tidak mengubah konteks otorisasi; ditolak |
 | User authenticated mencoba akses tabel AP baru langsung melalui Data API | Ditolak |
