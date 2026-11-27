@@ -22,6 +22,20 @@ type ApReference = {
   customer_name: string;
 };
 type DraftLine = { expense_category_id: string; description: string; amount: string };
+type SmartOption = { id: string; label: string; keywords?: string };
+function SmartSelect({ label, options, value, onChange, placeholder }: { label: string; options: SmartOption[]; value: string; onChange: (value: string) => void; placeholder: string }) {
+  const [query, setQuery] = useState("");
+  const [open, setOpen] = useState(false);
+  const selected = options.find(option => option.id === value);
+  const filtered = options.filter(option => (option.label + " " + (option.keywords ?? "")).toLocaleLowerCase("id-ID").includes(query.trim().toLocaleLowerCase("id-ID")));
+  return <div className={styles.smartSelect}>
+    <label>{label}<input value={open ? query : (selected?.label ?? "")} placeholder={placeholder} onFocus={() => { setOpen(true); setQuery(""); }} onChange={event => { setQuery(event.target.value); setOpen(true); }} onBlur={() => window.setTimeout(() => setOpen(false), 140)} /></label>
+    {open && <div className={styles.smartSelectMenu}>
+      {filtered.length ? filtered.map(option => <button type="button" key={option.id} onMouseDown={event => event.preventDefault()} onClick={() => { onChange(option.id); setQuery(""); setOpen(false); }}>{option.label}</button>) : <p>Tidak ada pilihan yang cocok.</p>}
+    </div>}
+  </div>;
+}
+
 
 function localDate() {
   const now = new Date();
@@ -135,17 +149,10 @@ export default function ApForm({
         <form onSubmit={save} className={styles.form}>
           <div className={styles.grid}>
             <label>Tanggal AP *<input type="date" required value={date} onChange={(event) => setDate(event.target.value)} /></label>
-            <label>Project *<select required value={projectId} onChange={(event) => { setProjectId(event.target.value); setSalesOrderId(""); }}>
-              <option value="">Pilih Project</option>{projects.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-            </select></label>
+            <SmartSelect label="Project *" value={projectId} onChange={(next) => { setProjectId(next); setSalesOrderId(""); }} placeholder="Cari project..." options={projects.map(item => ({id:item.id,label:item.name,keywords:item.code}))} />
           </div>
           <ApRecipientField initialSuppliers={suppliers} value={supplierId} onChange={setSupplierId} />
-          <label>Referensi BA / Invoice (opsional)
-            <select value={salesOrderId} onChange={(event) => {const nextId=event.target.value;setSalesOrderId(nextId);const nextRef=availableReferences.find(ref=>ref.id===nextId);setItems(current=>current.map(line=>{const cat=categoryOptions.find(c=>c.id===line.expense_category_id);if(!cat||!cat.calculation_method||cat.calculation_method==="manual")return line;const f=formula(cat.id,nextRef);return f&&"result" in f?{...line,amount:String(f.result)}:line;}));}} disabled={!projectId}>
-              <option value="">Tidak menggunakan referensi</option>
-              {availableReferences.map((item) => <option key={item.id} value={item.id}>{item.ba_number || item.code} · {item.customer_name}</option>)}
-            </select>
-          </label>
+          <SmartSelect label="Referensi BA / Invoice (opsional)" value={salesOrderId} onChange={(nextId) => {setSalesOrderId(nextId);const nextRef=availableReferences.find(ref=>ref.id===nextId);setItems(current=>current.map(line=>{const cat=categoryOptions.find(c=>c.id===line.expense_category_id);if(!cat||!cat.calculation_method||cat.calculation_method==="manual")return line;const f=formula(cat.id,nextRef);return f&&"result" in f?{...line,amount:String(f.result)}:line;}));}} placeholder={projectId ? "Cari nomor BA / nama pembeli..." : "Pilih project terlebih dahulu"} options={[{id:"",label:"Tidak menggunakan referensi"},{...availableReferences.map(item=>({id:item.id,label:(item.ba_number||item.code)+" · "+item.customer_name,keywords:item.code+" "+(item.ba_number??"")}))}].flat()} />
           {salesOrderId && (() => {
             const ref = availableReferences.find((item) => item.id === salesOrderId);
             return ref ? <div className={styles.reference}>Referensi: <strong>{ref.ba_number || ref.code}</strong> · {ref.customer_name} · Nilai BA {money(Number(ref.final_amount ?? 0))}. Nilai ini hanya informasi, bukan nominal AP.</div> : null;
