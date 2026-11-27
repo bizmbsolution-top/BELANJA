@@ -1,5 +1,5 @@
 -- Expense category formula configuration and immutable AP calculation snapshots.
--- Prepared for preview review only; do not apply to production without separate approval.
+-- Approved formula configuration migration for the active BELANJA database.
 
 alter table public.expense_categories
   add column if not exists expense_type text not null default 'company_payable',
@@ -100,14 +100,14 @@ begin
     when 'per_grade_point' then
       v_base := v_ba.final_grade_value;
       if v_base is null then v_missing := 'Nilai grade final belum tersedia pada BA'; end if;
-      v_result := round(v_base * v_category.calculation_rate, 2);
+      v_result := round(v_base * v_category.calculation_rate, 0);
     when 'per_kg_grade' then
       if v_ba.received_weight_kg is null or v_ba.final_grade_value is null then
         v_missing := 'Berat diterima atau grade final belum tersedia pada BA';
       else
         v_base := v_ba.received_weight_kg * v_ba.final_grade_value / 100;
       end if;
-      v_result := round(v_base * v_category.calculation_rate, 2);
+      v_result := round(v_base * v_category.calculation_rate, 0);
     when 'per_transaction' then
       v_base := 1;
       v_result := round(v_category.calculation_rate, 0);
