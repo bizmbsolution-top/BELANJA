@@ -11,6 +11,13 @@ type ExpenseType="company_payable"|"transaction_deduction";
 type Form={name:string;description:string;isActive:boolean;costClassification:Classification;expenseType:ExpenseType;calculationMethod:Method;calculationRate:string};
 const EMPTY:Form={name:"",description:"",isActive:true,costClassification:"flexible",expenseType:"company_payable",calculationMethod:"manual",calculationRate:""};
 const label=(v:Classification)=>v==="direct_cost"?"Direct Cost":v==="general_overhead"?"General Overhead":"Fleksibel";
+const methodLabel=(x:ExpenseCategory)=>{
+ const method=x.calculation_method??"manual";
+ const names:Record<Method,string>={manual:"Manual",percentage:"Persentase",per_kg:"Tarif per Kg",per_grade_point:"Tarif per poin Grade",per_kg_grade:"Kg × Grade",per_transaction:"Per BA / transaksi",fixed:"Nominal tetap"};
+ const basis=x.calculation_basis==="purchase_cost"?"dari biaya pembelian":x.calculation_basis==="final_amount"?"dari nilai final BA":"";
+ const rate=x.calculation_rate==null?"":method==="percentage"?` · ${x.calculation_rate}%`:` · Rp ${new Intl.NumberFormat("id-ID",{maximumFractionDigits:2}).format(x.calculation_rate)}`;
+ return names[method]+(basis?` ${basis}`:"")+rate;
+};
 export default function ExpenseCategoryManager({initialItems}:{initialItems:ExpenseCategory[]}){
  const router=useRouter();
  const [query,setQuery]=useState("");
@@ -75,7 +82,7 @@ export default function ExpenseCategoryManager({initialItems}:{initialItems:Expe
     <label className={styles.fieldWide}><span>Keterangan</span><textarea rows={3} maxLength={500} value={form.description} onChange={e=>setForm({...form,description:e.target.value})} placeholder="Penjelasan singkat (opsional)"/></label>
     {editingId&&<label className={styles.activeToggle}><input type="checkbox" checked={form.isActive} onChange={e=>setForm({...form,isActive:e.target.checked})}/>Kategori aktif dan dapat dipilih pada transaksi baru</label>}
     {error&&<p className={styles.error} role="alert">{error}</p>}
-    <div className={styles.formActions}><button className={styles.secondaryButton} type="button" onClick={()=>setOpen(false)} disabled={saving}>Batal</button><button className={styles.primaryButton} type="submit" disabled={saving}>{saving?"Menyimpan...":editingId?"Simpan Perubahan":"Simpan Akun Biaya"}</button></div>
+    <div className={styles.formActions}><button className={styles.secondaryButton} type="button" onClick={()=>setOpen(false)} disabled={saving}>Batal</button><button className={styles.primaryButton} type="submit" disabled={saving}>{saving?"Menyimpan...":editingId?"Simpan Perubahan":"Simpan Kategori"}</button></div>
    </form>
   </section>}
   <section className={styles.listCard}>
@@ -90,7 +97,7 @@ export default function ExpenseCategoryManager({initialItems}:{initialItems:Expe
    </div>
    {filtered.length===0?<div className={styles.empty}><h3>{initialItems.length?"Kategori tidak ditemukan":"Belum ada kategori pengeluaran"}</h3><p>{initialItems.length?"Coba kata kunci atau filter lain.":"Tambahkan kategori untuk mulai mengelola pengeluaran."}</p>{!initialItems.length&&<button className={styles.primaryButton} onClick={add} type="button">+ Tambah Kategori</button>}</div>
    :<div className={styles.categoryList}>{filtered.map(x=><article className={styles.categoryItem} key={x.id}>
-    <div className={styles.categoryMain}><div className={styles.categoryTitle}><span className={styles.code}>{x.code}</span><span className={x.is_active?styles.active:styles.inactive}>{x.is_active?"Aktif":"Nonaktif"}</span></div><h3>{x.name}</h3><p>{x.description||"Tidak ada keterangan"}</p><small>{label(x.cost_classification)}</small></div>
+    <div className={styles.categoryMain}><div className={styles.categoryTitle}><span className={styles.code}>{x.code}</span><span className={x.is_active?styles.active:styles.inactive}>{x.is_active?"Aktif":"Nonaktif"}</span></div><h3>{x.name}</h3><p>{x.description||"Tidak ada keterangan"}</p><small>{label(x.cost_classification)} · {x.expense_type==="transaction_deduction"?"Potongan Transaksi":"Kewajiban Perusahaan"}</small><small>Perhitungan: {methodLabel(x)}</small></div>
     <button className={styles.editButton} type="button" onClick={()=>edit(x)}>Ubah</button>
    </article>)}</div>}
   </section>
