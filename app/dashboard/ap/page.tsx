@@ -42,7 +42,7 @@ export default async function ApPage() {
 
   let usableCategories=categories;
   if(categoryError){const fallback=await admin.from("expense_categories").select("id,name").eq("tenant_id",actor.tenantId).eq("is_active",true).order("name");usableCategories=(fallback.data??[]).map(x=>({...x,expense_type:"company_payable",calculation_method:"manual",calculation_basis:"manual",calculation_rate:null}));}
-  if(!usableCategories)throw new Error("Kategori pengeluaran gagal dimuat.");
+  if(categoryError && !usableCategories?.length)throw new Error("Kategori pengeluaran gagal dimuat.");
   const all = allProjects ?? [];
   const scope = scopeResult.data as { scope_mode?: string; resource_ids?: string[] } | null;
   const projects = actor.tenantRole === "superadmin" || scope?.scope_mode === "all"
@@ -55,6 +55,7 @@ export default async function ApPage() {
     suppliers={(supplierRows ?? []) as ApSupplierOption[]}
     projects={[]}
     categories={usableCategories ?? []}
+    formulaConfigReady={!categoryError}
     references={[]}
     canCreateEdit={actor.tenantRole === "superadmin" || (permissionResult.data ?? []).some((item) => item.permission_key === "ap.create_edit" && item.effect === "allow")}
     canSubmit={actor.tenantRole === "superadmin" || (permissionResult.data ?? []).some((item) => item.permission_key === "ap.submit" && item.effect === "allow")}
