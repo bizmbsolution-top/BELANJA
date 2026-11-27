@@ -29,18 +29,21 @@ begin
     end if;
 
     if has_table_privilege('anon', 'public.' || v_name, 'SELECT')
-       or has_table_privilege('authenticated', 'public.' || v_name, 'SELECT') then
-      raise exception 'FAIL: anon/authenticated can directly SELECT public.%', v_name;
-    end if;
-
-    if has_table_privilege('authenticated', 'public.' || v_name, 'INSERT')
+       or has_table_privilege('anon', 'public.' || v_name, 'INSERT')
+       or has_table_privilege('anon', 'public.' || v_name, 'UPDATE')
+       or has_table_privilege('anon', 'public.' || v_name, 'DELETE')
+       or has_table_privilege('authenticated', 'public.' || v_name, 'SELECT')
+       or has_table_privilege('authenticated', 'public.' || v_name, 'INSERT')
        or has_table_privilege('authenticated', 'public.' || v_name, 'UPDATE')
        or has_table_privilege('authenticated', 'public.' || v_name, 'DELETE') then
-      raise exception 'FAIL: authenticated has direct write privilege on public.%', v_name;
+      raise exception 'FAIL: anon/authenticated has direct table access on public.%', v_name;
     end if;
 
-    if not has_table_privilege('service_role', 'public.' || v_name, 'SELECT') then
-      raise exception 'FAIL: service_role cannot SELECT public.%', v_name;
+    if not has_table_privilege('service_role', 'public.' || v_name, 'SELECT')
+       or not has_table_privilege('service_role', 'public.' || v_name, 'INSERT')
+       or not has_table_privilege('service_role', 'public.' || v_name, 'UPDATE')
+       or not has_table_privilege('service_role', 'public.' || v_name, 'DELETE') then
+      raise exception 'FAIL: service_role does not have expected access on public.%', v_name;
     end if;
   end loop;
 
@@ -85,9 +88,10 @@ begin
     where schemaname = 'public'
       and tablename = 'project_cash_ledger'
       and policyname = v_name
-      and not permissive;
+      and not permissive
+      and coalesce(qual, '') || coalesce(with_check, '') like '%expense_payment_id%';
     if v_count <> 1 then
-      raise exception 'FAIL: expected restrictive ledger policy % is missing', v_name;
+      raise exception 'FAIL: expected restrictive ledger policy % is missing or does not fence expense_payment_id', v_name;
     end if;
   end loop;
 
@@ -122,8 +126,9 @@ begin
     end if;
 
     if v_name = 'create_expense_draft_with_audit' then
-      if position('ap_version' in v_def) = 0 or position('1' in v_def) = 0 then
-        raise exception 'FAIL: create RPC does not explicitly create legacy version 1';
+      if position('ap_version' in v_def) = 0
+         or position('p_actor_user_id, p_actor_user_id, 1' in v_def) = 0 then
+        raise exception 'FAIL: create RPC does not explicitly insert ap_version 1';
       end if;
     elsif position('ap_version = 1' in v_def) = 0 then
       raise exception 'FAIL: legacy RPC % has no ap_version = 1 fence', v_name;
