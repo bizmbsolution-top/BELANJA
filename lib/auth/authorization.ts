@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import {
   evaluateOwnerAccess,
+  evaluatePermissionAccess,
   evaluateRouteAccess,
   normalizeOperationalRoles,
   ROLE_SUPERADMIN,
@@ -386,6 +387,70 @@ export async function requirePlatformOwner(): Promise<AccessContext> {
     activeRole: null,
     availableRoles: [],
   };
+}
+
+/**
+ * Requires tenant-scoped AP authorization.
+ *
+ * Tenant Superadmin is authorized after getAccessContext() verifies active
+ * membership, active tenant, and active tenant profile. Finance must hold the
+ * Finance operational Role and an explicit individual allow for the requested
+ * AP permission. Unset and deny both fail closed. Platform Owner is not a
+ * tenant AP operator.
+ */
+export async function requireApPermission(
+  permission: "ap.create_edit" | "ap.submit",
+): Promise<AccessContext> {
+  const context = await getAccessContext();
+
+  if (context.isOwner || !context.tenantId) {
+    throw new AuthorizationError(
+      "not-owner",
+      "Platform Owner tidak memiliki akses transaksi AP tenant.",
+    );
+  }
+
+  if (context.tenantRole === "superadmin") return context;
+
+  if (!context.roles.includes("Finance")) {
+    throw new AuthorizationError(
+      "role-not-permitted",
+      "Akses AP hanya tersedia untuk Finance atau Superadmin tenant.",
+    );
+  }
+
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("tenant_user_permission_overrides")
+    .select("effect")
+    .eq("tenant_id", context.tenantId)
+    .eq("user_id", context.userId)
+    .eq("permission_key", permission)
+    .maybeSingle();
+
+  if (error) {
+    throw new AuthorizationError(
+      "inactive",
+      "Permission AP tidak dapat diverifikasi.",
+    );
+  }
+
+  const allowed = evaluatePermissionAccess({
+    permission,
+    roleGrants: [],
+    userOverride: data?.effect ?? null,
+  });
+
+  if (!allowed) {
+    throw new AuthorizationError(
+      "role-not-permitted",
+      permission === "ap.create_edit"
+        ? "Anda belum diberi izin untuk membuat atau mengubah AP."
+        : "Anda belum diberi izin untuk submit AP.",
+    );
+  }
+
+  return context;
 }
 
 /**
