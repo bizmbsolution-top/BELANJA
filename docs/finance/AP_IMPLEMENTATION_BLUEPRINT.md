@@ -153,11 +153,15 @@ For each new table:
 - No production data migration and no automatic conversion of old expenses.
 - Do not yet expose Bank payment until the Bank account/movement model is deployed and tested.
 
-### Stage B — AP entry UI
-- Finance creates a draft, selects recipient, optional BA, project, and one or more category/description/amount lines.
-- Header total is computed from lines.
-- Submit freezes the draft and makes it payable.
-- Old voucher history remains accessible and unchanged.
+### Stage B — AP entry UI and RPC contract (specification completed; app code gated)
+- Finance/Superadmin creates and edits Draft AP documents with recipient, Project, optional BA reference, summary, and one or more category/description/amount lines.
+- Header total is calculated from persisted lines by the database RPC; the client total is display-only.
+- BA context is read-only and never determines AP amount. One BA may be referenced by multiple AP documents.
+- Submit validates and freezes the header and lines, then moves the AP to `Menunggu Pembayaran`.
+- Dedicated AP server actions/RPCs must enforce tenant, actor, role, category, BA, and Project work scope. No legacy expense RPC is reused.
+- Legacy voucher history remains accessible and unchanged; after schema rollout, the legacy list will show version 1 only.
+- Detailed form, RPC, route, security, and acceptance contract: `docs/finance/AP_STAGE_B_ENTRY_SPEC.md`.
+- Active route/actions are deliberately not deployed while production lacks Stage A columns/tables and no isolated Free test database exists.
 
 ### Stage C — Cashier installment payment
 - Record partial/full AP payments through Cashier.
@@ -209,3 +213,12 @@ For each new table:
 - Authenticated clients receive read access to the new tables only; writes are reserved for trusted server-side operations to be implemented in later stages. Restrictive policies also prevent direct authenticated deletion of AP v2 headers and their new cashier-ledger rows.
 - Bank payment is intentionally not enabled by this migration.
 - This is a repository-only draft. It has not been applied to the active Supabase database and has not yet been tested against an isolated preview database.
+
+
+## 11. Stage B implementation status (2026-11-27)
+
+- Specification: `docs/finance/AP_STAGE_B_ENTRY_SPEC.md`.
+- Defined header, line-item, lifecycle, authorization, database RPC, UI separation, and acceptance-test contracts.
+- Production schema was checked read-only: it still has no `ap_version`, `recipient_name`, or AP line/payment tables.
+- No AP route or server action has been activated against production. This prevents a preview deployment from querying columns/tables that do not exist.
+- Next coding step is the dedicated AP route and server actions after Stage A can be validated in an isolated database. The user has explicitly chosen the Free infrastructure path; do not create a paid Supabase branch.
