@@ -59,9 +59,23 @@ function databaseMessage(message: string | undefined, fallback: string): string 
     ["Project is unavailable in the active tenant", "Project tidak tersedia pada perusahaan aktif."],
     ["Supplier is unavailable in the active tenant", "Supplier tidak tersedia atau tidak aktif pada perusahaan ini."],
     ["BA/Invoice is unavailable for the selected Project", "Referensi BA/Invoice tidak sesuai dengan Project yang dipilih."],
+    ["Kategori ini memerlukan referensi BA", "Kategori biaya yang dipilih menggunakan formula. Pilih referensi BA agar nominal dapat dihitung."],
+    ["Nilai dasar persentase belum tersedia pada BA", "Nilai dasar persentase belum tersedia pada BA yang dipilih."],
+    ["Berat diterima belum tersedia pada BA", "Data berat diterima pada BA belum tersedia untuk menghitung biaya."],
+    ["Nilai grade final belum tersedia pada BA", "Data grade final pada BA belum tersedia untuk menghitung biaya."],
+    ["Berat diterima atau grade final belum tersedia pada BA", "Data berat atau grade final pada BA belum lengkap untuk menghitung biaya."],
+    ["Formula menghasilkan nominal nol atau tidak valid", "Hasil formula kategori biaya nol atau tidak valid. Periksa tarif dan data BA."],
+    ["Transaction deduction categories cannot be recorded as company AP", "Kategori ini merupakan potongan transaksi dan tidak dapat dicatat sebagai AP perusahaan."],
+    ["Expense category is unavailable in the active tenant", "Kategori biaya tidak aktif atau tidak tersedia pada perusahaan ini."],
+    ["AP line", "Rincian AP ditolak oleh validasi kategori atau nominal. Periksa kembali rincian biaya."],
+    ["AP actor or tenant is inactive", "Akun Finance atau perusahaan aktif tidak dapat diverifikasi oleh layanan AP."],
   ];
   const match = known.find(([needle]) => message?.includes(needle));
-  return match?.[1] ?? fallback;
+  if (match) return match[1];
+  if (message && /^[A-Za-z0-9 _.,:()%-]{1,180}$/.test(message)) {
+    return `Penyimpanan ditolak oleh validasi: ${message}`;
+  }
+  return fallback;
 }
 
 export async function createApDraft(input: ApDraftInput): Promise<ApActionResult> {
