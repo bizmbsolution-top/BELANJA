@@ -18,23 +18,6 @@ export async function saveSalesExpenseMaster(input:{id?:string;name:string;categ
   revalidatePath("/dashboard/kategori-expenses");revalidatePath("/dashboard/biaya-penjualan");revalidatePath("/dashboard/penerimaan-penjualan");return{ok:true};
  }catch(e){return{ok:false,error:e instanceof Error?e.message:"Akses Manajemen diperlukan."};}
 }
-export async function generateSalesExpenseVouchers(salesOrderId:string):Promise<Result>{
- try{
-  const actor=await requireAnyRole(["Finance","Management"]);
-  if(!uuid(salesOrderId))return{ok:false,error:"Transaksi penjualan tidak valid."};
-  const admin=createAdminClient();
-  const {data:order,error:orderError}=await admin.from("sales_orders").select("id,project_id,status").eq("tenant_id",actor.tenantId).eq("id",salesOrderId).maybeSingle();
-  if(orderError||!order||order.status!=="Selesai")return{ok:false,error:"BA final tidak ditemukan pada perusahaan aktif."};
-  if(actor.tenantRole!=="superadmin"){
-   const {data:project,error:projectError}=await admin.from("projects").select("id,is_active").eq("tenant_id",actor.tenantId).eq("id",order.project_id).maybeSingle();
-   if(projectError||!project?.is_active)return{ok:false,error:"Project tidak aktif atau tidak ditemukan."};
-   const {data:scope,error:scopeError}=await admin.from("tenant_user_work_scopes").select("scope_mode,resource_ids").eq("tenant_id",actor.tenantId).eq("user_id",actor.userId).eq("dimension","project").maybeSingle();
-   if(scopeError||!scope)return{ok:false,error:"Area kerja Project belum diatur oleh Superadmin perusahaan."};
-   if(scope.scope_mode!=="all"&&!(scope.scope_mode==="selected"&&scope.resource_ids?.includes(order.project_id)))return{ok:false,error:"Project di luar area kerja akun Anda."};
-  }
-  const {data,error}=await admin.rpc("create_sales_expense_vouchers_from_ba",{p_sales_order_id:salesOrderId,p_actor_user_id:actor.userId});
-  if(error)return{ok:false,error:error.message.includes("sudah pernah")?error.message:"Biaya BA gagal dihitung. Pastikan BA sudah final dan Master Biaya aktif."};
-  revalidatePath("/dashboard/kategori-expenses");revalidatePath("/dashboard/biaya-penjualan");revalidatePath("/dashboard/pengeluaran");revalidatePath("/dashboard/laporan-penjualan");revalidatePath("/dashboard/penerimaan-penjualan");
-  return{ok:true,items:Number(data?.items_created??0),vouchers:Number(data?.vouchers_created??0)};
- }catch(e){return{ok:false,error:e instanceof Error?e.message:"Akses Finance atau Management diperlukan."};}
+export async function generateSalesExpenseVouchers(_salesOrderId:string):Promise<Result>{
+ return {ok:false,error:"Biaya BA tidak lagi dibuat otomatis. Catat biaya secara manual melalui modul Pengeluaran (AP)."};
 }
