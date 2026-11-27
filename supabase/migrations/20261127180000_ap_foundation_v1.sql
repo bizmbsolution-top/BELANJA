@@ -6,17 +6,24 @@ begin;
 -- version 2 is the new AP document model.
 alter table public.expenses
   add column if not exists recipient_name text,
+  add column if not exists recipient_supplier_id uuid,
   add column if not exists ap_version smallint not null default 1;
 
 alter table public.expenses
   add constraint expenses_ap_version_check check (ap_version in (1, 2)),
   add constraint expenses_ap_recipient_check check (
-    ap_version = 1 or (recipient_name is not null and length(btrim(recipient_name)) > 0)
+    ap_version = 1 or (
+      recipient_supplier_id is not null
+      and recipient_name is not null
+      and length(btrim(recipient_name)) > 0
+    )
   );
 
 -- Composite unique keys allow tenant-safe foreign keys on new relationships.
 create unique index if not exists expenses_tenant_id_id_uidx
   on public.expenses (tenant_id, id);
+create unique index if not exists suppliers_tenant_id_id_uidx
+  on public.suppliers (tenant_id, id);
 create unique index if not exists expense_categories_tenant_id_id_uidx
   on public.expense_categories (tenant_id, id);
 create unique index if not exists projects_tenant_id_id_uidx
@@ -36,7 +43,10 @@ alter table public.expenses
     references public.projects (tenant_id, id) on delete restrict,
   add constraint expenses_sales_order_tenant_fk
     foreign key (tenant_id, sales_order_id)
-    references public.sales_orders (tenant_id, id) on delete restrict;
+    references public.sales_orders (tenant_id, id) on delete restrict,
+  add constraint expenses_recipient_supplier_tenant_fk
+    foreign key (tenant_id, recipient_supplier_id)
+    references public.suppliers (tenant_id, id) on delete restrict;
 
 create table if not exists public.expense_items (
   id uuid primary key default gen_random_uuid(),
