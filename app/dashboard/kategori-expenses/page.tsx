@@ -8,7 +8,8 @@ export default async function ExpenseCategoryPage(){
  const context = await requireAnyRole(ROLES);
  const admin=createAdminClient();
  let {data:accounts,error}=await admin.from("expense_categories").select("id,code,name,description,is_active,cost_classification,expense_type,calculation_method,calculation_basis,calculation_rate").eq("tenant_id",context.tenantId).order("code").limit(500);
- if(error){const legacy=await admin.from("expense_categories").select("id,code,name,description,is_active,cost_classification").eq("tenant_id",context.tenantId).order("code").limit(500);accounts=(legacy.data??[]).map(x=>({...x,expense_type:"company_payable",calculation_method:"manual",calculation_basis:"manual",calculation_rate:null}));error=legacy.error;}
+ let formulaConfigReady=!error;
+ if(error){formulaConfigReady=false;const legacy=await admin.from("expense_categories").select("id,code,name,description,is_active,cost_classification").eq("tenant_id",context.tenantId).order("code").limit(500);accounts=(legacy.data??[]).map(x=>({...x,expense_type:"company_payable",calculation_method:"manual",calculation_basis:"manual",calculation_rate:null}));error=legacy.error;}
  if(error)throw new Error("Data master kategori pengeluaran gagal dimuat.");
- return <ExpenseCategoryManager initialItems={(accounts??[]) as ExpenseCategory[]} formulaConfigReady={!error}/>;
+ return <ExpenseCategoryManager initialItems={(accounts??[]) as ExpenseCategory[]} formulaConfigReady={formulaConfigReady}/>;
 }
