@@ -53,10 +53,9 @@ const groups: MenuGroup[] = [
     title: "KEUANGAN",
     items: [
       { label: "Kas & Bank", href: "/dashboard/kas-pembayaran", roles: ["Cashier", "Finance", "Management"] },
-      { label: "Permintaan Dana Kasir", href: "/dashboard/permintaan-penggunaan-dana", roles: ["Cashier", "Finance", "Management"] },
-      { label: "Penerimaan (AR)", href: "/dashboard/penerimaan-penjualan", roles: ["Finance"] },
-      { label: "AP / Hutang Supplier", href: "/dashboard/ap", roles: ["Finance"] },
-      { label: "Pengeluaran (Voucher Lama)", href: "/dashboard/pengeluaran", roles: ["Procurement", "Sales", "Cashier", "Finance", "Warehouse", "Management"] },
+      { label: "Dana Kasir", href: "/dashboard/permintaan-penggunaan-dana", roles: ["Cashier", "Finance", "Management"] },
+      { label: "Pendapatan", href: "/dashboard/penerimaan-penjualan", roles: ["Finance"] },
+      { label: "Pengeluaran", href: "/dashboard/ap", roles: ["Procurement", "Sales", "Cashier", "Finance", "Warehouse", "Management"] },
     ],
   },
   {
