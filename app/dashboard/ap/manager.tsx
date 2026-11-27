@@ -53,7 +53,7 @@ const date = (value: string) => new Intl.DateTimeFormat("id-ID", {
 
 export default function ApManager({
   enabled, documents, lines, suppliers = [], projects = [], categories = [], references = [],
-  canCreateEdit = false, canSubmit = false,
+  canCreateEdit = false, canSubmit = false, formulaConfigReady = true,
 }: {
   enabled: boolean;
   documents: ApDocument[];
@@ -129,6 +129,7 @@ export default function ApManager({
           <a href="/dashboard/pengeluaran" className={styles.footnote}>Buka voucher pengeluaran sebelumnya</a>
         </div>
       </header>
+      {!formulaConfigReady && <p className={styles.permissionNotice}>Pengaturan formula kategori belum aktif pada database. Formula AP akan tersedia setelah migration formula diterapkan.</p>}
       {!canCreateEdit && <p className={styles.permissionNotice}>Akun Finance ini belum memiliki izin <strong>Tambah/Ubah Pengeluaran (ap.create_edit)</strong>. Minta Superadmin mengaktifkan izin tersebut pada Pengguna & Akses. Tombol dinonaktifkan untuk menjaga keamanan transaksi.</p>}
       {!projects.length && <p className={styles.permissionNotice}>Belum ada Project aktif dalam Area Kerja akun ini. Atur Scope Project melalui Pengguna & Akses.</p>}
       <section className={styles.summary}>
