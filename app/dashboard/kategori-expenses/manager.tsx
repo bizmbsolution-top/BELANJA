@@ -5,9 +5,9 @@ import {createExpenseCategory,updateExpenseCategory} from "./actions";
 import styles from "../kategori/category.module.css";
 
 type Classification="direct_cost"|"general_overhead"|"flexible";
-export type ExpenseCategory={id:string;code:string;name:string;description:string|null;is_active:boolean;cost_classification:Classification};
-type Form={name:string;description:string;isActive:boolean;costClassification:Classification};
-const EMPTY:Form={name:"",description:"",isActive:true,costClassification:"flexible"};
+export type ExpenseCategory={id:string;code:string;name:string;description:string|null;is_active:boolean;cost_classification:Classification;expense_type?:ExpenseType;calculation_method?:Method;calculation_basis?:string;calculation_rate?:number|null};
+type Method="manual"|"percentage"|"per_kg"|"per_grade_point"|"per_kg_grade"|"per_transaction"|"fixed";\ntype ExpenseType="company_payable"|"transaction_deduction";\ntype Form={name:string;description:string;isActive:boolean;costClassification:Classification;expenseType:ExpenseType;calculationMethod:Method;calculationRate:string};
+const EMPTY:Form={name:"",description:"",isActive:true,costClassification:"flexible",expenseType:"company_payable",calculationMethod:"manual",calculationRate:""};
 const label=(v:Classification)=>v==="direct_cost"?"Direct Cost":v==="general_overhead"?"General Overhead":"Fleksibel";
 export default function ExpenseCategoryManager({initialItems}:{initialItems:ExpenseCategory[]}){
  const router=useRouter();
@@ -32,7 +32,7 @@ export default function ExpenseCategoryManager({initialItems}:{initialItems:Expe
  const flexible=initialItems.filter(x=>x.cost_classification==="flexible").length;
  function edit(x:ExpenseCategory){
   setEditingId(x.id);
-  setForm({name:x.name,description:x.description??"",isActive:x.is_active,costClassification:x.cost_classification});
+  setForm({name:x.name,description:x.description??"",isActive:x.is_active,costClassification:x.cost_classification,expenseType:x.expense_type??"company_payable",calculationMethod:x.calculation_method??"manual",calculationRate:x.calculation_rate==null?"":String(x.calculation_rate)});
   setError("");setMessage("");setOpen(true);
  }
  function add(){setEditingId(null);setForm(EMPTY);setError("");setMessage("");setOpen(true);}
@@ -66,6 +66,10 @@ export default function ExpenseCategoryManager({initialItems}:{initialItems:Expe
       <option value="flexible">Fleksibel — dapat digunakan untuk keduanya</option>
      </select>
     </label>
+    <label className={styles.fieldWide}><span>Jenis Biaya *</span><select value={form.expenseType} onChange={e=>setForm({...form,expenseType:e.target.value as ExpenseType})}><option value="company_payable">Kewajiban Perusahaan (dapat dibuat AP)</option><option value="transaction_deduction">Potongan Transaksi (bukan AP)</option></select></label>
+    <label className={styles.fieldWide}><span>Metode Perhitungan *</span><select value={form.calculationMethod} onChange={e=>setForm({...form,calculationMethod:e.target.value as Method,calculationRate:""})}><option value="manual">Manual / nominal diisi Finance</option><option value="percentage">Persentase dari nilai BA atau biaya pembelian</option><option value="per_kg">Tarif Rupiah per Kg</option><option value="per_grade_point">Tarif Rupiah per poin Grade</option><option value="per_kg_grade">Tarif per Kg × Grade (grade/100)</option><option value="per_transaction">Nominal per BA/transaksi</option><option value="fixed">Nominal tetap</option></select></label>
+    {form.calculationMethod==="percentage"&&<label className={styles.fieldWide}><span>Dasar Persentase *</span><select value={form.calculationRate.startsWith("purchase:")?"purchase":"final"} onChange={e=>setForm({...form,calculationRate:(e.target.value==="purchase"?"purchase:":"final:")+form.calculationRate.replace(/^(purchase:|final:)/,"")})}><option value="final">Nilai Final BA</option><option value="purchase">Biaya Pembelian</option></select></label>}
+    {form.calculationMethod!=="manual"&&<label className={styles.fieldWide}><span>{form.calculationMethod==="percentage"?"Tarif (%)":"Tarif (Rupiah)"} *</span><input required type="number" min="0.000001" step="any" value={form.calculationRate.replace(/^(purchase:|final:)/,"")} onChange={e=>setForm({...form,calculationRate:(form.calculationRate.startsWith("purchase:")?"purchase:":"final:")+e.target.value})} placeholder="Masukkan tarif"/></label>}
     <label className={styles.fieldWide}><span>Keterangan</span><textarea rows={3} maxLength={500} value={form.description} onChange={e=>setForm({...form,description:e.target.value})} placeholder="Penjelasan singkat (opsional)"/></label>
     {editingId&&<label className={styles.activeToggle}><input type="checkbox" checked={form.isActive} onChange={e=>setForm({...form,isActive:e.target.checked})}/>Kategori aktif dan dapat dipilih pada transaksi baru</label>}
     {error&&<p className={styles.error} role="alert">{error}</p>}
