@@ -37,8 +37,8 @@ function validate(input: ApDraftInput): string | null {
   if (!Array.isArray(input.lines) || input.lines.length < 1 || input.lines.length > 50) return "AP harus memiliki 1 sampai 50 rincian biaya.";
   for (const [index, line] of input.lines.entries()) {
     if (!UUID.test(line?.expense_category_id ?? "")) return `Kategori pada rincian ${index + 1} wajib dipilih.`;
-    if (typeof line.description !== "string" || !line.description.trim() || line.description.trim().length > 500) {
-      return `Keterangan rincian ${index + 1} wajib diisi (maksimal 500 karakter).`;
+    if (typeof line.description !== "string" || line.description.length > 500) {
+      return `Keterangan rincian ${index + 1} maksimal 500 karakter.`;
     }
     if (!Number.isSafeInteger(line.amount) || line.amount <= 0) return `Nominal rincian ${index + 1} harus berupa Rupiah positif.`;
   }
