@@ -93,6 +93,15 @@ Before creating any AP v2 record, Stage B must coordinate the UI and server-acti
 
 Because the AP Stage A migration is not applied, do not deploy application code that queries `ap_version` until the schema migration is safely available in an isolated test environment and release order is controlled.
 
+
+### F-09 — Stage A migration now fences legacy mutation RPCs to version 1
+
+The Stage A migration draft now replaces the six inspected legacy expense RPC definitions with behavior-preserving versions that explicitly create version 1 or select/update only rows where `ap_version = 1`. This covers Draft creation, Draft edit, submit, full payment, cancellation, and legacy payment-evidence registration.
+
+The function signatures, search paths, existing business rules, and SECURITY DEFINER setting on the evidence-registration function are preserved. PostgreSQL `CREATE OR REPLACE FUNCTION` retains the existing function ownership and ACLs; a post-migration verification query has been added to confirm that `anon` and `authenticated` still cannot execute these functions and `service_role` can.
+
+This is a migration-draft change only. The functions in production remain unchanged until Stage A is reviewed and applied in a safe test environment.
+
 ## 4. Repository-only change made during this audit
 
 - Added `assertCategoryAccess` to `app/dashboard/pengeluaran/actions.ts`.
@@ -102,8 +111,8 @@ Because the AP Stage A migration is not applied, do not deploy application code 
 
 ## 5. Required next steps before AP v2 can be used
 
-1. Review and finalize Stage A SQL against a safe isolated database. Do not apply it to production as a test.
-2. Add explicit version-1 guards to legacy mutation RPCs (create remains version 1 by default; update, submit, pay, cancel, and legacy evidence operations must reject version 2).
+1. Review and validate the complete Stage A SQL against a safe isolated database. Do not apply it to production as a test. The current Free project has no isolated database, so this validation remains a release blocker.
+2. The Stage A draft now contains version-1 fences for all six legacy expense mutation/evidence RPCs; verify the function definitions and ACLs with `AP_STAGE_A_VERIFICATION.sql` after applying in a safe test database.
 3. Build dedicated AP v2 create/edit/submit actions and RPCs. AP lines are the source of AP total; recipient is required; BA reference is optional.
 4. Build the AP installment payment RPC and cashier-ledger posting as one atomic operation. Keep the existing full-payment RPC for version 1 only.
 5. Update management reports to include AP v2 line items and outstanding obligations without double-counting BA-linked legacy costs.
