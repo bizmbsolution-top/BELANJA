@@ -2,6 +2,7 @@
 import {useMemo,useState,type FormEvent,type CSSProperties} from "react";
 import {useRouter} from "next/navigation";
 import {recordSalesSettlement} from "./actions";
+import styles from "./settlement.module.css";
 type Order={id:string;code:string;customer_id:string;project_id:string;final_amount:number;received_weight_kg:number;final_grade_value:number;final_grade_unit:string;ba_number:string;ba_date:string;finalized_at:string;customer_name:string;project_label:string;settled:boolean};
 type Component={id:string;customer_id:string|null;code:string;name:string;calculation_method:string;default_value:number;is_active:boolean;sort_order:number};
 type Settlement={id:string;sales_order_id:string;amount:number;gross_amount:number;total_deductions:number;payment_method:string;payment_reference:string|null;received_at:string;customer_name:string;ba_number:string;evidence_file_name:string|null;evidence_url:string|null};
@@ -24,18 +25,18 @@ export default function SettlementManager({orders,components,settlements,deducti
  }
  return <main style={{maxWidth:1100,margin:"0 auto",padding:"26px 18px 56px",color:"var(--ink,#172b4d)"}}>
   <header style={{marginBottom:18}}><p style={{fontSize:11,fontWeight:800,color:"#155eef",letterSpacing:".12em"}}>FINANCE · PENERIMAAN PENJUALAN</p><h1 style={{fontSize:30,margin:"4px 0"}}>Penerimaan Pembayaran BA</h1><p style={{fontSize:13,color:"#64748b"}}>Catat realisasi pembayaran pembeli dan biaya lain yang melekat pada BA secara terpisah.</p></header>
-  {message&&<p style={notice}>{message}</p>}{error&&<p style={{...notice,color:"#b42318",background:"#fff1f0"}}>{error}</p>}
+  {message&&<p style={notice}>{message}</p>}{error&&<p style={{...notice,color:"#b42318",background:"var(--danger-bg,#fff1f0)"}}>{error}</p>}
   <section style={panel}><h2 style={h2}>BA Menunggu Settlement</h2>{orders.filter(o=>!o.settled).length===0?<p style={muted}>Semua BA yang tersedia sudah memiliki settlement.</p>:orders.filter(o=>!o.settled).map(o=><article key={o.id} style={row}><div><b>{o.code} · BA {o.ba_number}</b><div style={muted}>{o.customer_name} · {o.project_label} · {date(o.ba_date)}</div><b style={{display:"block",marginTop:5}}>{money(Number(o.final_amount))}</b></div><button style={primary} onClick={()=>choose(o.id)}>{selected===o.id?"Dipilih":"Catat Penerimaan"}</button></article>)}</section>
   {order&&<section style={panel}><h2 style={h2}>Settlement BA · {order.code} / BA {order.ba_number}</h2><p style={muted}>{order.customer_name} · Berat final {thousands(order.received_weight_kg)} kg · Kadar {order.final_grade_value} {order.final_grade_unit} · {date(order.ba_date)}</p>
    <form onSubmit={submit} style={{display:"grid",gap:13}}>
-    <section style={{border:"1px solid #cbd5e1",borderRadius:11,padding:13,display:"grid",gap:9}}>
+    <section style={{border:"1px solid var(--line,#cbd5e1)",borderRadius:11,padding:13,display:"grid",gap:9}}>
      <div><b style={{fontSize:14}}>Kelompok A · Realisasi Pembayaran BA</b><p style={muted}>Potongan yang benar-benar mengurangi transfer atau pembayaran dari pelanggan.</p></div>
      <div style={summary}><span>Nilai Invoice / BA</span><b>{money(gross)}</b></div>
      <div><b style={{fontSize:13}}>Potongan Invoice</b><p style={muted}>Contoh PPH dan SCF. Tambahkan hanya komponen yang tercantum pada invoice aktual.</p>
       <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",marginTop:10}}>
        <select style={{...control,flex:1,minWidth:200}} value={componentToAdd} onChange={e=>setComponentToAdd(e.target.value)}><option value="">Pilih komponen potongan...</option>{applicable.filter(c=>!included.includes(c.id)).map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select><button type="button" style={secondary} disabled={!componentToAdd} onClick={addComponent}>+ Tambah Potongan</button>
       </div>
-      {included.length===0?<p style={muted}>Belum ada potongan ditambahkan. Net pembayaran sama dengan nilai invoice.</p>:applicable.filter(isIncluded).map(c=><div key={c.id} style={deductionRow}><div style={{minWidth:150,flex:1}}><b>{c.name}</b><small style={muted}>Acuan master: {c.calculation_method==="percent"?c.default_value+"%":money(Number(c.default_value))}</small></div><label style={{display:"grid",gap:6,fontSize:12,color:"#475569",fontWeight:700,flex:2,minWidth:240}}>Nominal Potongan (Rp)<input type="text" inputMode="numeric" value={thousands(amountFor(c))} onChange={e=>setAmounts(v=>({...v,[c.id]:e.target.value.replace(/\D/g,"")}))} style={{...control,minHeight:52,fontSize:18,fontWeight:800,padding:"12px 14px",letterSpacing:".02em"}}/></label><button type="button" style={secondary} onClick={()=>setIncluded(v=>v.filter(id=>id!==c.id))}>Hapus</button></div>)}
+      {included.length===0?<p style={muted}>Belum ada potongan ditambahkan. Net pembayaran sama dengan nilai invoice.</p>:applicable.filter(isIncluded).map(c=><div key={c.id} style={deductionRow}><div style={{minWidth:150,flex:1}}><b>{c.name}</b><small style={muted}>Acuan master: {c.calculation_method==="percent"?c.default_value+"%":money(Number(c.default_value))}</small></div><label style={{display:"grid",gap:6,fontSize:12,color:"var(--muted,#475569)",fontWeight:700,flex:2,minWidth:240}}>Nominal Potongan (Rp)<input type="text" inputMode="numeric" value={thousands(amountFor(c))} onChange={e=>setAmounts(v=>({...v,[c.id]:e.target.value.replace(/\D/g,"")}))} style={{...control,minHeight:52,fontSize:18,fontWeight:800,padding:"12px 14px",letterSpacing:".02em"}}/></label><button type="button" style={secondary} onClick={()=>setIncluded(v=>v.filter(id=>id!==c.id))}>Hapus</button></div>)}
      </div>
      <div style={summary}><span>Total Potongan Pembayaran</span><b>{money(total)}</b><span>Net Pembayaran Diterima</span><b style={{fontSize:21,color:"#12804a"}}>{money(net)}</b></div>
     </section>
@@ -59,13 +60,13 @@ export default function SettlementManager({orders,components,settlements,deducti
 }
 const panel:CSSProperties={background:"var(--surface,#fff)",border:"1px solid var(--line,#e2e8f0)",borderRadius:14,padding:17,marginTop:16};
 const h2:CSSProperties={fontSize:17,margin:"0 0 10px"};
-const muted:CSSProperties={display:"block",fontSize:12,color:"#64748b",marginTop:4};
-const row:CSSProperties={display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,padding:"13px 0",borderTop:"1px solid #e2e8f0",fontSize:13};
+const muted:CSSProperties={display:"block",fontSize:12,color:"var(--muted,#64748b)",marginTop:4};
+const row:CSSProperties={display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,padding:"13px 0",borderTop:"1px solid var(--line,#e2e8f0)",fontSize:13};
 const primary:CSSProperties={background:"#155eef",color:"#fff",border:0,borderRadius:9,padding:"10px 14px",fontWeight:800,cursor:"pointer",whiteSpace:"nowrap" as const};
 const secondary:CSSProperties={background:"transparent",color:"inherit",border:"1px solid #cbd5e1",borderRadius:8,padding:"9px 13px",fontWeight:700,cursor:"pointer"};
 const control:CSSProperties={width:"100%",minHeight:40,border:"1px solid #cbd5e1",borderRadius:8,padding:"8px 10px",background:"var(--surface,#fff)",color:"inherit",font:"inherit"};
 const field:CSSProperties={display:"grid",gap:6,fontSize:12,fontWeight:700};
 const summary:CSSProperties={display:"grid",gridTemplateColumns:"1fr auto",gap:7,alignItems:"center",padding:13,borderRadius:10,background:"var(--surface-secondary,#f1f5f9)",fontSize:13};
-const deductionRow:CSSProperties={display:"flex",gap:14,alignItems:"center",padding:"10px 0",borderBottom:"1px solid #e2e8f0",flexWrap:"wrap" as const};
-const badge:CSSProperties={padding:"5px 9px",borderRadius:20,background:"#e8f7ee",color:"#18794e",fontSize:11,fontWeight:800};
-const notice:CSSProperties={padding:10,borderRadius:8,background:"#eef6ff",color:"#155eef",fontSize:12};
+const deductionRow:CSSProperties={display:"flex",gap:14,alignItems:"center",padding:"10px 0",borderBottom:"1px solid var(--line,#e2e8f0)",flexWrap:"wrap" as const};
+const badge:CSSProperties={padding:"5px 9px",borderRadius:20,background:"var(--success-bg,#e8f7ee)",color:"var(--success,#18794e)",fontSize:11,fontWeight:800};
+const notice:CSSProperties={padding:10,borderRadius:8,background:"var(--info-bg,#eef6ff)",color:"var(--info,#155eef)",fontSize:12};
