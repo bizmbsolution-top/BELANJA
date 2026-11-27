@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import ApRecipientField, { type ApSupplierOption } from "./recipient-field";
 import { createApDraft, updateApDraft } from "./actions";
+import { createExpenseCategory } from "../kategori-expenses/actions";
 import styles from "./form.module.css";
 import type { ApDocument, ApLine } from "./manager";
 
@@ -43,6 +44,12 @@ export default function ApForm({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const [categoryOptions,setCategoryOptions]=useState(categories);
+  const [categorySearch,setCategorySearch]=useState<Record<number,string>>({});
+  const [openCategoryIndex,setOpenCategoryIndex]=useState<number|null>(null);
+  const [addingCategory,setAddingCategory]=useState(false);
+  const [newCategoryName,setNewCategoryName]=useState("");
+  const [categoryError,setCategoryError]=useState("");
   const [date, setDate] = useState(document?.expense_date ?? localDate());
   const [supplierId, setSupplierId] = useState(document?.recipient_supplier_id ?? "");
   const [projectId, setProjectId] = useState(document?.project_id ?? "");
@@ -60,7 +67,7 @@ export default function ApForm({
   );
   const selectedReference=availableReferences.find(item=>item.id===salesOrderId);
   function formula(categoryId:string, refOverride=selectedReference){
-    const category=categories.find(item=>item.id===categoryId);
+    const category=categoryOptions.find(item=>item.id===categoryId);
     if(!category||!category.calculation_method||category.calculation_method==="manual")return null;
     const rate=Number(category.calculation_rate??0);const ref=refOverride;
     if(!ref)return {error:"Pilih referensi BA untuk menghitung kategori ini."};
@@ -134,7 +141,7 @@ export default function ApForm({
           </div>
           <ApRecipientField initialSuppliers={suppliers} value={supplierId} onChange={setSupplierId} />
           <label>Referensi BA / Invoice (opsional)
-            <select value={salesOrderId} onChange={(event) => {const nextId=event.target.value;setSalesOrderId(nextId);const nextRef=availableReferences.find(ref=>ref.id===nextId);setItems(current=>current.map(line=>{const cat=categories.find(c=>c.id===line.expense_category_id);if(!cat||!cat.calculation_method||cat.calculation_method==="manual")return line;const f=formula(cat.id,nextRef);return f&&"result" in f?{...line,amount:String(f.result)}:line;}));}} disabled={!projectId}>
+            <select value={salesOrderId} onChange={(event) => {const nextId=event.target.value;setSalesOrderId(nextId);const nextRef=availableReferences.find(ref=>ref.id===nextId);setItems(current=>current.map(line=>{const cat=categoryOptions.find(c=>c.id===line.expense_category_id);if(!cat||!cat.calculation_method||cat.calculation_method==="manual")return line;const f=formula(cat.id,nextRef);return f&&"result" in f?{...line,amount:String(f.result)}:line;}));}} disabled={!projectId}>
               <option value="">Tidak menggunakan referensi</option>
               {availableReferences.map((item) => <option key={item.id} value={item.id}>{item.ba_number || item.code} · {item.customer_name}</option>)}
             </select>
@@ -152,10 +159,23 @@ export default function ApForm({
               <div className={styles.lineTitle}><strong>Rincian {index + 1}</strong>
                 <button type="button" className={styles.removeLine} disabled={items.length === 1} onClick={() => setItems((current) => current.filter((_, i) => i !== index))}>Hapus</button>
               </div>
-              <label>Kategori Biaya *<select required value={item.expense_category_id} onChange={(event) => {const categoryId=event.target.value;const f=formula(categoryId);updateLine(index,{expense_category_id:categoryId,...(f&&"result" in f?{amount:String(f.result)}:{})});}}>
-                <option value="">Pilih Kategori</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
-              </select></label>
-              {item.expense_category_id&&(()=>{const category=categories.find(c=>c.id===item.expense_category_id);const f=formula(item.expense_category_id);return category&&category.calculation_method&&category.calculation_method!=="manual"?<div className={styles.reference}>Formula kategori: <strong>{category.calculation_method}</strong> · Tarif {category.calculation_rate} · {f&&"result" in f?<>Dasar {money(f.base ?? 0)} · Hasil hitung <strong>{money(f.result ?? 0)}</strong>. Nominal dapat disesuaikan Finance; hasil formula dan perubahan disimpan sebagai snapshot.</>:(f&&"error" in f)?f.error:"Pilih BA untuk menghitung."}</div>:null;})()}
+              <div className={styles.categoryPicker}>
+                <label>Kategori Biaya *</label>
+                <input required readOnly value={categoryOptions.find(category=>category.id===item.expense_category_id)?.name??""} placeholder="Cari dan pilih kategori biaya" onClick={()=>{setOpenCategoryIndex(openCategoryIndex===index?null:index);setCategorySearch(current=>({...current,[index]:""}));setAddingCategory(false);setCategoryError("");}} />
+                {openCategoryIndex===index&&<div className={styles.categoryMenu}>
+                  <input autoFocus value={categorySearch[index]??""} placeholder="Cari kata kunci: transport, hotel, BBM..." onChange={event=>setCategorySearch(current=>({...current,[index]:event.target.value}))}/>
+                  {categoryOptions.filter(category=>category.expense_type!=="transaction_deduction").filter(category=>{
+                    const q=(categorySearch[index]??"").trim().toLocaleLowerCase("id-ID");
+                    if(!q)return true;
+                    const aliases:Record<string,string>={transport:"transportasi bbm bensin solar tol parkir ekspedisi kurir",bbm:"transportasi bensin solar bahan bakar",hotel:"akomodasi penginapan lodging",makan:"konsumsi makanan minuman catering",minum:"konsumsi makanan minuman catering",atk:"alat tulis kantor stationery",security:"keamanan satpam penjagaan",jasa:"fee komisi honorarium",royalti:"royalty kemitraan lisensi"};
+                    const haystack=(category.name+" "+(aliases[q]??"")).toLocaleLowerCase("id-ID");
+                    return haystack.includes(q)||q.split(/\\s+/).every(token=>haystack.includes(token));
+                  }).map(category=><button type="button" key={category.id} onClick={()=>{const f=formula(category.id);updateLine(index,{expense_category_id:category.id,...(f&&"result" in f?{amount:String(f.result)}:{})});setOpenCategoryIndex(null);setCategorySearch(current=>({...current,[index]:""}));}}>{category.name}<small>{category.calculation_method&&category.calculation_method!=="manual"?" · Formula":" · Manual"}</small></button>)}
+                  <button type="button" className={styles.addCategoryOption} onClick={()=>{setNewCategoryName(categorySearch[index]??"");setAddingCategory(true);setCategoryError("");}}>+ Tambah kategori baru</button>
+                  {addingCategory&&<div className={styles.newCategoryBox}><input autoFocus maxLength={120} value={newCategoryName} placeholder="Nama kategori baru" onChange={event=>setNewCategoryName(event.target.value)}/><button type="button" disabled={!newCategoryName.trim()} onClick={async()=>{setCategoryError("");const result=await createExpenseCategory({name:newCategoryName.trim(),description:"",costClassification:"flexible",expenseType:"company_payable",calculationMethod:"manual",calculationRate:""});if(!result.ok){setCategoryError(result.error);return;}const refresh=await import("next/navigation");void refresh;setCategoryError("Kategori berhasil dibuat. Muat ulang halaman untuk memuat kategori terbaru.");}}>Simpan kategori</button>{categoryError&&<small>{categoryError}</small>}</div>}
+                </div>}
+              </div>
+              {item.expense_category_id&&(()=>{const category=categoryOptions.find(c=>c.id===item.expense_category_id);const f=formula(item.expense_category_id);return category&&category.calculation_method&&category.calculation_method!=="manual"?<div className={styles.reference}>Formula kategori: <strong>{category.calculation_method}</strong> · Tarif {category.calculation_rate} · {f&&"result" in f?<>Dasar {money(f.base ?? 0)} · Hasil hitung <strong>{money(f.result ?? 0)}</strong>. Nominal dapat disesuaikan Finance; hasil formula dan perubahan disimpan sebagai snapshot.</>:(f&&"error" in f)?f.error:"Pilih BA untuk menghitung."}</div>:null;})()}
               <div className={styles.lineFields}>
                 <label>Keterangan *<input required maxLength={500} value={item.description} onChange={(event) => updateLine(index, { description: event.target.value })} /></label>
                 <label>Nominal (Rp) *<input required inputMode="numeric" type="text" value={formatRupiahInput(item.amount)} placeholder="Contoh: 1.500.000" onChange={(event) => updateLine(index, { amount: event.target.value.replace(/\D/g, "") })} /></label>
@@ -166,7 +186,7 @@ export default function ApForm({
           {error && <p className={styles.error} role="alert">{error}</p>}
           <footer className={styles.actions}>
             <button type="button" className={styles.cancel} disabled={saving} onClick={onClose}>Batal</button>
-            <button type="submit" className={styles.save} disabled={saving || !projects.length || !categories.length}>{saving ? "Menyimpan..." : "Simpan Draft AP"}</button>
+            <button type="submit" className={styles.save} disabled={saving || !projects.length || !categoryOptions.length}>{saving ? "Menyimpan..." : "Simpan Draft AP"}</button>
           </footer>
         </form>
       </section>
