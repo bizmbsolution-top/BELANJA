@@ -152,61 +152,16 @@ create table if not exists public.expense_payment_evidence (
 create index if not exists expense_payment_evidence_payment_idx
   on public.expense_payment_evidence (tenant_id, expense_payment_id);
 
--- New tables are readable only by active members of the owning tenant.
--- Writes will be exposed through audited server-side RPCs in later stages.
+-- AP v2 data is served only through trusted server actions/RPCs that enforce
+-- tenant membership, role, and Project work scope. Tenant-only SELECT policies
+-- would expose cross-Project AP data to authenticated users through the Data API.
+-- Keep RLS enabled and deny direct client access until scoped read RPCs are added.
 alter table public.expense_items enable row level security;
 alter table public.expense_payments enable row level security;
 alter table public.expense_payment_evidence enable row level security;
 
-drop policy if exists expense_items_tenant_member_select on public.expense_items;
-create policy expense_items_tenant_member_select
-  on public.expense_items for select to authenticated
-  using (
-    exists (
-      select 1
-      from public.tenant_memberships m
-      join public.tenants tn on tn.id = m.tenant_id
-      where m.user_id = (select auth.uid())
-        and m.tenant_id = expense_items.tenant_id
-        and m.is_active = true
-        and tn.status = 'active'
-    )
-  );
-
-drop policy if exists expense_payments_tenant_member_select on public.expense_payments;
-create policy expense_payments_tenant_member_select
-  on public.expense_payments for select to authenticated
-  using (
-    exists (
-      select 1
-      from public.tenant_memberships m
-      join public.tenants tn on tn.id = m.tenant_id
-      where m.user_id = (select auth.uid())
-        and m.tenant_id = expense_payments.tenant_id
-        and m.is_active = true
-        and tn.status = 'active'
-    )
-  );
-
-drop policy if exists expense_payment_evidence_tenant_member_select on public.expense_payment_evidence;
-create policy expense_payment_evidence_tenant_member_select
-  on public.expense_payment_evidence for select to authenticated
-  using (
-    exists (
-      select 1
-      from public.tenant_memberships m
-      join public.tenants tn on tn.id = m.tenant_id
-      where m.user_id = (select auth.uid())
-        and m.tenant_id = expense_payment_evidence.tenant_id
-        and m.is_active = true
-        and tn.status = 'active'
-    )
-  );
-
 revoke all on public.expense_items, public.expense_payments, public.expense_payment_evidence
   from anon, authenticated;
-grant select on public.expense_items, public.expense_payments, public.expense_payment_evidence
-  to authenticated;
 grant all on public.expense_items, public.expense_payments, public.expense_payment_evidence
   to service_role;
 
@@ -242,6 +197,14 @@ alter table public.expenses
     )
   );
 
+
+-- Prevent authenticated clients from reading AP v2 headers directly.
+-- Existing expenses SELECT RLS is tenant-wide; AP v2 reads must go through
+-- server actions that additionally enforce Project work scope.
+drop policy if exists expenses_legacy_only_select on public.expenses;
+create policy expenses_legacy_only_select
+  on public.expenses as restrictive for select to authenticated
+  using (ap_version <> 2);
 
 -- Prevent authenticated clients from creating/updating AP v2 headers directly.
 -- Trusted server-side actions will write these rows through audited operations.
