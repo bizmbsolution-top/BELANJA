@@ -148,7 +148,7 @@ For each new table:
 ### Stage A — AP data foundation (migration drafted in preview branch; not applied)
 - Add nullable `recipient_name` and `ap_version` to `expenses`; version 1 preserves legacy vouchers and version 2 identifies new AP documents.
 - Create `expense_items`, cashier-only `expense_payments`, and payment evidence metadata.
-- Add tenant-safe composite foreign keys, indexes, read-only member RLS, and restrictive policies preventing direct authenticated writes to AP v2 and new cashier ledger rows.
+- Add tenant-safe composite foreign keys for expense/category/project/BA and cashier-ledger project/expense/payment references, indexes, read-only member RLS, and restrictive policies preventing direct authenticated writes or deletes of AP v2 and new cashier ledger rows.
 - Extend the existing cashier ledger with an `expense_payment_id` source while preserving the three legacy source types.
 - No production data migration and no automatic conversion of old expenses.
 - Do not yet expose Bank payment until the Bank account/movement model is deployed and tested.
@@ -205,6 +205,7 @@ For each new table:
 - Preflight inspection of current Supabase data found zero tenant mismatches for existing expense/category, expense/project, expense/BA, and cashier-ledger/project or expense relationships.
 - New AP rows are version 2 and require a non-empty recipient name. Existing rows remain version 1.
 - The legacy `Aktif` status default is retained in the expanded status constraint so existing insert paths do not fail. Direct authenticated delete is blocked for AP v2 headers and AP payment ledger rows.
+- The cashier ledger now receives composite tenant-safe foreign keys for its project and legacy expense references as well as its new AP payment reference; the preflight must show zero mismatches before applying.
 - Authenticated clients receive read access to the new tables only; writes are reserved for trusted server-side operations to be implemented in later stages. Restrictive policies also prevent direct authenticated deletion of AP v2 headers and their new cashier-ledger rows.
 - Bank payment is intentionally not enabled by this migration.
 - This is a repository-only draft. It has not been applied to the active Supabase database and has not yet been tested against an isolated preview database.
