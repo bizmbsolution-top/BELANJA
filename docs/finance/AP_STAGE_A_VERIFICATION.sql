@@ -45,3 +45,31 @@ select
   (select count(*) from public.project_cash_ledger l
     join public.expense_payments p on p.id = l.expense_payment_id
     where l.expense_payment_id is not null and l.tenant_id <> p.tenant_id) as ledger_payment_mismatch;
+
+
+-- Legacy compatibility fence: run after Stage A is applied in an isolated database.
+-- Every legacy mutation RPC must be limited to ap_version = 1. The create RPC
+-- must explicitly create version 1. Existing RPCs remain service_role-only.
+select
+  p.oid::regprocedure as function_signature,
+  case
+    when p.proname = 'create_expense_draft_with_audit'
+      then position('ap_version' in pg_get_functiondef(p.oid)) > 0
+       and position(', 1' in pg_get_functiondef(p.oid)) > 0
+    else position('ap_version = 1' in pg_get_functiondef(p.oid)) > 0
+  end as version_1_fence_present,
+  has_function_privilege('anon', p.oid, 'EXECUTE') as anon_can_execute,
+  has_function_privilege('authenticated', p.oid, 'EXECUTE') as authenticated_can_execute,
+  has_function_privilege('service_role', p.oid, 'EXECUTE') as service_role_can_execute
+from pg_proc p
+join pg_namespace n on n.oid = p.pronamespace
+where n.nspname = 'public'
+  and p.proname in (
+    'create_expense_draft_with_audit',
+    'update_expense_draft_with_audit',
+    'submit_expense_with_audit',
+    'pay_expense_with_audit',
+    'cancel_expense_with_audit',
+    'register_expense_payment_document_with_audit'
+  )
+order by p.proname, p.oid::regprocedure::text;
