@@ -8,11 +8,13 @@ Database: no schema or data changes applied by this document.
 
 Replace the current single-voucher/full-payment workflow with a practical Accounts Payable (AP) workflow while preserving legacy expense records and existing tenant isolation.
 
-AP is a payable obligation to a recipient. It is not an automatic result of a BA cost master. Finance explicitly creates each AP.
+AP is a payable obligation to a recipient. It is not an automatic result of a BA cost master. Finance explicitly creates each AP. The recipient is selected from the tenant's existing Master Suppliers; inline quick-add reuses the audited supplier creation flow.
 
 ## 2. Confirmed business rules
 
 - One AP belongs to one recipient. Different recipients require separate AP documents.
+- AP recipient must be selected from active records in the same tenant's Master Suppliers. Store both `recipient_supplier_id` and a recipient-name snapshot so historical AP keeps the name used at creation.
+- AP form provides inline **+ Tambah Supplier** for authorized Finance/Superadmin users; it reuses existing supplier fields and audited create flow. Supplier deactivation does not rewrite existing AP history.
 - One AP may contain multiple expense lines. Example: RJS — Royalty Fee Mitra Rp1,000,000 and Security Fee Rp250,000.
 - A BA/Invoice reference is optional. When selected, the app may show customer, BA number, project, date, and transaction value as reference context. Finance enters the AP amount; it is not calculated from the BA.
 - One BA may be referenced by multiple AP documents.
@@ -49,7 +51,8 @@ AP is a payable obligation to a recipient. It is not an automatic result of a BA
 
 Add nullable columns, preserving every existing row:
 
-- `recipient_name` text — recipient snapshot, required for new AP.
+- `recipient_name` text — recipient-name snapshot, required for new AP.
+- `recipient_supplier_id` uuid — required for new AP; tenant-safe FK to `suppliers (tenant_id, id)`. Supplier must be active at AP create/edit/submit time. Existing AP history retains its snapshot if the supplier is later deactivated.
 - `ap_version` smallint not null default 1 — identifies records created under the new AP workflow.
 
 Keep existing `sales_order_id` as the optional BA reference. Do not impose uniqueness on it.
@@ -146,7 +149,7 @@ For each new AP table:
 ## 7. Staged delivery
 
 ### Stage A — AP data foundation (migration drafted in preview branch; not applied)
-- Add nullable `recipient_name` and `ap_version` to `expenses`; version 1 preserves legacy vouchers and version 2 identifies new AP documents.
+- Add nullable `recipient_name`, nullable `recipient_supplier_id`, and `ap_version` to `expenses`; version 1 preserves legacy vouchers and version 2 identifies new AP documents. AP v2 requires a tenant-matched Supplier FK and a recipient-name snapshot.
 - Create `expense_items`, cashier-only `expense_payments`, and payment evidence metadata.
 - Add tenant-safe composite foreign keys for expense/category/project/BA and cashier-ledger project/expense/payment references, indexes, read-only member RLS, and restrictive policies preventing direct authenticated writes or deletes of AP v2 and new cashier ledger rows.
 - Extend the existing cashier ledger with an `expense_payment_id` source while preserving the three legacy source types.
@@ -154,7 +157,7 @@ For each new AP table:
 - Do not yet expose Bank payment until the Bank account/movement model is deployed and tested.
 
 ### Stage B — AP entry UI and RPC contract (specification completed; app code gated)
-- Finance/Superadmin creates and edits Draft AP documents with recipient, Project, optional BA reference, summary, and one or more category/description/amount lines.
+- Finance/Superadmin creates and edits Draft AP documents with a Master Supplier recipient (plus inline audited quick-add), Project, optional BA reference, summary, and one or more category/description/amount lines.
 - Header total is calculated from persisted lines by the database RPC; the client total is display-only.
 - BA context is read-only and never determines AP amount. One BA may be referenced by multiple AP documents.
 - Submit validates and freezes the header and lines, then moves the AP to `Menunggu Pembayaran`.
