@@ -116,12 +116,18 @@ export default function ApManager({
   return (
     <main className={styles.page}>
       <header className={styles.header}>
-        <div><p className={styles.eyebrow}>KEUANGAN</p><h1>AP / Hutang Supplier</h1>
+        <div><p className={styles.eyebrow}>KEUANGAN</p><h1>Pengeluaran</h1>
           <p>Catat pengeluaran dan kewajiban pembayaran. Penerima dan Project dicatat terpisah.</p>
         </div>
-        <button className={styles.primaryButton} type="button" disabled={!canCreateEdit || !projects.length} title={!canCreateEdit ? "Akses tambah pengeluaran belum diberikan untuk akun ini" : !projects.length ? "Belum ada Project aktif pada Area Kerja" : undefined} onClick={() => { setEditing(null); setFormOpen(true); }}>+ Tambah Pengeluaran</button>
-        <a href="/dashboard/pengeluaran" className={styles.footnote}>Buka voucher pengeluaran sebelumnya</a>
+        <div className={styles.headerActions}>
+          <button className={styles.primaryButton} type="button" disabled={!canCreateEdit || !projects.length}
+            title={!canCreateEdit ? "Akses tambah pengeluaran belum diberikan untuk akun ini" : !projects.length ? "Belum ada Project aktif pada Area Kerja" : undefined}
+            onClick={() => { setEditing(null); setFormOpen(true); }}>+ Tambah Pengeluaran</button>
+          <a href="/dashboard/pengeluaran" className={styles.footnote}>Buka voucher pengeluaran sebelumnya</a>
+        </div>
       </header>
+      {!canCreateEdit && <p className={styles.permissionNotice}>Akun Finance ini belum memiliki izin <strong>Tambah/Ubah Pengeluaran (ap.create_edit)</strong>. Minta Superadmin mengaktifkan izin tersebut pada Pengguna & Akses. Tombol dinonaktifkan untuk menjaga keamanan transaksi.</p>}
+      {!projects.length && <p className={styles.permissionNotice}>Belum ada Project aktif dalam Area Kerja akun ini. Atur Scope Project melalui Pengguna & Akses.</p>}
       <section className={styles.summary}>
         <div><strong>{documents.length}</strong><span>Total Dokumen</span></div>
         <div><strong>{documents.filter((item) => item.status === "Menunggu Pembayaran" || item.status === "Partial").length}</strong><span>Belum Lunas</span></div>
