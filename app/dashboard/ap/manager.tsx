@@ -107,7 +107,7 @@ export default function ApManager({
         <span className={styles.noticeIcon}>i</span>
         <div><h2>Fitur Pengeluaran belum dapat dimuat</h2>
           <p>Data atau layanan Pengeluaran belum tersedia. Silakan muat ulang halaman atau hubungi Superadmin jika masalah berlanjut.</p>
-          <small></small>
+          
         </div>
       </section>
     </main>
@@ -131,7 +131,7 @@ export default function ApManager({
       <section className={styles.summary}>
         <div><strong>{documents.length}</strong><span>Total Dokumen</span></div>
         <div><strong>{documents.filter((item) => item.status === "Menunggu Pembayaran" || item.status === "Partial").length}</strong><span>Belum Lunas</span></div>
-        <div><strong>{money(documents.filter((item) => item.status !== "Dibatalkan").reduce((sum, item) => sum + Number(item.amount), 0))}</strong><span>Total AP Aktif</span></div>
+        <div><strong>{money(documents.filter((item) => item.status !== "Dibatalkan").reduce((sum, item) => sum + Number(item.amount), 0))}</strong><span>Total Pengeluaran Aktif</span></div>
       </section>
       <section className={styles.listCard}>
         <div className={styles.listHeading}><div><h2>Daftar Pengeluaran</h2><p>{visible.length} dari {documents.length} dokumen</p></div>
@@ -142,9 +142,9 @@ export default function ApManager({
             </select>
           </div>
         </div>
-        {!visible.length ? <div className={styles.empty}><h3>{documents.length ? "AP tidak ditemukan" : "Belum ada dokumen AP"}</h3>
-          <p>{documents.length ? "Ubah kata pencarian atau filter status." : "Klik “Tambah Pengeluaran” untuk mulai mencatat kewajiban kepada Supplier."}</p>
-        </div> : <div className={styles.tableWrap}><table><thead><tr><th>No. AP</th><th>Tanggal</th><th>Dibayarkan Kepada</th><th>Project</th><th>Total</th><th>Status</th></tr></thead>
+        {!visible.length ? <div className={styles.empty}><h3>{documents.length ? "AP tidak ditemukan" : "Belum ada pengeluaran"}</h3>
+          <p>{documents.length ? "Ubah kata pencarian atau filter status." : "Gunakan tombol “Tambah Pengeluaran” untuk mencatat kewajiban pembayaran kepada Supplier."}</p>
+        </div> : <div className={styles.tableWrap}><table><thead><tr><th>No. Pengeluaran</th><th>Tanggal</th><th>Dibayarkan Kepada</th><th>Project</th><th>Total</th><th>Status</th></tr></thead>
           <tbody>{visible.map((item) => <tr key={item.id} className={selected === item.id ? styles.selected : ""} onClick={() => { setSelected(selected === item.id ? "" : item.id); setActionError(""); }}>
             <td><strong>{item.code}</strong></td><td>{date(item.expense_date)}</td><td>{item.recipient_name}</td><td>{item.project}</td><td className={styles.amount}>{money(Number(item.amount))}</td><td><span className={styles.status}>{item.status}</span></td>
           </tr>)}</tbody></table></div>}
@@ -155,7 +155,7 @@ export default function ApManager({
         <div className={styles.tableWrap}><table><thead><tr><th>No.</th><th>Keterangan</th><th>Kategori</th><th>Nominal</th></tr></thead>
           <tbody>{selectedLines.map((line) => <tr key={line.id}><td>{line.line_number}</td><td>{line.description}</td><td>{line.category_name}</td><td className={styles.amount}>{money(Number(line.amount))}</td></tr>)}</tbody>
         </table></div>
-        <strong className={styles.detailTotal}>Total AP: {money(Number(selectedDoc.amount))}</strong>
+        <strong className={styles.detailTotal}>Total Pengeluaran: {money(Number(selectedDoc.amount))}</strong>
         {actionError && <p className={styles.actionError} role="alert">{actionError}</p>}
         {selectedDoc.status === "Draft" && <div className={styles.detailActions}>
           {canCreateEdit && <button type="button" className={styles.secondaryButton} onClick={() => { setEditing(selectedDoc); setFormOpen(true); }}>Ubah Draft</button>}
