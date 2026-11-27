@@ -64,6 +64,7 @@ export default function ApManager({
   references?: ApReference[];
   canCreateEdit?: boolean;
   canSubmit?: boolean;
+  formulaConfigReady?: boolean;
 }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
