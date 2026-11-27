@@ -204,6 +204,7 @@ For each new table:
 - Read-only verification script: `docs/finance/AP_STAGE_A_VERIFICATION.sql`.
 - Preflight inspection of current Supabase data found zero tenant mismatches for existing expense/category, expense/project, expense/BA, and cashier-ledger/project or expense relationships.
 - New AP rows are version 2 and require a non-empty recipient name. Existing rows remain version 1.
-- Authenticated clients receive read access to the new tables only; writes are reserved for trusted server-side operations to be implemented in later stages.
+- The legacy `Aktif` status default is retained in the expanded status constraint so existing insert paths do not fail. Direct authenticated delete is blocked for AP v2 headers and AP payment ledger rows.
+- Authenticated clients receive read access to the new tables only; writes are reserved for trusted server-side operations to be implemented in later stages. Restrictive policies also prevent direct authenticated deletion of AP v2 headers and their new cashier-ledger rows.
 - Bank payment is intentionally not enabled by this migration.
 - This is a repository-only draft. It has not been applied to the active Supabase database and has not yet been tested against an isolated preview database.
