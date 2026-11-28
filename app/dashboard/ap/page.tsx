@@ -56,6 +56,7 @@ export default async function ApPage() {
     projects={[]}
     categories={usableCategories ?? []}
     formulaConfigReady={!categoryError}
+    isCashier={actor.roles.includes("Cashier")}
     references={[]}
     canCreateEdit={actor.tenantRole === "superadmin" || (permissionResult.data ?? []).some((item) => item.permission_key === "ap.create_edit" && item.effect === "allow")}
     canSubmit={actor.tenantRole === "superadmin" || (permissionResult.data ?? []).some((item) => item.permission_key === "ap.submit" && item.effect === "allow")}
