@@ -6,7 +6,7 @@ type Result={ok:true;items?:number;vouchers?:number}|{ok:false;error:string};
 const uuid=(v:string)=>/^[0-9a-f-]{36}$/i.test(v);
 export async function saveSalesExpenseMaster(input:{id?:string;name:string;categoryId:string;expenseType:string;method:string;basis:string;rate:string;recipient:string;description:string;active:boolean}):Promise<Result>{
  try{
-  const actor=await requireAnyRole(["Management"]);
+  const actor=await requireAnyRole(["Finance", "Management"]);
   if(!actor.tenantId)return{ok:false,error:"Tenant aktif tidak ditemukan."};
   const rate=Number(input.rate);
   if(input.id&&!uuid(input.id))return{ok:false,error:"Master biaya tidak valid."};
@@ -16,7 +16,7 @@ export async function saveSalesExpenseMaster(input:{id?:string;name:string;categ
   const {error}=await createAdminClient().rpc("save_sales_expense_master_with_audit",{p_master_id:input.id||null,p_actor_user_id:actor.userId,p_tenant_id:actor.tenantId,p_name:input.name.trim(),p_expense_category_id:input.categoryId||null,p_expense_type:input.expenseType,p_calculation_method:input.method,p_calculation_basis:input.basis,p_rate:rate,p_recipient_name:input.recipient.trim()||null,p_description:input.description.trim()||null,p_is_active:input.active});
   if(error)return{ok:false,error:error.message.includes("sudah digunakan")?error.message:"Master Biaya Penjualan gagal disimpan."};
   revalidatePath("/dashboard/kategori-expenses");revalidatePath("/dashboard/biaya-penjualan");revalidatePath("/dashboard/penerimaan-penjualan");return{ok:true};
- }catch(e){return{ok:false,error:e instanceof Error?e.message:"Akses Manajemen diperlukan."};}
+ }catch(e){return{ok:false,error:e instanceof Error?e.message:"Akses Finance atau Management diperlukan."};}
 }
 export async function generateSalesExpenseVouchers(_salesOrderId:string):Promise<Result>{
  return {ok:false,error:"Biaya BA tidak lagi dibuat otomatis. Catat biaya secara manual melalui modul Pengeluaran (AP)."};
