@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export default async function ApPage() {
-  const actor = await guardPage(() => requireAnyRole(["Finance", "Cashier"]));
+  const actor = await guardPage(() => requireAnyRole(["Cashier"]));
   const admin = createAdminClient();
 
   // The route remains read-only/disabled until both database stages are installed.
