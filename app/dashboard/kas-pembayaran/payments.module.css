@@ -29,3 +29,25 @@
 :global([data-theme="dark"]) .uploadEvidence input{background:#1c2b42!important;border-color:#53647c!important}
 :global([data-theme="dark"]) .uploadEvidence input::file-selector-button{background:#263b5a;color:#c5d7ff}
 @media(max-width:600px){.modal{padding:15px;max-height:92vh}.historyItem{padding:11px!important}.historyMain>div{align-items:flex-start;flex-direction:column;gap:4px}.evidenceFiles a{width:100%}}
+
+/* Simple stacked evidence preview and upload layout */
+.historyMain>div{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;column-gap:18px;row-gap:5px}
+.historyMain>div>strong{flex:0 1 auto}
+.historyMain>div>span{flex:0 0 auto;white-space:nowrap}
+.evidencePanel{display:grid;grid-template-columns:minmax(0,1fr);gap:10px;padding:12px}
+.evidenceFiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,132px));gap:12px;align-items:start}
+.evidenceFile{display:grid;grid-template-columns:minmax(0,1fr);gap:6px;min-width:0}
+.imagePreviewLink{display:block;width:100%;height:104px;overflow:hidden;border:1px solid var(--line,#dbe3ef);border-radius:8px;background:#f4f7fb}
+.imagePreview{display:block;width:100%;height:100%;object-fit:contain}
+.pdfPreview{display:flex;align-items:center;justify-content:center;width:100%;height:104px;border:1px solid var(--line,#dbe3ef);border-radius:8px;background:#f4f7fb;color:#174ea6;font-size:19px;font-weight:850;text-decoration:none}
+.evidenceFileName{display:block;width:100%;font-size:11px!important;line-height:1.4;overflow-wrap:anywhere;word-break:break-word;color:var(--ink,#172b4d)!important;text-decoration:underline}
+.uploadEvidence{display:grid!important;grid-template-columns:minmax(0,1fr);justify-items:start;gap:7px!important;width:100%!important;margin:2px 0 0!important;padding:11px 0 0!important;border:0!important;border-top:1px solid var(--line,#e5eaf2)!important;border-radius:0!important;font-size:11px!important}
+.uploadEvidence strong{font-size:11px;font-weight:800}
+.uploadEvidence input{display:block!important;width:100%!important;max-width:100%!important;min-height:40px!important;padding:6px 8px!important;border:1px solid #cbd5e1!important;border-radius:7px!important;background:var(--surface,#fff)!important;color:inherit;font-size:12px!important}
+.uploadEvidence input::file-selector-button{border:0;border-radius:6px;padding:7px 11px;margin-right:9px;background:#e9efff;color:#174ea6;font-size:11px;font-weight:750;cursor:pointer}
+.uploadEvidence small{font-size:10px;color:var(--muted,#62718a)}
+:global([data-theme="dark"]) .imagePreviewLink,:global([data-theme="dark"]) .pdfPreview{background:#1c2b42;border-color:#43536c}
+:global([data-theme="dark"]) .evidenceFileName{color:#d7e4f7!important}
+:global([data-theme="dark"]) .uploadEvidence input{background:#1c2b42!important;border-color:#53647c!important}
+:global([data-theme="dark"]) .uploadEvidence input::file-selector-button{background:#263b5a;color:#c5d7ff}
+@media(max-width:600px){.evidenceFiles{grid-template-columns:repeat(auto-fill,minmax(100px,1fr))}.imagePreviewLink,.pdfPreview{height:100px}.historyMain>div{align-items:baseline}}
