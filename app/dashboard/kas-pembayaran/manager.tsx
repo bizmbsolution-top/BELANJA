@@ -154,6 +154,8 @@ export default function CashierPaymentManager({
           </div>
           <div className={styles.history}>
             <h3>Riwayat Pembayaran</h3>
+            {error && <p className={styles.error} role="alert">{error}</p>}
+            {success && <p className={styles.success} role="status">{success}</p>}
             {!selectedPayments.length ? <p className={styles.muted}>Belum ada pembayaran.</p> : selectedPayments.map((payment) => <article key={payment.id}>
               <div><strong>{money(Number(payment.amount))}</strong><span>{date(payment.payment_date)}</span></div>
               <small>Kasir · Tunai{payment.payment_reference ? ` · Ref: ${payment.payment_reference}` : ""}</small>
