@@ -192,12 +192,20 @@ export default function CashierPaymentManager({
                 <div className={styles.evidencePanel}>
                   <span className={styles.evidenceHeading}>Bukti pembayaran</span>
                   {paymentEvidence.length ? <div className={styles.evidenceFiles}>
-                    {paymentEvidence.map((item) => <a key={item.id} href={item.signed_url} target="_blank" rel="noreferrer"><span aria-hidden="true">↗</span>{item.original_file_name}</a>)}
+                    {paymentEvidence.map((item) => <div className={styles.evidenceFile} key={item.id}>
+                      {item.mime_type.startsWith("image/") ?
+                        <a className={styles.imagePreviewLink} href={item.signed_url} target="_blank" rel="noreferrer" aria-label={`Buka preview ${item.original_file_name}`}>
+                          <img className={styles.imagePreview} src={item.signed_url} alt={item.original_file_name} />
+                        </a> :
+                        <a className={styles.pdfPreview} href={item.signed_url} target="_blank" rel="noreferrer">PDF</a>}
+                      <a className={styles.evidenceFileName} href={item.signed_url} target="_blank" rel="noreferrer">{item.original_file_name}</a>
+                    </div>)}
                   </div> : <small className={styles.muted}>Belum ada bukti terlampir.</small>}
-                  {canPost && <label className={styles.uploadEvidence}>
-                    <span>{uploadingId === payment.id ? "Mengunggah..." : paymentEvidence.length ? "Tambah bukti lain" : "Unggah bukti"}</span>
-                    <input type="file" accept="application/pdf,image/jpeg,image/png" disabled={uploadingId !== null} onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadEvidence(payment.id, file, event.currentTarget); }} />
-                  </label>}
+                  {canPost && <div className={styles.uploadEvidence}>
+                    <strong>{uploadingId === payment.id ? "Sedang mengunggah bukti..." : "Tambah bukti pembayaran"}</strong>
+                    <input aria-label="Pilih file bukti pembayaran" type="file" accept="application/pdf,image/jpeg,image/png" disabled={uploadingId !== null} onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadEvidence(payment.id, file, event.currentTarget); }} />
+                    <small>Format PDF, JPG, atau PNG · Maksimal 10 MB</small>
+                  </div>}
                 </div>
               </article>;
             })}
