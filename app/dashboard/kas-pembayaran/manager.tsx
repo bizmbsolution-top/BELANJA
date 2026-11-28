@@ -181,19 +181,26 @@ export default function CashierPaymentManager({
             <h3>Riwayat Pembayaran</h3>
             {error && <p className={styles.error} role="alert">{error}</p>}
             {success && <p className={styles.success} role="status">{success}</p>}
-            {!selectedPayments.length ? <p className={styles.muted}>Belum ada pembayaran.</p> : selectedPayments.map((payment) => <article key={payment.id}>
-              <div><strong>{money(Number(payment.amount))}</strong><span>{date(payment.payment_date)}</span></div>
-              <small>Kasir · Tunai{payment.payment_reference ? ` · Ref: ${payment.payment_reference}` : ""}</small>
-              {payment.notes && <p>{payment.notes}</p>}
-              <div className={styles.evidenceList}>
-                {(evidence.filter((item) => item.expense_payment_id === payment.id)).map((item) => <a key={item.id} href={item.signed_url} target="_blank" rel="noreferrer">{item.mime_type.startsWith("image/") ? "Lihat gambar" : "Buka PDF"} · {item.original_file_name}</a>)}
-                {!evidence.some((item) => item.expense_payment_id === payment.id) && <small className={styles.muted}>Belum ada bukti terlampir.</small>}
-                {canPost && <label className={styles.uploadEvidence}>
-                  {uploadingId === payment.id ? "Mengunggah..." : "Tambah bukti (PDF/JPG/PNG)"}
-                  <input type="file" accept="application/pdf,image/jpeg,image/png" disabled={uploadingId !== null} onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadEvidence(payment.id, file, event.currentTarget); }} />
-                </label>}
-              </div>
-            </article>)}
+            {!selectedPayments.length ? <p className={styles.muted}>Belum ada pembayaran.</p> : selectedPayments.map((payment) => {
+              const paymentEvidence = evidence.filter((item) => item.expense_payment_id === payment.id);
+              return <article className={styles.historyItem} key={payment.id}>
+                <div className={styles.historyMain}>
+                  <div><strong>{money(Number(payment.amount))}</strong><span>{date(payment.payment_date)}</span></div>
+                  <small className={styles.paymentMeta}>Kasir · Tunai{payment.payment_reference ? ` · Ref: ${payment.payment_reference}` : ""}</small>
+                  {payment.notes && <p>{payment.notes}</p>}
+                </div>
+                <div className={styles.evidencePanel}>
+                  <span className={styles.evidenceHeading}>Bukti pembayaran</span>
+                  {paymentEvidence.length ? <div className={styles.evidenceFiles}>
+                    {paymentEvidence.map((item) => <a key={item.id} href={item.signed_url} target="_blank" rel="noreferrer"><span aria-hidden="true">↗</span>{item.original_file_name}</a>)}
+                  </div> : <small className={styles.muted}>Belum ada bukti terlampir.</small>}
+                  {canPost && <label className={styles.uploadEvidence}>
+                    <span>{uploadingId === payment.id ? "Mengunggah..." : paymentEvidence.length ? "Tambah bukti lain" : "Unggah bukti"}</span>
+                    <input type="file" accept="application/pdf,image/jpeg,image/png" disabled={uploadingId !== null} onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadEvidence(payment.id, file, event.currentTarget); }} />
+                  </label>}
+                </div>
+              </article>;
+            })}
           </div>
           {canPost && selectedOutstanding > 0 && <div className={styles.paymentForm}>
             <h3>Catat Pembayaran Tunai</h3>
