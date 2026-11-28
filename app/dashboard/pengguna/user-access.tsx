@@ -49,8 +49,10 @@ const permissionSections = [
     permissions: [
       { id: "fund_utilization.post_recognition", label: "Posting Fund Utilization" },
       { id: "payment.post", label: "Posting Payment / Bayar Voucher Expenses" },
+      { id: "ap.create_edit", label: "Tambah/Ubah Pengeluaran (Draft AP)" },
+      { id: "ap.submit", label: "Submit Pengeluaran AP" },
     ],
-    note: "Permission Posting Payment juga mengizinkan Kasir membayar voucher Expenses dari saldo Project.",
+    note: "Kasir mengelola AP Project: buat/ubah Draft, submit, dan pembayaran tunai. Izin AP terpisah dan tetap wajib diaktifkan per pengguna.",
   },
   {
     id: "Finance",
@@ -58,10 +60,8 @@ const permissionSections = [
     permissions: [
       { id: "payment.post", label: "Posting Payment" },
       { id: "payment.allocate", label: "Alokasi Payment" },
-      { id: "ap.create_edit", label: "Tambah/Ubah Pengeluaran (Draft AP)" },
-      { id: "ap.submit", label: "Submit AP" },
     ],
-    note: "Tambah/Ubah Pengeluaran dan Submit Pengeluaran adalah izin terpisah. Finance harus memiliki Role Finance serta izin Izinkan yang sesuai. Belum diatur atau Tolak berarti tidak memiliki akses. Superadmin tenant memiliki akses AP dalam tenant aktif tanpa override individual.",
+    note: "Finance tidak mengelola AP Project. Finance berfokus pada Kas Besar, settlement dana Kasir, penerimaan pelanggan, dan biaya penjualan.",
   },
   {
     id: "Warehouse",
