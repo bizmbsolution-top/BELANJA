@@ -75,18 +75,6 @@ export default async function KasPembayaranPage() {
     if (signedError || !signed?.signedUrl) throw new Error("Tautan bukti pembayaran gagal dibuat.");
     return { id: item.id, expense_payment_id: item.expense_payment_id, original_file_name: item.original_file_name, mime_type: item.mime_type, signed_url: signed.signedUrl };
   }));
-  const paymentIds = payments.map((payment) => payment.id);
-  const { data: evidenceRows, error: evidenceError } = paymentIds.length
-    ? await admin.from("expense_payment_evidence")
-        .select("id,expense_payment_id,object_path,original_file_name,mime_type")
-        .eq("tenant_id", actor.tenantId).in("expense_payment_id", paymentIds)
-    : { data: [], error: null };
-  if (evidenceError) throw new Error("Bukti pembayaran gagal dimuat.");
-  const evidence: CashierEvidence[] = await Promise.all((evidenceRows ?? []).map(async (item) => {
-    const { data: signed, error: signedError } = await admin.storage.from("expense-payment-evidence").createSignedUrl(item.object_path, 300);
-    if (signedError || !signed?.signedUrl) throw new Error("Tautan bukti pembayaran gagal dibuat.");
-    return { id: item.id, expense_payment_id: item.expense_payment_id, original_file_name: item.original_file_name, mime_type: item.mime_type, signed_url: signed.signedUrl };
-  }));
   const balances: Record<string, number> = {};
   for (const entry of ledgerResult.data ?? []) balances[entry.project_id] = (balances[entry.project_id] ?? 0) + Number(entry.amount);
 
