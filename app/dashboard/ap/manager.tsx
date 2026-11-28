@@ -65,6 +65,7 @@ export default function ApManager({
   canCreateEdit?: boolean;
   canSubmit?: boolean;
   formulaConfigReady?: boolean;
+  isCashier?: boolean;
 }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
@@ -131,7 +132,7 @@ export default function ApManager({
         </div>
       </header>
       {!formulaConfigReady && <p className={styles.permissionNotice}>Pengaturan formula kategori belum aktif pada database. Formula AP akan tersedia setelah migration formula diterapkan.</p>}
-      {!canCreateEdit && <p className={styles.permissionNotice}>{isCashier ? <>Akun Kasir dapat melihat daftar Pengeluaran, tetapi tidak dapat menambah atau mengubah AP. Pembuatan dan perubahan AP dilakukan oleh Finance atau Superadmin yang memiliki izin <strong>ap.create_edit</strong>. Pembayaran tunai tetap dicatat melalui menu Kas &amp; Bank.</> : <>Akun ini belum memiliki izin <strong>Tambah/Ubah Pengeluaran (ap.create_edit)</strong>. Minta Superadmin mengaktifkan izin tersebut pada Pengguna &amp; Akses.</>} Tombol dinonaktifkan untuk menjaga keamanan transaksi.</p>}
+      {!canCreateEdit && <p className={styles.permissionNotice}>{isCashier ? <>Akun Kasir belum memiliki izin untuk menambah atau mengubah Pengeluaran. Minta Superadmin mengaktifkan izin <strong>ap.create_edit</strong> pada Pengguna &amp; Akses.</> : <>Akun ini belum memiliki izin <strong>Tambah/Ubah Pengeluaran (ap.create_edit)</strong>. Minta Superadmin mengaktifkan izin tersebut pada Pengguna &amp; Akses.</>} Tombol dinonaktifkan untuk menjaga keamanan transaksi.</p>}
       {!projects.length && <p className={styles.permissionNotice}>Belum ada Project aktif dalam Area Kerja akun ini. Atur Scope Project melalui Pengguna & Akses.</p>}
       <section className={styles.summary}>
         <div><strong>{documents.length}</strong><span>Total Dokumen</span></div>
