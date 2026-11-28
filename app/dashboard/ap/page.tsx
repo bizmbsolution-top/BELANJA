@@ -118,5 +118,6 @@ export default async function ApPage() {
     canCreateEdit={isSuperadmin || permissions.some((item) => item.permission_key === "ap.create_edit" && item.effect === "allow")}
     canSubmit={isSuperadmin || permissions.some((item) => item.permission_key === "ap.submit" && item.effect === "allow")}
     formulaConfigReady={!categoryError}
+    isCashier={actor.roles.includes("Cashier")}
   />;
 }
