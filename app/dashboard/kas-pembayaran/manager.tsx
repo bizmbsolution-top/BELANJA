@@ -13,6 +13,9 @@ export type CashierPayment = {
   id: string; expense_id: string; payment_date: string; amount: number;
   payment_reference: string | null; notes: string | null; created_at: string;
 };
+export type CashierEvidence = {
+  id: string; expense_payment_id: string; original_file_name: string; mime_type: string; signed_url: string;
+};
 
 const money = (value: number) => new Intl.NumberFormat("id-ID", {
   style: "currency", currency: "IDR", maximumFractionDigits: 0,
@@ -22,10 +25,11 @@ const date = (value: string) => new Intl.DateTimeFormat("id-ID", {
 }).format(new Date(value.length === 10 ? value + "T00:00:00" : value));
 
 export default function CashierPaymentManager({
-  documents, payments, balances, canPost, today,
+  documents, payments, evidence, balances, canPost, today,
 }: {
   documents: CashierAp[];
   payments: CashierPayment[];
+  evidence: CashierEvidence[];
   balances: Record<string, number>;
   canPost: boolean;
   today: string;
@@ -40,7 +44,8 @@ export default function CashierPaymentManager({
   const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [saving, setSaving] = useState(false);\n  const [uploadingId, setUploadingId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [uploadingId, setUploadingId] = useState<string | null>(null);
 
   const paymentTotals = useMemo(() => {
     const totals: Record<string, number> = {};
@@ -72,7 +77,15 @@ export default function CashierPaymentManager({
     setError("");
     setSuccess("");
   }
-  async function uploadEvidence(paymentId: string, file: File, input: HTMLInputElement) {\n    setUploadingId(paymentId); setError(""); setSuccess("");\n    const result = await uploadApPaymentEvidence(paymentId, file);\n    setUploadingId(null); input.value = "";\n    if (!result.ok) { setError(result.error); return; }\n    setSuccess(`Bukti ${result.fileName} berhasil diunggah.`);\n    router.refresh();\n  }\n  async function submitPayment() {
+  async function uploadEvidence(paymentId: string, file: File, input: HTMLInputElement) {
+    setUploadingId(paymentId); setError(""); setSuccess("");
+    const result = await uploadApPaymentEvidence(paymentId, file);
+    setUploadingId(null); input.value = "";
+    if (!result.ok) { setError(result.error); return; }
+    setSuccess(`Bukti ${result.fileName} berhasil diunggah.`);
+    router.refresh();
+  }
+  async function submitPayment() {
     if (!selected) return;
     const numericAmount = Number(amount.replace(/\D/g, ""));
     setSaving(true); setError(""); setSuccess("");
@@ -159,7 +172,15 @@ export default function CashierPaymentManager({
             {!selectedPayments.length ? <p className={styles.muted}>Belum ada pembayaran.</p> : selectedPayments.map((payment) => <article key={payment.id}>
               <div><strong>{money(Number(payment.amount))}</strong><span>{date(payment.payment_date)}</span></div>
               <small>Kasir · Tunai{payment.payment_reference ? ` · Ref: ${payment.payment_reference}` : ""}</small>
-              {payment.notes && <p>{payment.notes}</p>}\n              <div className={styles.evidenceList}>\n                {(evidence.filter((item) => item.expense_payment_id === payment.id)).map((item) => <a key={item.id} href={item.signed_url} target="_blank" rel="noreferrer">{item.mime_type.startsWith("image/") ? "Lihat gambar" : "Buka PDF"} · {item.original_file_name}</a>)}\n                {!evidence.some((item) => item.expense_payment_id === payment.id) && <small className={styles.muted}>Belum ada bukti terlampir.</small>}\n                {canPost && <label className={styles.uploadEvidence}>\n                  {uploadingId === payment.id ? "Mengunggah..." : "Tambah bukti (PDF/JPG/PNG)"}\n                  <input type="file" accept="application/pdf,image/jpeg,image/png" disabled={uploadingId !== null} onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadEvidence(payment.id, file, event.currentTarget); }} />\n                </label>}\n              </div>
+              {payment.notes && <p>{payment.notes}</p>}
+              <div className={styles.evidenceList}>
+                {(evidence.filter((item) => item.expense_payment_id === payment.id)).map((item) => <a key={item.id} href={item.signed_url} target="_blank" rel="noreferrer">{item.mime_type.startsWith("image/") ? "Lihat gambar" : "Buka PDF"} · {item.original_file_name}</a>)}
+                {!evidence.some((item) => item.expense_payment_id === payment.id) && <small className={styles.muted}>Belum ada bukti terlampir.</small>}
+                {canPost && <label className={styles.uploadEvidence}>
+                  {uploadingId === payment.id ? "Mengunggah..." : "Tambah bukti (PDF/JPG/PNG)"}
+                  <input type="file" accept="application/pdf,image/jpeg,image/png" disabled={uploadingId !== null} onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadEvidence(payment.id, file, event.currentTarget); }} />
+                </label>}
+              </div>
             </article>)}
           </div>
           {canPost && selectedOutstanding > 0 && <div className={styles.paymentForm}>
