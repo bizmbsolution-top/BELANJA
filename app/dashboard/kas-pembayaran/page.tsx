@@ -62,13 +62,38 @@ export default async function KasPembayaranPage() {
     ...row,
     project_name: projectNames.get(row.project_id) ?? "Project",
   })) as CashierAp[];
-  const payments = (paymentResult.data ?? []) as CashierPayment[];\n  const paymentIds = payments.map((payment) => payment.id);\n  const { data: evidenceRows, error: evidenceError } = paymentIds.length\n    ? await admin.from("expense_payment_evidence")\n        .select("id,expense_payment_id,object_path,original_file_name,mime_type")\n        .eq("tenant_id", actor.tenantId).in("expense_payment_id", paymentIds)\n    : { data: [], error: null };\n  if (evidenceError) throw new Error("Bukti pembayaran gagal dimuat.");\n  const evidence: CashierEvidence[] = await Promise.all((evidenceRows ?? []).map(async (item) => {\n    const { data: signed, error: signedError } = await admin.storage.from("expense-payment-evidence").createSignedUrl(item.object_path, 300);\n    if (signedError || !signed?.signedUrl) throw new Error("Tautan bukti pembayaran gagal dibuat.");\n    return { id: item.id, expense_payment_id: item.expense_payment_id, original_file_name: item.original_file_name, mime_type: item.mime_type, signed_url: signed.signedUrl };\n  }));
+  const payments = (paymentResult.data ?? []) as CashierPayment[];
+  const paymentIds = payments.map((payment) => payment.id);
+  const { data: evidenceRows, error: evidenceError } = paymentIds.length
+    ? await admin.from("expense_payment_evidence")
+        .select("id,expense_payment_id,object_path,original_file_name,mime_type")
+        .eq("tenant_id", actor.tenantId).in("expense_payment_id", paymentIds)
+    : { data: [], error: null };
+  if (evidenceError) throw new Error("Bukti pembayaran gagal dimuat.");
+  const evidence: CashierEvidence[] = await Promise.all((evidenceRows ?? []).map(async (item) => {
+    const { data: signed, error: signedError } = await admin.storage.from("expense-payment-evidence").createSignedUrl(item.object_path, 300);
+    if (signedError || !signed?.signedUrl) throw new Error("Tautan bukti pembayaran gagal dibuat.");
+    return { id: item.id, expense_payment_id: item.expense_payment_id, original_file_name: item.original_file_name, mime_type: item.mime_type, signed_url: signed.signedUrl };
+  }));
+  const paymentIds = payments.map((payment) => payment.id);
+  const { data: evidenceRows, error: evidenceError } = paymentIds.length
+    ? await admin.from("expense_payment_evidence")
+        .select("id,expense_payment_id,object_path,original_file_name,mime_type")
+        .eq("tenant_id", actor.tenantId).in("expense_payment_id", paymentIds)
+    : { data: [], error: null };
+  if (evidenceError) throw new Error("Bukti pembayaran gagal dimuat.");
+  const evidence: CashierEvidence[] = await Promise.all((evidenceRows ?? []).map(async (item) => {
+    const { data: signed, error: signedError } = await admin.storage.from("expense-payment-evidence").createSignedUrl(item.object_path, 300);
+    if (signedError || !signed?.signedUrl) throw new Error("Tautan bukti pembayaran gagal dibuat.");
+    return { id: item.id, expense_payment_id: item.expense_payment_id, original_file_name: item.original_file_name, mime_type: item.mime_type, signed_url: signed.signedUrl };
+  }));
   const balances: Record<string, number> = {};
   for (const entry of ledgerResult.data ?? []) balances[entry.project_id] = (balances[entry.project_id] ?? 0) + Number(entry.amount);
 
   return <CashierPaymentManager
     documents={documents}
     payments={payments}
+    evidence={evidence}
     balances={balances}
     canPost={canPost}
     today={new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Jakarta" })}
