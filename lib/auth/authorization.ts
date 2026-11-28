@@ -393,8 +393,8 @@ export async function requirePlatformOwner(): Promise<AccessContext> {
  * Requires tenant-scoped AP authorization.
  *
  * Tenant Superadmin is authorized after getAccessContext() verifies active
- * membership, active tenant, and active tenant profile. Finance must hold the
- * Finance operational Role and an explicit individual allow for the requested
+ * membership, active tenant, and active tenant profile. Cashier must hold the
+ * Cashier operational Role and an explicit individual allow for the requested
  * AP permission. Unset and deny both fail closed. Platform Owner is not a
  * tenant AP operator.
  */
@@ -412,10 +412,10 @@ export async function requireApPermission(
 
   if (context.tenantRole === "superadmin") return context;
 
-  if (!context.roles.includes("Finance")) {
+  if (!context.roles.includes("Cashier")) {
     throw new AuthorizationError(
       "role-not-permitted",
-      "Akses AP hanya tersedia untuk Finance atau Superadmin tenant.",
+      "Akses AP hanya tersedia untuk Cashier atau Superadmin tenant.",
     );
   }
 
