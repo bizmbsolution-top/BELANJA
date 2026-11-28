@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { postApCashierPayment } from "./actions";
+import { postApCashierPayment, uploadApPaymentEvidence } from "./actions";
 import styles from "./payments.module.css";
 
 export type CashierAp = {
@@ -40,7 +40,7 @@ export default function CashierPaymentManager({
   const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [saving, setSaving] = useState(false);
+  const [saving, setSaving] = useState(false);\n  const [uploadingId, setUploadingId] = useState<string | null>(null);
 
   const paymentTotals = useMemo(() => {
     const totals: Record<string, number> = {};
@@ -72,7 +72,7 @@ export default function CashierPaymentManager({
     setError("");
     setSuccess("");
   }
-  async function submitPayment() {
+  async function uploadEvidence(paymentId: string, file: File, input: HTMLInputElement) {\n    setUploadingId(paymentId); setError(""); setSuccess("");\n    const result = await uploadApPaymentEvidence(paymentId, file);\n    setUploadingId(null); input.value = "";\n    if (!result.ok) { setError(result.error); return; }\n    setSuccess(`Bukti ${result.fileName} berhasil diunggah.`);\n    router.refresh();\n  }\n  async function submitPayment() {
     if (!selected) return;
     const numericAmount = Number(amount.replace(/\D/g, ""));
     setSaving(true); setError(""); setSuccess("");
@@ -157,7 +157,7 @@ export default function CashierPaymentManager({
             {!selectedPayments.length ? <p className={styles.muted}>Belum ada pembayaran.</p> : selectedPayments.map((payment) => <article key={payment.id}>
               <div><strong>{money(Number(payment.amount))}</strong><span>{date(payment.payment_date)}</span></div>
               <small>Kasir · Tunai{payment.payment_reference ? ` · Ref: ${payment.payment_reference}` : ""}</small>
-              {payment.notes && <p>{payment.notes}</p>}
+              {payment.notes && <p>{payment.notes}</p>}\n              <div className={styles.evidenceList}>\n                {(evidence.filter((item) => item.expense_payment_id === payment.id)).map((item) => <a key={item.id} href={item.signed_url} target="_blank" rel="noreferrer">{item.mime_type.startsWith("image/") ? "Lihat gambar" : "Buka PDF"} · {item.original_file_name}</a>)}\n                {!evidence.some((item) => item.expense_payment_id === payment.id) && <small className={styles.muted}>Belum ada bukti terlampir.</small>}\n                {canPost && <label className={styles.uploadEvidence}>\n                  {uploadingId === payment.id ? "Mengunggah..." : "Tambah bukti (PDF/JPG/PNG)"}\n                  <input type="file" accept="application/pdf,image/jpeg,image/png" disabled={uploadingId !== null} onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadEvidence(payment.id, file, event.currentTarget); }} />\n                </label>}\n              </div>
             </article>)}
           </div>
           {canPost && selectedOutstanding > 0 && <div className={styles.paymentForm}>
