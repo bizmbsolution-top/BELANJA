@@ -122,7 +122,7 @@ export async function postApCashierPayment(input: {
       if (data?.effect !== "allow") return { ok: false, error: "Akun ini belum memiliki izin Catat Pembayaran (payment.post)." };
     }
     if (!UUID.test(input?.expenseId ?? "")) return { ok: false, error: "Dokumen AP tidak valid." };
-    if (typeof input.paymentDate !== "string" || !/^\\d{4}-\\d{2}-\\d{2}$/.test(input.paymentDate)) {
+    if (typeof input.paymentDate !== "string" || !/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(input.paymentDate)) {
       return { ok: false, error: "Tanggal pembayaran tidak valid." };
     }
     const [year, month, day] = input.paymentDate.split("-").map(Number);
