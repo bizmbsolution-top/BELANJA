@@ -42,6 +42,7 @@ export default function CashierPaymentManager({
   const [paymentDate, setPaymentDate] = useState(today);
   const [reference, setReference] = useState("");
   const [notes, setNotes] = useState("");
+  const [evidenceFile, setEvidenceFile] = useState<File | null>(null);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [saving, setSaving] = useState(false);
@@ -95,8 +96,19 @@ export default function CashierPaymentManager({
     });
     setSaving(false);
     if (!result.ok) { setError(result.error); return; }
-    setSuccess("Pembayaran berhasil dicatat dan saldo Kasir diperbarui.");
     setAmount(""); setReference(""); setNotes("");
+    if (evidenceFile) {
+      const uploadResult = await uploadApPaymentEvidence(result.paymentId, evidenceFile);
+      setEvidenceFile(null);
+      if (!uploadResult.ok) {
+        setSuccess("Pembayaran sudah tercatat, tetapi bukti belum terunggah. Tambahkan bukti dari riwayat pembayaran.");
+        setError(uploadResult.error);
+      } else {
+        setSuccess("Pembayaran dan bukti berhasil dicatat.");
+      }
+    } else {
+      setSuccess("Pembayaran berhasil dicatat dan saldo Kasir diperbarui.");
+    }
     router.refresh();
   }
 
@@ -190,6 +202,8 @@ export default function CashierPaymentManager({
             <p className={styles.helper}>Maksimal pembayaran saat ini: <strong>{money(selectedOutstanding)}</strong></p>
             <label>Referensi / No. Bukti (opsional)<input maxLength={160} value={reference} onChange={(e) => setReference(e.target.value)} placeholder="Nomor kuitansi atau referensi kas" /></label>
             <label>Catatan (opsional)<textarea rows={2} maxLength={500} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Catatan pembayaran" /></label>
+            <label>Bukti Pembayaran (opsional, PDF/JPG/PNG · maks. 10 MB)<input type="file" accept="application/pdf,image/jpeg,image/png" onChange={(e) => setEvidenceFile(e.target.files?.[0] ?? null)} /></label>
+            {evidenceFile && <p className={styles.helper}>File dipilih: <strong>{evidenceFile.name}</strong></p>}
             {error && <p className={styles.error} role="alert">{error}</p>}
             {success && <p className={styles.success} role="status">{success}</p>}
             <div className={styles.formActions}><button type="button" className={styles.secondary} onClick={closePayment}>Tutup</button><button type="button" className={styles.primary} disabled={saving || !amount || Number(amount.replace(/\D/g,"")) <= 0} onClick={submitPayment}>{saving ? "Menyimpan..." : "Simpan Pembayaran"}</button></div>
